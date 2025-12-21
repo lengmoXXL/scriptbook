@@ -7,7 +7,7 @@ name = "sop-online"
 version = "1.0.0"
 description = "SOP Online - Interactive web platform for executing Standard Operating Procedures (SOP) with embedded scripts"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "lzy", email = "forlearn_lzy@163.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -35,9 +35,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
     "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
     "coverage>=7.3.0",
 ]
 
@@ -45,8 +46,9 @@ dev = [
 sop_online = "sop_online.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/sop-online"
-Repository = "https://github.com/yourusername/sop-online"
+Homepage = "https://github.com/lengmoXXL/sop_online"
+Repository = "https://github.com/lengmoXXL/sop_online"
+Issues = "https://github.com/lengmoXXL/sop_online/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sop_online"]

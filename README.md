@@ -28,8 +28,8 @@
 pip install sop-online
 
 # 或者从源码安装
-git clone https://github.com/yourusername/sop-online.git
-cd sop-online
+git clone https://github.com/lengmoXXL/sop_online.git
+cd sop_online
 pip install .
 ```
 
@@ -75,8 +75,8 @@ MIT License
 
 ### GitHub仓库
 
-- 源码: https://github.com/yourusername/sop-online
-- 问题反馈: https://github.com/yourusername/sop-online/issues
+- 源码: https://github.com/lengmoXXL/sop_online
+- 问题反馈: https://github.com/lengmoXXL/sop_online/issues
 
 ## 🧪 测试
 
@@ -94,8 +94,8 @@ pytest src/integration_tests/test_sop_online_pytest.py -v
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/sop-online.git
-cd sop-online
+git clone https://github.com/lengmoXXL/sop_online.git
+cd sop_online
 
 # 创建虚拟环境
 python -m venv .venv
