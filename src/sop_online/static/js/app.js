@@ -1,0 +1,271 @@
+// SOP Online 主应用逻辑
+
+class App {
+    constructor() {
+        this.currentFile = null;
+        this.activeConnections = new Map(); // scriptId -> WebSocket
+    }
+
+    async init() {
+        console.log('SOP Online 应用初始化...');
+
+        // 绑定事件
+        this.bindEvents();
+
+        // 加载文件列表
+        await this.loadFileList();
+
+        // 自动选择第一个文件
+        if (this.fileList && this.fileList.length > 0) {
+            await this.selectFile(this.fileList[0].name);
+        }
+
+        console.log('SOP Online 应用初始化完成');
+    }
+
+    bindEvents() {
+        console.log('绑定事件监听器...');
+
+        // 文件选择器
+        const fileSelect = document.getElementById('file-select');
+        if (!fileSelect) {
+            console.error('找不到文件选择器元素 #file-select');
+            return;
+        }
+        fileSelect.addEventListener('change', (e) => {
+            console.log('文件选择器变更:', e.target.value);
+            this.selectFile(e.target.value);
+        });
+    }
+
+    async loadFileList() {
+        console.log('loadFileList 调用...');
+        try {
+            const response = await fetch('/api/markdown/files');
+            console.log('文件列表响应状态:', response.status);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            console.log('收到文件列表，文件数量:', data.files?.length);
+            this.fileList = data.files;
+            this.updateFileSelect(data.files);
+
+            return data.files;
+        } catch (error) {
+            console.error('加载文件列表失败:', error);
+            this.showError('加载文件列表失败: ' + error.message);
+            return [];
+        }
+    }
+
+    updateFileSelect(files) {
+        const select = document.getElementById('file-select');
+        select.innerHTML = '';
+
+        if (files.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '没有找到markdown文件';
+            select.appendChild(option);
+            return;
+        }
+
+        files.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file.name;
+            option.textContent = `${file.name} (${this.formatFileSize(file.size)})`;
+            select.appendChild(option);
+        });
+    }
+
+    async selectFile(filename) {
+        console.log('selectFile 调用，filename:', filename);
+        if (!filename) {
+            console.log('selectFile: 空文件名，返回');
+            return;
+        }
+
+        try {
+            this.currentFile = filename;
+            const currentFileElement = document.getElementById('current-file');
+            if (currentFileElement) {
+                currentFileElement.textContent = `当前文件: ${filename}`;
+            } else {
+                console.error('找不到 #current-file 元素');
+            }
+
+            console.log('请求 /api/markdown/render?file=', encodeURIComponent(filename));
+            // 使用新的 /render 端点加载完整HTML，禁用缓存
+            const response = await fetch(`/api/markdown/render?file=${encodeURIComponent(filename)}`, {
+                cache: 'no-cache'
+            });
+            console.log('响应状态:', response.status, response.ok);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            console.log('收到渲染数据，脚本块数量:', data.scripts.length);
+            console.log('HTML长度:', data.html?.length);
+
+            // 设置HTML到markdown内容区域（包含脚本块）
+            const container = document.getElementById('markdown-content');
+            if (!container) {
+                console.error('找不到 #markdown-content 容器');
+                return;
+            }
+            console.log('替换 #markdown-content 的innerHTML');
+            container.innerHTML = data.html;
+
+            console.log('文件加载完成:', filename);
+
+        } catch (error) {
+            console.error('选择文件失败:', error);
+            this.showError('加载文件失败: ' + error.message);
+        }
+    }
+
+    addScriptOutput(scriptId, type, content) {
+        // 查找对应的输出区域
+        const outputElement = document.getElementById(`output-${scriptId}`);
+        if (!outputElement) {
+            console.error(`找不到输出区域: output-${scriptId}`);
+            return;
+        }
+
+        // 移除占位符
+        if (outputElement.querySelector('.output-placeholder')) {
+            outputElement.innerHTML = '';
+        }
+
+        const line = document.createElement('div');
+        line.className = `output-line ${type}`;
+
+        const timestamp = document.createElement('span');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = new Date().toLocaleTimeString();
+
+        const contentSpan = document.createElement('span');
+        contentSpan.className = 'content';
+        contentSpan.textContent = content;
+
+        line.appendChild(timestamp);
+        line.appendChild(contentSpan);
+        outputElement.appendChild(line);
+
+        // 滚动到底部
+        outputElement.scrollTop = outputElement.scrollHeight;
+    }
+
+    showError(message) {
+        console.error(message);
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+// 全局函数：执行脚本
+async function executeScript(scriptId) {
+    console.log('执行脚本:', scriptId);
+
+    // 获取脚本代码
+    const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+    const codeElement = scriptBlock.querySelector('.script-code');
+    const outputElement = scriptBlock.querySelector(`#output-${scriptId}`);
+    const code = codeElement.textContent;
+
+    // 关闭现有连接
+    if (window.app.activeConnections.has(scriptId)) {
+        const ws = window.app.activeConnections.get(scriptId);
+        ws.close();
+        window.app.activeConnections.delete(scriptId);
+    }
+
+    // 更新UI
+    const executeBtn = scriptBlock.querySelector('.execute-btn');
+    const stopBtn = scriptBlock.querySelector('.stop-btn');
+    executeBtn.disabled = true;
+    executeBtn.textContent = '执行中...';
+    stopBtn.disabled = false;
+
+    // 清空输出区域
+    outputElement.innerHTML = '';
+
+    // 建立WebSocket连接
+    try {
+        const ws = new WebSocket(`ws://${window.location.host}/api/scripts/${scriptId}/execute`);
+        window.app.activeConnections.set(scriptId, ws);
+
+        ws.onopen = () => {
+            console.log(`WebSocket连接已建立: ${scriptId}`);
+            window.app.addScriptOutput(scriptId, 'stdout', `=== 开始执行: ${scriptId} ===`);
+
+            // 发送脚本代码
+            ws.send(JSON.stringify({ code: code }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const { type, content } = data;
+            window.app.addScriptOutput(scriptId, type, content);
+
+            // 如果是退出或错误，恢复按钮状态
+            if (type === 'exit' || type === 'error') {
+                executeBtn.disabled = false;
+                executeBtn.textContent = '执行脚本';
+                stopBtn.disabled = true;
+                window.app.activeConnections.delete(scriptId);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error(`WebSocket错误: ${scriptId}`, error);
+            window.app.addScriptOutput(scriptId, 'error', `脚本执行错误: ${error.message || '未知错误'}`);
+            executeBtn.disabled = false;
+            executeBtn.textContent = '执行脚本';
+            stopBtn.disabled = true;
+            window.app.activeConnections.delete(scriptId);
+        };
+
+        ws.onclose = () => {
+            console.log(`WebSocket连接已关闭: ${scriptId}`);
+            executeBtn.disabled = false;
+            executeBtn.textContent = '执行脚本';
+            stopBtn.disabled = true;
+            window.app.activeConnections.delete(scriptId);
+        };
+
+    } catch (error) {
+        console.error(`执行脚本失败: ${scriptId}`, error);
+        window.app.addScriptOutput(scriptId, 'error', `执行失败: ${error.message}`);
+        executeBtn.disabled = false;
+        executeBtn.textContent = '执行脚本';
+        stopBtn.disabled = true;
+    }
+}
+
+// 全局函数：复制代码
+async function copyCode(scriptId) {
+    const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+    const codeElement = scriptBlock.querySelector('.script-code');
+    const code = codeElement.textContent;
+
+    try {
+        await navigator.clipboard.writeText(code);
+        console.log('代码已复制到剪贴板');
+    } catch (err) {
+        console.error('复制失败:', err);
+    }
+}
+
+// 创建全局应用实例
+window.app = new App();
+
+// 页面加载完成后初始化应用
+document.addEventListener('DOMContentLoaded', async () => {
+    await window.app.init();
+});

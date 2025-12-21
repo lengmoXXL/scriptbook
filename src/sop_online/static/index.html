@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOPOnline</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <script src="/static/js/app.js" defer></script>
+    <script src="/static/js/plugin-loader.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>SOPOnline</h1>
+        <p class="subtitle">标准操作流程(SOP)在线执行服务</p>
+    </header>
+
+    <main>
+        <!-- 控制栏 -->
+        <div class="controls">
+            <div class="file-selector">
+                <label for="file-select">选择Markdown文件:</label>
+                <select id="file-select">
+                    <option value="" disabled selected>加载中...</option>
+                </select>
+            </div>
+            <div class="plugin-selector">
+                <label for="plugin-select">主题:</label>
+                <select id="plugin-select">
+                    <option value="" disabled selected>加载中...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content-area">
+            <!-- Markdown渲染区域 -->
+            <div class="markdown-section">
+                <div class="section-header">
+                    <h2>Markdown预览</h2>
+                    <span id="current-file">未选择文件</span>
+                </div>
+                <div id="markdown-content" class="markdown-content">
+                    <p>请从上方选择Markdown文件...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>SOPOnline &copy; 2025 | 标准操作流程(SOP)在线执行服务 | 支持Bash脚本执行 | 实时输出</p>
+    </footer>
+
+    <template id="script-block-template">
+        <div class="script-block" data-script-id="">
+            <div class="script-header">
+                <div class="script-info">
+                    <span class="script-title"></span>
+                    <span class="script-language"></span>
+                </div>
+                <button class="execute-btn">执行脚本</button>
+            </div>
+            <pre class="script-code"></pre>
+            <div class="script-actions">
+                <button class="copy-btn">复制代码</button>
+                <button class="stop-btn" disabled>停止执行</button>
+            </div>
+        </div>
+    </template>
+
+    <template id="output-line-template">
+        <div class="output-line" data-type="">
+            <span class="timestamp"></span>
+            <span class="content"></span>
+        </div>
+    </template>
+</body>
+</html>

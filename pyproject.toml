@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sop-online"
+version = "1.0.0"
+description = "SOP Online - Interactive web platform for executing Standard Operating Procedures (SOP) with embedded scripts"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "markdown>=3.5",
+    "websockets>=12.0",
+    "watchdog>=3.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "coverage>=7.3.0",
+]
+
+[project.scripts]
+sop_online = "sop_online.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/sop-online"
+Repository = "https://github.com/yourusername/sop-online"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sop_online"]
+
+[tool.uvicorn]
+port = "8000"
+host = "127.0.0.1"
