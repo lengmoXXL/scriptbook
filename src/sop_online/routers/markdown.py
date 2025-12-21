@@ -84,6 +84,11 @@ def render_script_block(script):
         <div class="script-output" id="output-{script_id}">
             <div class="output-placeholder">点击"执行脚本"查看输出...</div>
         </div>
+        <div class="script-input-container" id="input-container-{script_id}" style="display: none;">
+            <div class="input-label">输入:</div>
+            <input type="text" class="script-input" id="input-{script_id}" placeholder="输入命令所需内容，按Enter发送">
+            <button class="input-send-btn" onclick="sendInput('{script_id}')">发送</button>
+        </div>
     </div>
     '''
     return html_content

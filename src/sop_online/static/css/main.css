@@ -298,3 +298,56 @@ footer {
         justify-content: flex-start;
     }
 }
+
+/* 脚本输入框样式 */
+.script-input-container {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid;
+    gap: 0.5rem;
+}
+
+.input-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.script-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+
+.script-input:focus {
+    outline: none;
+    border-width: 2px;
+}
+
+.input-send-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: none;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .script-input-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .input-label {
+        align-self: flex-start;
+    }
+}

@@ -39,9 +39,14 @@ class ScriptExecuteRequest(BaseModel):
 
 # 脚本输出消息
 class ScriptOutputMessage(BaseModel):
-    type: str  # stdout, stderr, exit
+    type: str  # stdout, stderr, exit, stdin_prompt, error
     content: str
     timestamp: str  # ISO 8601格式的时间戳字符串
+
+# 脚本输入消息（从客户端发送到服务器）
+class ScriptInputMessage(BaseModel):
+    type: str = "input"  # 固定为"input"
+    content: str  # 用户输入的内容
 
 # 插件信息
 class PluginInfo(BaseModel):

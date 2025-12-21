@@ -168,8 +168,8 @@ class App {
     }
 }
 
-// 全局函数：执行脚本
-async function executeScript(scriptId) {
+// 将函数分配给 window 对象，使其在测试环境中可以访问
+window.executeScript = async function executeScript(scriptId) {
     console.log('执行脚本:', scriptId);
 
     // 获取脚本代码
@@ -177,6 +177,27 @@ async function executeScript(scriptId) {
     const codeElement = scriptBlock.querySelector('.script-code');
     const outputElement = scriptBlock.querySelector(`#output-${scriptId}`);
     const code = codeElement.textContent;
+
+    // 获取输入容器和输入框
+    const inputContainer = document.getElementById(`input-container-${scriptId}`);
+    const inputElement = document.getElementById(`input-${scriptId}`);
+
+    // 显示输入容器
+    if (inputContainer) {
+        inputContainer.style.display = 'flex';
+    }
+
+    // 添加输入框Enter键事件监听器
+    if (inputElement) {
+        const handleInputKeyPress = (event) => {
+            if (event.key === 'Enter') {
+                sendInput(scriptId);
+            }
+        };
+        // 先移除之前的监听器，避免重复添加
+        inputElement.removeEventListener('keypress', handleInputKeyPress);
+        inputElement.addEventListener('keypress', handleInputKeyPress);
+    }
 
     // 关闭现有连接
     if (window.app.activeConnections.has(scriptId)) {
@@ -213,12 +234,18 @@ async function executeScript(scriptId) {
             const { type, content } = data;
             window.app.addScriptOutput(scriptId, type, content);
 
-            // 如果是退出或错误，恢复按钮状态
+            // 如果是退出或错误，恢复按钮状态并隐藏输入容器
             if (type === 'exit' || type === 'error') {
                 executeBtn.disabled = false;
                 executeBtn.textContent = '执行脚本';
                 stopBtn.disabled = true;
                 window.app.activeConnections.delete(scriptId);
+
+                // 隐藏输入容器
+                const inputContainer = document.getElementById(`input-container-${scriptId}`);
+                if (inputContainer) {
+                    inputContainer.style.display = 'none';
+                }
             }
         };
 
@@ -229,6 +256,12 @@ async function executeScript(scriptId) {
             executeBtn.textContent = '执行脚本';
             stopBtn.disabled = true;
             window.app.activeConnections.delete(scriptId);
+
+            // 隐藏输入容器
+            const inputContainer = document.getElementById(`input-container-${scriptId}`);
+            if (inputContainer) {
+                inputContainer.style.display = 'none';
+            }
         };
 
         ws.onclose = () => {
@@ -237,6 +270,12 @@ async function executeScript(scriptId) {
             executeBtn.textContent = '执行脚本';
             stopBtn.disabled = true;
             window.app.activeConnections.delete(scriptId);
+
+            // 隐藏输入容器
+            const inputContainer = document.getElementById(`input-container-${scriptId}`);
+            if (inputContainer) {
+                inputContainer.style.display = 'none';
+            }
         };
 
     } catch (error) {
@@ -245,11 +284,17 @@ async function executeScript(scriptId) {
         executeBtn.disabled = false;
         executeBtn.textContent = '执行脚本';
         stopBtn.disabled = true;
+
+        // 隐藏输入容器
+        const inputContainer = document.getElementById(`input-container-${scriptId}`);
+        if (inputContainer) {
+            inputContainer.style.display = 'none';
+        }
     }
 }
 
-// 全局函数：复制代码
-async function copyCode(scriptId) {
+// 将函数分配给 window 对象，使其在测试环境中可以访问
+window.copyCode = async function copyCode(scriptId) {
     const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
     const codeElement = scriptBlock.querySelector('.script-code');
     const code = codeElement.textContent;
@@ -259,6 +304,42 @@ async function copyCode(scriptId) {
         console.log('代码已复制到剪贴板');
     } catch (err) {
         console.error('复制失败:', err);
+    }
+}
+
+// 将函数分配给 window 对象，使其在测试环境中可以访问
+window.sendInput = async function sendInput(scriptId) {
+    const inputElement = document.getElementById(`input-${scriptId}`);
+    const inputValue = inputElement.value.trim();
+
+    if (!inputValue) {
+        return;
+    }
+
+    // 获取WebSocket连接
+    const ws = window.app.activeConnections.get(scriptId);
+    if (!ws || ws.readyState !== (window.WebSocket?.OPEN ?? 1)) {
+        console.error(`脚本 ${scriptId} 没有活动的WebSocket连接`);
+        window.app.addScriptOutput(scriptId, 'error', `脚本 ${scriptId} 没有活动的WebSocket连接`);
+        return;
+    }
+
+    try {
+        // 发送输入消息
+        ws.send(JSON.stringify({ type: "input", content: inputValue }));
+
+        // 在输出中显示用户输入（可选）
+        window.app.addScriptOutput(scriptId, 'stdin', `> ${inputValue}`);
+
+        // 清空输入框
+        inputElement.value = '';
+
+        // 聚焦输入框以便继续输入
+        inputElement.focus();
+
+    } catch (error) {
+        console.error(`发送输入失败: ${scriptId}`, error);
+        window.app.addScriptOutput(scriptId, 'error', `发送输入失败: ${error.message}`);
     }
 }
 

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sop_online.models.schemas import ScriptOutputMessage
+from sop_online.models.schemas import ScriptOutputMessage, ScriptInputMessage
 import asyncio
 import subprocess
 import sys
 from datetime import datetime
+import json
 
 # 创建不带prefix的router
 router = APIRouter(tags=["scripts"])
@@ -11,9 +12,12 @@ router = APIRouter(tags=["scripts"])
 @router.websocket("/scripts/{script_id}/execute")
 async def execute_script(websocket: WebSocket, script_id: str):
     """
-    WebSocket端点，用于执行脚本并实时输出
+    WebSocket端点，用于执行脚本并实时输出，支持交互式输入
     """
     await websocket.accept()
+
+    process = None
+    stdin_queue = asyncio.Queue()
 
     try:
         # 接收脚本代码
@@ -27,33 +31,102 @@ async def execute_script(websocket: WebSocket, script_id: str):
             })
             return
 
-        # 执行bash脚本
+        # 执行bash脚本，启用stdin管道
         process = await asyncio.create_subprocess_shell(
             code,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
             shell=True
         )
 
-        # 实时读取输出
-        async def read_stream(stream, output_type):
-            while True:
-                line = await stream.readline()
-                if not line:
-                    break
-                message = ScriptOutputMessage(
-                    type=output_type,
-                    content=line.decode("utf-8", errors="replace").rstrip(),
-                    timestamp=datetime.now().isoformat()
-                )
-                await websocket.send_json(message.dict())
+        # 从WebSocket接收输入消息的任务
+        async def receive_input():
+            try:
+                while True:
+                    data = await websocket.receive_text()
+                    try:
+                        msg = json.loads(data)
+                        if msg.get("type") == "input":
+                            content = msg.get("content", "")
+                            # 将输入内容放入队列，添加换行符（因为大多数命令需要回车）
+                            await stdin_queue.put(content + "\n")
+                    except json.JSONDecodeError:
+                        # 如果不是JSON，可能直接是文本输入
+                        await stdin_queue.put(data + "\n")
+            except WebSocketDisconnect:
+                # 客户端断开连接
+                await stdin_queue.put(None)  # 发送结束信号
+            except Exception as e:
+                print(f"接收输入错误: {e}")
+                await stdin_queue.put(None)
 
-        # 同时读取stdout和stderr
+        # 向进程stdin写入数据的任务
+        async def write_stdin():
+            try:
+                while True:
+                    # 从队列获取输入
+                    input_data = await stdin_queue.get()
+                    if input_data is None:  # 结束信号
+                        if process.stdin:
+                            process.stdin.close()
+                        break
+
+                    if process.stdin and not process.stdin.is_closing():
+                        try:
+                            process.stdin.write(input_data.encode())
+                            await process.stdin.drain()
+                        except (BrokenPipeError, ConnectionResetError):
+                            # 进程可能已经结束
+                            break
+            except Exception as e:
+                print(f"写入stdin错误: {e}")
+            finally:
+                if process.stdin and not process.stdin.is_closing():
+                    process.stdin.close()
+
+        # 读取输出流（stdout/stderr）的任务
+        async def read_stream(stream, output_type):
+            try:
+                while True:
+                    line = await stream.readline()
+                    if not line:
+                        break
+                    message = ScriptOutputMessage(
+                        type=output_type,
+                        content=line.decode("utf-8", errors="replace").rstrip(),
+                        timestamp=datetime.now().isoformat()
+                    )
+                    await websocket.send_json(message.dict())
+            except Exception as e:
+                print(f"读取{output_type}错误: {e}")
+
+        # 启动所有任务
+        receive_task = asyncio.create_task(receive_input())
+        stdin_task = asyncio.create_task(write_stdin())
         stdout_task = asyncio.create_task(read_stream(process.stdout, "stdout"))
         stderr_task = asyncio.create_task(read_stream(process.stderr, "stderr"))
 
-        await stdout_task
-        await stderr_task
+        # 等待输出任务完成
+        await asyncio.gather(stdout_task, stderr_task)
+
+        # 进程结束时，停止接收输入
+        receive_task.cancel()
+        stdin_task.cancel()
+
+        try:
+            await receive_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
+
+        try:
+            await stdin_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
 
         # 等待进程结束
         returncode = await process.wait()
@@ -68,6 +141,8 @@ async def execute_script(websocket: WebSocket, script_id: str):
 
     except WebSocketDisconnect:
         print(f"客户端断开连接: {script_id}")
+        if process and process.returncode is None:
+            process.terminate()
     except Exception as e:
         error_message = ScriptOutputMessage(
             type="error",
@@ -76,4 +151,10 @@ async def execute_script(websocket: WebSocket, script_id: str):
         )
         await websocket.send_json(error_message.dict())
     finally:
+        # 清理
+        if process and process.returncode is None:
+            try:
+                process.terminate()
+            except:
+                pass
         await websocket.close()

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sop-online"
-version = "1.0.0"
+version = "1.1.0"
 description = "SOP Online - Interactive web platform for executing Standard Operating Procedures (SOP) with embedded scripts"
 authors = [
     {name = "lzy", email = "forlearn_lzy@163.com"}
