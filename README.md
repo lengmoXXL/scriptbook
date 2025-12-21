@@ -1,8 +1,10 @@
-# SOP Online - 标准操作流程执行工具
+# SOP Online - 可执行脚本的 Markdown 服务器
 
-一个交互式的SOP（标准操作流程）在线执行工具，借鉴Jupyter Notebook的设计理念，支持在Markdown文档中嵌入可执行脚本，提供实时输出和交互式体验。
+[English](README_en.md)
 
-## ✨ 功能特性
+一个支持脚本执行的在线 Markdown 服务器。借鉴 Jupyter Notebook 的设计理念，支持在 Markdown 文档中嵌入并执行脚本，非常适合 SOP（标准操作流程）自动化和交互式文档场景。
+
+## 功能特性
 
 - **交互式SOP** - 在Markdown中嵌入可执行脚本，类似Jupyter Notebook
 - **交互式输入** - 支持在脚本执行过程中接收用户输入（如`read`命令）
@@ -13,14 +15,14 @@
 - **标准流程** - 适用于企业标准操作流程的展示和执行
 - **完整测试** - 包含102个单元测试和集成测试
 
-## 🖼️ 截图预览
+## 截图预览
 
 ![SOP Online界面截图](docs/screenshot.png)
 
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
-- Python 3.10
+- Python 3.10+
 - 现代浏览器
 
 ### 安装
@@ -56,7 +58,7 @@ open http://localhost:8000
 
 **注意**: 修改代码后请手动重启服务以应用更改。
 
-## 📦 发布信息
+## 发布信息
 
 ### PyPI安装
 
@@ -69,16 +71,16 @@ pip install sop-online
 ### 版本
 
 - 当前版本: 1.1.0
-- Python要求: >=3.14
+- Python要求: >=3.10
 
 ### 更新日志
 
 #### v1.1.0 (2025-12-21)
-- ✨ 新增交互式输入功能，支持在脚本执行过程中接收用户输入
-- 🧪 新增25个JavaScript单元测试
-- 📁 重组测试目录结构，统一管理测试文件
-- 🔧 优化WebSocket通信，支持stdin双向交互
-- ✅ 所有102个测试全部通过
+- 新增交互式输入功能，支持在脚本执行过程中接收用户输入
+- 新增25个JavaScript单元测试
+- 重组测试目录结构，统一管理测试文件
+- 优化WebSocket通信，支持stdin双向交互
+- 所有102个测试全部通过
 
 ### 许可证
 
@@ -89,7 +91,7 @@ MIT License
 - 源码: https://github.com/lengmoXXL/sop_online
 - 问题反馈: https://github.com/lengmoXXL/sop_online/issues
 
-## 🧪 测试
+## 测试
 
 本项目包含完整的测试套件，总计102个测试用例。
 
@@ -119,7 +121,7 @@ pytest src/integration_tests/ -v
 - **JavaScript 测试**: 25个测试用例（使用Jest + JSDOM）
 - **Python 单元测试**: 64个测试用例
 - **集成测试**: 13个测试用例
-- **总测试数**: 102个，全部通过 ✅
+- **总测试数**: 102个，全部通过
 
 测试覆盖：
 - App类初始化和基本功能
@@ -130,7 +132,7 @@ pytest src/integration_tests/ -v
 - 脚本执行器
 - 交互式输入功能
 
-## 📝 开发指南
+## 开发指南
 
 ### 本地开发
 
@@ -172,4 +174,4 @@ twine upload dist/*
 
 ---
 
-**SOP Online** - 让标准操作流程更易于理解和执行 📖
+**SOP Online** - 让标准操作流程更易于理解和执行
