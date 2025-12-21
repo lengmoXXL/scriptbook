@@ -1,4 +1,4 @@
-// SOP Online 主应用逻辑
+// Scriptbook 主应用逻辑
 
 class App {
     constructor() {
@@ -7,7 +7,7 @@ class App {
     }
 
     async init() {
-        console.log('SOP Online 应用初始化...');
+        console.log('Scriptbook 应用初始化...');
 
         // 绑定事件
         this.bindEvents();
@@ -20,7 +20,7 @@ class App {
             await this.selectFile(this.fileList[0].name);
         }
 
-        console.log('SOP Online 应用初始化完成');
+        console.log('Scriptbook 应用初始化完成');
     }
 
     bindEvents() {

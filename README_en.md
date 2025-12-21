@@ -1,21 +1,23 @@
-# SOP Online - Executable Markdown Server
+# Scriptbook - Executable Markdown Server
+
+[中文](README.md)
 
 An online Markdown server with script execution support. Inspired by Jupyter Notebook, it allows embedding and running scripts directly within Markdown documents, making it ideal for SOP (Standard Operating Procedure) automation and interactive documentation.
 
 ## Features
 
-- **Interactive SOP** - Embed executable scripts in Markdown, similar to Jupyter Notebook
+- **Interactive Documents** - Embed executable scripts in Markdown, similar to Jupyter Notebook
 - **Interactive Input** - Support user input during script execution (e.g., `read` command)
 - **Real-time Execution** - WebSocket-based real-time script output streaming
-- **Independent Output** - Each SOP step has its own output area below
-- **Multi-document Support** - Switch between multiple SOP documents
+- **Independent Output** - Each script block has its own output area below
+- **Multi-document Support** - Switch between multiple documents
 - **Theme Switching** - Support for light and dark themes
-- **Standard Procedures** - Ideal for displaying and executing enterprise standard operating procedures
+- **SOP Automation** - Ideal for displaying and executing enterprise standard operating procedures
 - **Comprehensive Testing** - Includes 102 unit and integration tests
 
 ## Screenshot
 
-![SOP Online Interface](docs/screenshot.png)
+![Scriptbook Interface](docs/screenshot.png)
 
 ## Quick Start
 
@@ -27,11 +29,11 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 
 ```bash
 # Direct installation (recommended)
-pip install sop-online
+pip install scriptbook
 
 # Or install from source
-git clone https://github.com/lengmoXXL/sop_online.git
-cd sop_online
+git clone https://github.com/lengmoXXL/scriptbook.git
+cd scriptbook
 pip install .
 ```
 
@@ -39,16 +41,16 @@ pip install .
 
 ```bash
 # Start the server (using default content directory)
-sop_online content/
+scriptbook content/
 
-# Specify a custom SOP directory
-sop_online /path/to/my/sop/documents/
+# Specify a custom document directory
+scriptbook /path/to/my/documents/
 
 # Specify a port
-sop_online content/ --port 9000
+scriptbook content/ --port 9000
 
 # Allow external access
-sop_online content/ --host 0.0.0.0
+scriptbook content/ --host 0.0.0.0
 
 # Access the application
 open http://localhost:8000
@@ -61,19 +63,20 @@ open http://localhost:8000
 ### PyPI Installation
 
 ```bash
-pip install sop-online
+pip install scriptbook
 ```
 
-**PyPI Link**: https://pypi.org/project/sop-online/
+**PyPI Link**: https://pypi.org/project/scriptbook/
 
 ### Version
 
-- Current Version: 1.1.0
+- Current Version: 1.0.0
 - Python Requirement: >=3.10
 
 ### Changelog
 
-#### v1.1.0 (2025-12-21)
+#### v1.0.0 (2025-12-21)
+- Project renamed to Scriptbook
 - Added interactive input feature, supporting user input during script execution
 - Added 25 JavaScript unit tests
 - Reorganized test directory structure for unified test file management
@@ -86,8 +89,8 @@ MIT License
 
 ### GitHub Repository
 
-- Source Code: https://github.com/lengmoXXL/sop_online
-- Issues: https://github.com/lengmoXXL/sop_online/issues
+- Source Code: https://github.com/lengmoXXL/scriptbook
+- Issues: https://github.com/lengmoXXL/scriptbook/issues
 
 ## Testing
 
@@ -136,8 +139,8 @@ Test Coverage Includes:
 
 ```bash
 # Clone the repository
-git clone https://github.com/lengmoXXL/sop_online.git
-cd sop_online
+git clone https://github.com/lengmoXXL/scriptbook.git
+cd scriptbook
 
 # Create a virtual environment
 python -m venv .venv
@@ -152,7 +155,7 @@ cd src/tests/js
 npm install
 
 # Return to root directory
-cd /path/to/sop_online
+cd /path/to/scriptbook
 
 # Run all tests
 pytest src/ src/integration_tests/ -v
@@ -172,4 +175,4 @@ Or use GitHub Actions for automated publishing.
 
 ---
 
-**SOP Online** - Making standard operating procedures easier to understand and execute
+**Scriptbook** - Making documents easier to understand and execute

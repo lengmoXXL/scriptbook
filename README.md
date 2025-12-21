@@ -1,4 +1,4 @@
-# SOP Online - 可执行脚本的 Markdown 服务器
+# Scriptbook - 可执行脚本的 Markdown 服务器
 
 [English](README_en.md)
 
@@ -6,18 +6,18 @@
 
 ## 功能特性
 
-- **交互式SOP** - 在Markdown中嵌入可执行脚本，类似Jupyter Notebook
+- **交互式文档** - 在Markdown中嵌入可执行脚本，类似Jupyter Notebook
 - **交互式输入** - 支持在脚本执行过程中接收用户输入（如`read`命令）
 - **实时执行** - WebSocket实现脚本实时输出流
-- **独立输出** - 每个SOP步骤下方有独立的输出区域
-- **多文档支持** - 支持多个SOP文档切换
+- **独立输出** - 每个脚本块下方有独立的输出区域
+- **多文档支持** - 支持多个文档切换
 - **主题切换** - 支持明亮和暗色主题
-- **标准流程** - 适用于企业标准操作流程的展示和执行
+- **SOP自动化** - 适用于企业标准操作流程的展示和执行
 - **完整测试** - 包含102个单元测试和集成测试
 
 ## 截图预览
 
-![SOP Online界面截图](docs/screenshot.png)
+![Scriptbook界面截图](docs/screenshot.png)
 
 ## 快速开始
 
@@ -29,11 +29,11 @@
 
 ```bash
 # 直接安装（推荐）
-pip install sop-online
+pip install scriptbook
 
 # 或者从源码安装
-git clone https://github.com/lengmoXXL/sop_online.git
-cd sop_online
+git clone https://github.com/lengmoXXL/scriptbook.git
+cd scriptbook
 pip install .
 ```
 
@@ -41,16 +41,16 @@ pip install .
 
 ```bash
 # 启动服务（使用默认content目录）
-sop_online content/
+scriptbook content/
 
-# 指定自定义SOP目录
-sop_online /path/to/my/sop/documents/
+# 指定自定义文档目录
+scriptbook /path/to/my/documents/
 
 # 指定端口
-sop_online content/ --port 9000
+scriptbook content/ --port 9000
 
 # 允许外部访问
-sop_online content/ --host 0.0.0.0
+scriptbook content/ --host 0.0.0.0
 
 # 访问应用
 open http://localhost:8000
@@ -63,19 +63,20 @@ open http://localhost:8000
 ### PyPI安装
 
 ```bash
-pip install sop-online
+pip install scriptbook
 ```
 
-**PyPI链接**: https://pypi.org/project/sop-online/
+**PyPI链接**: https://pypi.org/project/scriptbook/
 
 ### 版本
 
-- 当前版本: 1.1.0
+- 当前版本: 1.0.0
 - Python要求: >=3.10
 
 ### 更新日志
 
-#### v1.1.0 (2025-12-21)
+#### v1.0.0 (2025-12-21)
+- 项目重命名为 Scriptbook
 - 新增交互式输入功能，支持在脚本执行过程中接收用户输入
 - 新增25个JavaScript单元测试
 - 重组测试目录结构，统一管理测试文件
@@ -88,8 +89,8 @@ MIT License
 
 ### GitHub仓库
 
-- 源码: https://github.com/lengmoXXL/sop_online
-- 问题反馈: https://github.com/lengmoXXL/sop_online/issues
+- 源码: https://github.com/lengmoXXL/scriptbook
+- 问题反馈: https://github.com/lengmoXXL/scriptbook/issues
 
 ## 测试
 
@@ -138,8 +139,8 @@ pytest src/integration_tests/ -v
 
 ```bash
 # 克隆仓库
-git clone https://github.com/lengmoXXL/sop_online.git
-cd sop_online
+git clone https://github.com/lengmoXXL/scriptbook.git
+cd scriptbook
 
 # 创建虚拟环境
 python -m venv .venv
@@ -154,7 +155,7 @@ cd src/tests/js
 npm install
 
 # 返回根目录
-cd /path/to/sop_online
+cd /path/to/scriptbook
 
 # 运行所有测试
 pytest src/ src/integration_tests/ -v
@@ -174,4 +175,4 @@ twine upload dist/*
 
 ---
 
-**SOP Online** - 让标准操作流程更易于理解和执行
+**Scriptbook** - 让文档更易于理解和执行

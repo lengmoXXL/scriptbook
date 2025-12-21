@@ -25,8 +25,8 @@ def create_app(content_dir: Path = None) -> FastAPI:
 
     # 创建FastAPI应用
     app = FastAPI(
-        title="SOP Online - 标准操作流程执行平台",
-        description="交互式SOP文档平台，类似Jupyter Notebook，支持嵌入式脚本执行和实时输出",
+        title="Scriptbook - 可执行脚本的 Markdown 服务器",
+        description="支持脚本执行的在线 Markdown 服务器，可用于SOP自动化和交互式文档",
         version="1.0.0"
     )
 
@@ -40,7 +40,7 @@ def create_app(content_dir: Path = None) -> FastAPI:
     app.state.plugins_dir = str(plugins_dir)
 
     # 导入路由
-    from sop_online.routers import markdown, scripts, plugins
+    from scriptbook.routers import markdown, scripts, plugins
 
     # 包含路由
     app.include_router(markdown.router, prefix="/api/markdown")
@@ -61,9 +61,9 @@ def create_app(content_dir: Path = None) -> FastAPI:
     async def health_check():
         return {
             "status": "healthy",
-            "service": "sop-online",
+            "service": "scriptbook",
             "version": "1.0.0",
-            "description": "SOP Online - 标准操作流程执行平台"
+            "description": "Scriptbook - 可执行脚本的 Markdown 服务器"
         }
 
     return app

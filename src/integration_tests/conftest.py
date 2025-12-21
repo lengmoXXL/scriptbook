@@ -24,27 +24,27 @@ class TestServer:
         """启动服务器"""
         print(f"\n🚀 启动服务器 (端口: {self.port})...")
 
-        # 获取sop_online命令的完整路径
+        # 获取scriptbook命令的完整路径
         try:
             result = subprocess.run(
-                ["which", "sop_online"],
+                ["which", "scriptbook"],
                 capture_output=True,
                 text=True,
                 timeout=5
             )
             if result.returncode == 0:
-                sop_online_cmd = result.stdout.strip()
+                scriptbook_cmd = result.stdout.strip()
             else:
                 # 如果which失败，使用默认路径
-                venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "sop_online"
-                sop_online_cmd = str(venv_path)
+                venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "scriptbook"
+                scriptbook_cmd = str(venv_path)
         except Exception:
             # 使用默认路径
-            venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "sop_online"
-            sop_online_cmd = str(venv_path)
+            venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "scriptbook"
+            scriptbook_cmd = str(venv_path)
 
         cmd = [
-            sop_online_cmd,
+            scriptbook_cmd,
             self.content_dir,
             "--port", str(self.port),
             "--host", "127.0.0.1"
@@ -57,7 +57,7 @@ class TestServer:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            env={**os.environ, "PATH": f"{Path(sop_online_cmd).parent}:{os.environ.get('PATH', '')}"}
+            env={**os.environ, "PATH": f"{Path(scriptbook_cmd).parent}:{os.environ.get('PATH', '')}"}
         )
 
         # 等待服务器启动

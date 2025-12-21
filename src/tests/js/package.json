@@ -1,7 +1,7 @@
 {
-  "name": "sop-online-js-tests",
+  "name": "scriptbook-js-tests",
   "version": "1.0.0",
-  "description": "JavaScript unit tests for SOP Online frontend",
+  "description": "JavaScript unit tests for Scriptbook frontend",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",

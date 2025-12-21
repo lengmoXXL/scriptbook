@@ -1,6 +1,6 @@
-# SOP测试用例文档
+# Scriptbook 测试用例文档
 
-本文档包含各种测试用例，用于验证SOP Online平台的功能完整性。
+本文档包含各种测试用例，用于验证 Scriptbook 平台的功能完整性。
 
 ## 1. 基础脚本块测试
 
@@ -124,7 +124,7 @@ ls
 ### 5.1 echo命令提取
 
 ```bash
-echo "欢迎使用SOP在线平台"
+echo "欢迎使用 Scriptbook"
 date
 ```
 
@@ -205,16 +205,16 @@ echo "这个脚本在普通文本之间"
 ### 7.1 创建文件并读取
 
 ```bash {"id": "create_file", "title": "创建测试文件"}
-echo "测试内容" > /tmp/test_sop.txt
+echo "测试内容" > /tmp/test_scriptbook.txt
 echo "文件已创建"
 ```
 
 ```bash {"id": "read_file", "title": "读取测试文件"}
-cat /tmp/test_sop.txt
+cat /tmp/test_scriptbook.txt
 ```
 
 ```bash {"id": "delete_file", "title": "删除测试文件"}
-rm /tmp/test_sop.txt
+rm /tmp/test_scriptbook.txt
 echo "文件已删除"
 ```
 
@@ -322,4 +322,4 @@ echo "输出完成"
 4. **性能测试**：实时输出、大输出量、长时间运行
 5. **集成测试**：WebSocket通信、脚本执行顺序
 
-用于确保SOP Online平台在各种情况下都能正常工作。
+用于确保 Scriptbook 平台在各种情况下都能正常工作。

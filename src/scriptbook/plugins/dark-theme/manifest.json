@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "暗色主题",
   "type": "theme",
-  "author": "SOP Online",
+  "author": "Scriptbook",
   "css": "style.css"
 }

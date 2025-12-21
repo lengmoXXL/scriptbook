@@ -2,8 +2,8 @@ import os
 import json
 import tempfile
 from pathlib import Path
-from sop_online.core.plugin_manager import PluginManager
-from sop_online.models.schemas import PluginInfo
+from scriptbook.core.plugin_manager import PluginManager
+from scriptbook.models.schemas import PluginInfo
 
 
 class TestPluginManager:

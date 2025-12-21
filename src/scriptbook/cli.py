@@ -10,7 +10,7 @@ from pathlib import Path
 
 def create_app(content_dir: Path):
     """创建FastAPI应用实例"""
-    from sop_online.main import create_app as _create_app
+    from scriptbook.main import create_app as _create_app
 
     # 设置环境变量传递content目录
     import os
@@ -22,7 +22,7 @@ def create_app(content_dir: Path):
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
-        description='SOP Online - 标准操作流程(SOP)在线执行平台，类似Jupyter Notebook',
+        description='Scriptbook - 可执行脚本的 Markdown 服务器',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -33,11 +33,10 @@ def main():
 
 默认端口: 8000
 默认主机: 127.0.0.1
-修改代码后请手动重启服务
 
 功能特点:
   - 在Markdown中嵌入可执行脚本
-  - 每个SOP步骤可独立执行
+  - 每个脚本块可独立执行
   - 实时输出展示
   - 类似Jupyter Notebook的交互体验
         """
@@ -89,8 +88,8 @@ def main():
         sys.exit(1)
 
     # 启动服务
-    print(f"启动 SOP Online - 标准操作流程执行平台")
-    print(f"SOP文档目录: {content_path.absolute()}")
+    print(f"启动 Scriptbook - 可执行脚本的 Markdown 服务器")
+    print(f"文档目录: {content_path.absolute()}")
     print(f"服务地址: http://{args.host}:{args.port}")
     print(f"访问地址: http://localhost:{args.port}")
     print(f"按 Ctrl+C 停止服务\n")

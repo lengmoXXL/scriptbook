@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from sop_online.models.schemas import FileListResponse, MarkdownContentResponse
+from scriptbook.models.schemas import FileListResponse, MarkdownContentResponse
 import os
 import re
 import markdown as md_lib

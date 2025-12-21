@@ -2,7 +2,7 @@ import os
 import json
 import copy
 from typing import List, Dict, Any, Optional
-from sop_online.models.schemas import PluginInfo
+from scriptbook.models.schemas import PluginInfo
 
 class PluginManager:
     """插件管理器"""

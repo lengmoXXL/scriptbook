@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 from fastapi.testclient import TestClient
 
-from sop_online.main import create_app
+from scriptbook.main import create_app
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SOP Online 测试报告生成器
+Scriptbook 测试报告生成器
 生成 JavaScript 单元测试的摘要报告
 """
 
@@ -43,7 +43,7 @@ def generate_test_summary():
 
     # 生成报告
     print("=" * 60)
-    print("SOP Online JavaScript 单元测试报告")
+    print("Scriptbook JavaScript 单元测试报告")
     print("=" * 60)
     print()
 

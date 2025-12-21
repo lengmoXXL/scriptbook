@@ -1,5 +1,5 @@
 /**
- * SOP Online Frontend - JavaScript Unit Tests
+ * Scriptbook Frontend - JavaScript Unit Tests
  * 测试 app.js 中的所有功能
  */
 
@@ -15,7 +15,7 @@ describe('App 类', () => {
     };
 
     // 加载 app.js (这会创建 window.app)
-    require('../../sop_online/static/js/app.js');
+    require('../../scriptbook/static/js/app.js');
 
     // 加载后，window.app 应该已经创建
   });
@@ -184,7 +184,7 @@ describe('全局函数 - executeScript', () => {
       WebSocket: { OPEN: 1 }, // 添加 WebSocket 常量
     };
     // 加载 app.js (会创建 window.app 和全局函数)
-    require('../../sop_online/static/js/app.js');
+    require('../../scriptbook/static/js/app.js');
 
     document.body.innerHTML = `
       <div class="script-block" data-script-id="test-script">
@@ -325,7 +325,7 @@ describe('全局函数 - copyCode', () => {
       location: { host: 'localhost:8888' },
     };
     // 加载 app.js
-    require('../../sop_online/static/js/app.js');
+    require('../../scriptbook/static/js/app.js');
 
     document.body.innerHTML = `
       <div class="script-block" data-script-id="test-script">
@@ -350,7 +350,7 @@ describe('全局函数 - sendInput', () => {
       WebSocket: { OPEN: 1 }, // 添加 WebSocket 常量
     };
     // 加载 app.js
-    require('../../sop_online/static/js/app.js');
+    require('../../scriptbook/static/js/app.js');
 
     document.body.innerHTML = `
       <input type="text" id="input-test-script" value="test input" />
@@ -451,7 +451,7 @@ describe('WebSocket 事件处理', () => {
       WebSocket: { OPEN: 1 }, // 添加 WebSocket 常量
     };
     // 加载 app.js
-    require('../../sop_online/static/js/app.js');
+    require('../../scriptbook/static/js/app.js');
 
     document.body.innerHTML = `
       <div class="script-block" data-script-id="test-script">

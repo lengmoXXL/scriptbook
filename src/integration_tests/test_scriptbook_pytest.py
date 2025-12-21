@@ -1,5 +1,5 @@
 """
-SOP Online 功能测试 (pytest版本)
+Scriptbook 功能测试 (pytest版本)
 
 启动真实的服务器进行端到端测试，自动管理服务生命周期
 
@@ -8,7 +8,7 @@ SOP Online 功能测试 (pytest版本)
 - requests
 
 运行:
-    pytest src/integration_tests/test_sop_online_pytest.py -v
+    pytest src/integration_tests/test_scriptbook_pytest.py -v
 """
 import subprocess
 import sys
@@ -24,30 +24,30 @@ except ImportError:
     pytest.skip("requests模块未安装，跳过功能测试", allow_module_level=True)
 
 
-class TestSOPOnline:
-    """SOP Online 功能测试"""
+class TestScriptbook:
+    """Scriptbook 功能测试"""
 
     def test_cli_help(self):
         """测试CLI帮助命令"""
         result = subprocess.run(
-            ["sop_online", "--help"],
+            ["scriptbook", "--help"],
             capture_output=True,
             text=True,
             timeout=10
         )
         assert result.returncode == 0
-        assert "SOP Online" in result.stdout
+        assert "Scriptbook" in result.stdout
 
     def test_cli_version(self):
         """测试CLI版本显示"""
         result = subprocess.run(
-            ["sop_online", "--version"],
+            ["scriptbook", "--version"],
             capture_output=True,
             text=True,
             timeout=10
         )
         assert result.returncode == 0
-        assert "sop_online" in result.stdout or "1.0.0" in result.stdout
+        assert "scriptbook" in result.stdout or "1.0.0" in result.stdout
 
     def test_health_check(self, test_server):
         """测试健康检查端点"""
@@ -56,7 +56,7 @@ class TestSOPOnline:
 
         data = response.json()
         assert data["status"] == "healthy"
-        assert data["service"] == "sop-online"
+        assert data["service"] == "scriptbook"
 
     def test_markdown_files_api(self, test_server):
         """测试Markdown文件获取API"""
@@ -117,7 +117,7 @@ class TestSOPOnline:
         assert response.headers["content-type"].startswith("text/html")
 
         content = response.text
-        assert "SOPOnline" in content
+        assert "Scriptbook" in content
         assert "<html" in content.lower()
 
     def test_static_files(self, test_server):

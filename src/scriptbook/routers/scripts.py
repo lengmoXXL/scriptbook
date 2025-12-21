@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sop_online.models.schemas import ScriptOutputMessage, ScriptInputMessage
+from scriptbook.models.schemas import ScriptOutputMessage, ScriptInputMessage
 import asyncio
 import subprocess
 import sys

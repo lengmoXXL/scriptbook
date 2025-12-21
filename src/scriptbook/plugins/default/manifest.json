@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "默认明亮主题",
   "type": "theme",
-  "author": "SOP Online",
+  "author": "Scriptbook",
   "css": "style.css"
 }

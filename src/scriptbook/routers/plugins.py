@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from sop_online.models.schemas import PluginInfo
+from scriptbook.models.schemas import PluginInfo
 import os
 import json
 from pathlib import Path
