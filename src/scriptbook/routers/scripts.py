@@ -18,6 +18,17 @@ async def execute_script(websocket: WebSocket, script_id: str):
 
     process = None
     stdin_queue = asyncio.Queue()
+    connection_closed = False
+
+    async def safe_send(message):
+        """安全发送消息，如果连接已关闭则跳过"""
+        nonlocal connection_closed
+        if not connection_closed:
+            try:
+                await websocket.send_json(message)
+            except Exception as e:
+                print(f"发送消息失败: {e}")
+                connection_closed = True
 
     try:
         # 接收脚本代码
@@ -25,7 +36,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
         code = data.get("code", "")
 
         if not code:
-            await websocket.send_json({
+            await safe_send({
                 "type": "error",
                 "content": "脚本代码为空"
             })
@@ -56,7 +67,9 @@ async def execute_script(websocket: WebSocket, script_id: str):
                         await stdin_queue.put(data + "\n")
             except WebSocketDisconnect:
                 # 客户端断开连接
+                print(f"客户端断开连接: {script_id}")
                 await stdin_queue.put(None)  # 发送结束信号
+                connection_closed = True
             except Exception as e:
                 print(f"接收输入错误: {e}")
                 await stdin_queue.put(None)
@@ -97,7 +110,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
                         content=line.decode("utf-8", errors="replace").rstrip(),
                         timestamp=datetime.now().isoformat()
                     )
-                    await websocket.send_json(message.dict())
+                    await safe_send(message.dict())
             except Exception as e:
                 print(f"读取{output_type}错误: {e}")
 
@@ -132,24 +145,28 @@ async def execute_script(websocket: WebSocket, script_id: str):
         returncode = await process.wait()
 
         # 发送退出状态
-        exit_message = ScriptOutputMessage(
-            type="exit",
-            content=f"进程退出，返回码: {returncode}",
-            timestamp=datetime.now().isoformat()
-        )
-        await websocket.send_json(exit_message.dict())
+        if not connection_closed:
+            exit_message = ScriptOutputMessage(
+                type="exit",
+                content=f"进程退出，返回码: {returncode}",
+                timestamp=datetime.now().isoformat()
+            )
+            await safe_send(exit_message.dict())
 
     except WebSocketDisconnect:
         print(f"客户端断开连接: {script_id}")
+        connection_closed = True
         if process and process.returncode is None:
             process.terminate()
     except Exception as e:
-        error_message = ScriptOutputMessage(
-            type="error",
-            content=f"执行错误: {str(e)}",
-            timestamp=datetime.now().isoformat()
-        )
-        await websocket.send_json(error_message.dict())
+        print(f"执行脚本错误: {e}")
+        if not connection_closed:
+            error_message = ScriptOutputMessage(
+                type="error",
+                content=f"执行错误: {str(e)}",
+                timestamp=datetime.now().isoformat()
+            )
+            await safe_send(error_message.dict())
     finally:
         # 清理
         if process and process.returncode is None:
@@ -157,4 +174,10 @@ async def execute_script(websocket: WebSocket, script_id: str):
                 process.terminate()
             except:
                 pass
-        await websocket.close()
+        # 只有在连接未关闭时才尝试关闭
+        if not connection_closed:
+            try:
+                await websocket.close()
+            except Exception as e:
+                print(f"关闭WebSocket失败: {e}")
+                connection_closed = True

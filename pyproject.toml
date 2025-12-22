@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scriptbook"
-version = "1.0.0"
-description = "Scriptbook - An executable Markdown server with script execution support, ideal for SOP automation"
+version = "1.2.0"
+description = "Scriptbook - An executable Markdown server with script execution, result persistence, and stop functionality, ideal for SOP automation"
 authors = [
     {name = "lzy", email = "forlearn_lzy@163.com"}
 ]

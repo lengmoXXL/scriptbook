@@ -20,6 +20,11 @@ class App {
             await this.selectFile(this.fileList[0].name);
         }
 
+        // 如果已经有当前文件，恢复结果
+        if (this.currentFile) {
+            this.restoreScriptResults();
+        }
+
         console.log('Scriptbook 应用初始化完成');
     }
 
@@ -117,6 +122,12 @@ class App {
 
             console.log('文件加载完成:', filename);
 
+            // 恢复脚本执行结果
+            this.restoreScriptResults();
+
+            // 为所有脚本块绑定停止按钮事件
+            this.bindStopButtons();
+
         } catch (error) {
             console.error('选择文件失败:', error);
             this.showError('加载文件失败: ' + error.message);
@@ -153,6 +164,145 @@ class App {
 
         // 滚动到底部
         outputElement.scrollTop = outputElement.scrollHeight;
+
+        // 保存到localStorage
+        this.saveScriptResult(scriptId, type, content);
+    }
+
+    saveScriptResult(scriptId, type, content) {
+        try {
+            if (!this.currentFile) return;
+
+            const storageKey = `scriptResults_${this.currentFile}`;
+            const savedResults = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+            if (!savedResults[scriptId]) {
+                savedResults[scriptId] = [];
+            }
+
+            savedResults[scriptId].push({
+                type,
+                content,
+                timestamp: new Date().toISOString()
+            });
+
+            localStorage.setItem(storageKey, JSON.stringify(savedResults));
+            console.log(`已保存脚本 ${scriptId} 的执行结果到 localStorage`);
+        } catch (error) {
+            console.error('保存脚本结果失败:', error);
+        }
+    }
+
+    restoreScriptResults() {
+        if (!this.currentFile) return;
+
+        try {
+            const storageKey = `scriptResults_${this.currentFile}`;
+            const savedResults = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+            console.log(`恢复脚本执行结果:`, savedResults);
+
+            // 恢复每个脚本的结果
+            Object.keys(savedResults).forEach(scriptId => {
+                const results = savedResults[scriptId];
+                const outputElement = document.getElementById(`output-${scriptId}`);
+
+                if (outputElement && results.length > 0) {
+                    outputElement.innerHTML = '';
+
+                    results.forEach(result => {
+                        const line = document.createElement('div');
+                        line.className = `output-line ${result.type}`;
+
+                        const timestamp = document.createElement('span');
+                        timestamp.className = 'timestamp';
+                        timestamp.textContent = new Date(result.timestamp).toLocaleTimeString();
+
+                        const contentSpan = document.createElement('span');
+                        contentSpan.className = 'content';
+                        contentSpan.textContent = result.content;
+
+                        line.appendChild(timestamp);
+                        line.appendChild(contentSpan);
+                        outputElement.appendChild(line);
+                    });
+
+                    console.log(`已恢复脚本 ${scriptId} 的 ${results.length} 条结果`);
+                }
+            });
+        } catch (error) {
+            console.error('恢复脚本结果失败:', error);
+        }
+    }
+
+    clearScriptResults(scriptId) {
+        if (!this.currentFile) return;
+
+        try {
+            const storageKey = `scriptResults_${this.currentFile}`;
+            const savedResults = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+            if (savedResults[scriptId]) {
+                delete savedResults[scriptId];
+                localStorage.setItem(storageKey, JSON.stringify(savedResults));
+                console.log(`已清除脚本 ${scriptId} 的执行结果`);
+            }
+        } catch (error) {
+            console.error('清除脚本结果失败:', error);
+        }
+    }
+
+    bindStopButtons() {
+        // 为所有停止按钮绑定事件
+        const stopButtons = document.querySelectorAll('.stop-btn');
+        stopButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const scriptBlock = e.target.closest('.script-block');
+                const scriptId = scriptBlock.dataset.scriptId;
+                this.stopScript(scriptId);
+            });
+        });
+    }
+
+    stopScript(scriptId) {
+        console.log('停止脚本:', scriptId);
+
+        // 关闭WebSocket连接
+        if (this.activeConnections.has(scriptId)) {
+            const ws = this.activeConnections.get(scriptId);
+            try {
+                ws.close();
+                console.log('已关闭WebSocket连接:', scriptId);
+            } catch (error) {
+                console.error('关闭WebSocket连接失败:', error);
+            }
+            this.activeConnections.delete(scriptId);
+        }
+
+        // 恢复UI状态
+        const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+        if (scriptBlock) {
+            const executeBtn = scriptBlock.querySelector('.execute-btn');
+            const stopBtn = scriptBlock.querySelector('.stop-btn');
+
+            if (executeBtn) {
+                executeBtn.disabled = false;
+                executeBtn.textContent = '执行脚本';
+            }
+
+            if (stopBtn) {
+                stopBtn.disabled = true;
+            }
+
+            // 添加停止信息到输出
+            this.addScriptOutput(scriptId, 'stdout', '=== 脚本已被用户停止 ===');
+        }
+
+        // 隐藏输入容器
+        const inputContainer = document.getElementById(`input-container-${scriptId}`);
+        if (inputContainer) {
+            inputContainer.style.display = 'none';
+        }
     }
 
     showError(message) {
@@ -213,8 +363,17 @@ window.executeScript = async function executeScript(scriptId) {
     executeBtn.textContent = '执行中...';
     stopBtn.disabled = false;
 
+    // 重新绑定停止按钮事件（确保绑定正确）
+    stopBtn.onclick = () => {
+        console.log('停止按钮被点击:', scriptId);
+        window.app.stopScript(scriptId);
+    };
+
     // 清空输出区域
     outputElement.innerHTML = '';
+
+    // 清除保存的结果
+    window.app.clearScriptResults(scriptId);
 
     // 建立WebSocket连接
     try {
@@ -236,9 +395,21 @@ window.executeScript = async function executeScript(scriptId) {
 
             // 如果是退出或错误，恢复按钮状态并隐藏输入容器
             if (type === 'exit' || type === 'error') {
-                executeBtn.disabled = false;
-                executeBtn.textContent = '执行脚本';
-                stopBtn.disabled = true;
+                const currentScriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+                if (currentScriptBlock) {
+                    const currentExecuteBtn = currentScriptBlock.querySelector('.execute-btn');
+                    const currentStopBtn = currentScriptBlock.querySelector('.stop-btn');
+
+                    if (currentExecuteBtn) {
+                        currentExecuteBtn.disabled = false;
+                        currentExecuteBtn.textContent = '执行脚本';
+                    }
+
+                    if (currentStopBtn) {
+                        currentStopBtn.disabled = true;
+                    }
+                }
+
                 window.app.activeConnections.delete(scriptId);
 
                 // 隐藏输入容器
@@ -252,9 +423,22 @@ window.executeScript = async function executeScript(scriptId) {
         ws.onerror = (error) => {
             console.error(`WebSocket错误: ${scriptId}`, error);
             window.app.addScriptOutput(scriptId, 'error', `脚本执行错误: ${error.message || '未知错误'}`);
-            executeBtn.disabled = false;
-            executeBtn.textContent = '执行脚本';
-            stopBtn.disabled = true;
+
+            const currentScriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+            if (currentScriptBlock) {
+                const currentExecuteBtn = currentScriptBlock.querySelector('.execute-btn');
+                const currentStopBtn = currentScriptBlock.querySelector('.stop-btn');
+
+                if (currentExecuteBtn) {
+                    currentExecuteBtn.disabled = false;
+                    currentExecuteBtn.textContent = '执行脚本';
+                }
+
+                if (currentStopBtn) {
+                    currentStopBtn.disabled = true;
+                }
+            }
+
             window.app.activeConnections.delete(scriptId);
 
             // 隐藏输入容器
@@ -266,9 +450,23 @@ window.executeScript = async function executeScript(scriptId) {
 
         ws.onclose = () => {
             console.log(`WebSocket连接已关闭: ${scriptId}`);
-            executeBtn.disabled = false;
-            executeBtn.textContent = '执行脚本';
-            stopBtn.disabled = true;
+
+            // 只有在脚本块还存在时才更新UI（可能被用户停止了）
+            const currentScriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+            if (currentScriptBlock) {
+                const currentExecuteBtn = currentScriptBlock.querySelector('.execute-btn');
+                const currentStopBtn = currentScriptBlock.querySelector('.stop-btn');
+
+                if (currentExecuteBtn) {
+                    currentExecuteBtn.disabled = false;
+                    currentExecuteBtn.textContent = '执行脚本';
+                }
+
+                if (currentStopBtn) {
+                    currentStopBtn.disabled = true;
+                }
+            }
+
             window.app.activeConnections.delete(scriptId);
 
             // 隐藏输入容器
@@ -281,9 +479,21 @@ window.executeScript = async function executeScript(scriptId) {
     } catch (error) {
         console.error(`执行脚本失败: ${scriptId}`, error);
         window.app.addScriptOutput(scriptId, 'error', `执行失败: ${error.message}`);
-        executeBtn.disabled = false;
-        executeBtn.textContent = '执行脚本';
-        stopBtn.disabled = true;
+
+        const currentScriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+        if (currentScriptBlock) {
+            const currentExecuteBtn = currentScriptBlock.querySelector('.execute-btn');
+            const currentStopBtn = currentScriptBlock.querySelector('.stop-btn');
+
+            if (currentExecuteBtn) {
+                currentExecuteBtn.disabled = false;
+                currentExecuteBtn.textContent = '执行脚本';
+            }
+
+            if (currentStopBtn) {
+                currentStopBtn.disabled = true;
+            }
+        }
 
         // 隐藏输入容器
         const inputContainer = document.getElementById(`input-container-${scriptId}`);

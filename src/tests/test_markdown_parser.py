@@ -1,5 +1,5 @@
 import json
-from sop_online.core.markdown_parser import MarkdownParser
+from scriptbook.core.markdown_parser import MarkdownParser
 
 
 class TestMarkdownParser:

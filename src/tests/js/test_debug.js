@@ -13,7 +13,7 @@ global.WebSocket = {
 };
 
 // 加载 app.js
-require('../../sop_online/static/js/app.js');
+require('../../scriptbook/static/js/app.js');
 
 console.log('window.executeScript:', typeof window.executeScript);
 console.log('window.sendInput:', typeof window.sendInput);

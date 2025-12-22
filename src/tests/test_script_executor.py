@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from sop_online.core.script_executor import ScriptExecutor
+from scriptbook.core.script_executor import ScriptExecutor
 
 
 class TestScriptExecutor:

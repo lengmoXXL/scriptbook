@@ -10,10 +10,13 @@
 - **交互式输入** - 支持在脚本执行过程中接收用户输入（如`read`命令）
 - **实时执行** - WebSocket实现脚本实时输出流
 - **独立输出** - 每个脚本块下方有独立的输出区域
-- **多文档支持** - 支持多个文档切换
+- **结果持久化** - 页面刷新后自动恢复脚本执行结果（使用localStorage）
+- **停止执行** - 支持随时终止正在执行的脚本
+- **多文档支持** - 支持多个文档切换，结果独立保存
 - **主题切换** - 支持明亮和暗色主题
+- **WebSocket优化** - 改进并发处理，支持页面刷新场景
 - **SOP自动化** - 适用于企业标准操作流程的展示和执行
-- **完整测试** - 包含102个单元测试和集成测试
+- **完整测试** - 包含61个JavaScript单元测试和集成测试
 
 ## 截图预览
 
@@ -70,10 +73,17 @@ pip install scriptbook
 
 ### 版本
 
-- 当前版本: 1.0.0
+- 当前版本: 1.2.0
 - Python要求: >=3.10
 
 ### 更新日志
+
+#### v1.2.0 (2025-12-22)
+- 📚 新增发布流程文档 - 规范化代码整理和发布流程
+- 🔧 优化项目结构 - 清理开发过程文档，创建完整文档体系
+- 📄 完善文档系统 - 添加CLAUDE.md、CHANGELOG.md、RELEASE_PROCESS.md
+- 🎯 简化发布流程 - 优化RELEASE_PROCESS.md使其更简洁易用
+- ✨ 改进开发体验 - 提供清晰的项目结构和操作指南
 
 #### v1.0.0 (2025-12-21)
 - 项目重命名为 Scriptbook
@@ -94,13 +104,17 @@ MIT License
 
 ## 测试
 
-本项目包含完整的测试套件，总计102个测试用例。
+本项目包含完整的测试套件，总计138个测试用例。
 
 ### 运行所有测试
 
 ```bash
 # 运行所有测试（单元测试 + 集成测试）
 pytest src/ src/integration_tests/ -v
+
+# 运行JavaScript测试
+cd src/tests/js
+npm test
 ```
 
 ### 分别运行测试
@@ -117,17 +131,32 @@ npm test
 pytest src/integration_tests/ -v
 ```
 
+### 测试文件说明
+
+- **脚本结果持久化测试** (`script-results-persistence.test.js`): 9个测试
+- **脚本结果持久化集成测试** (`script-results-persistence-integration.test.js`): 7个测试
+- **WebSocket并发测试** (`websocket-concurrency.test.js`): 8个测试
+- **脚本停止功能测试** (`script-stop-functionality.test.js`): 12个测试
+- **App类基础功能测试** (`app.test.js`): 25个测试
+
 ### 测试覆盖率
 
-- **JavaScript 测试**: 25个测试用例（使用Jest + JSDOM）
+- **JavaScript 测试**: 61个测试用例（使用Jest + JSDOM）
+  - 脚本结果持久化测试: 9个
+  - 脚本结果持久化集成测试: 7个
+  - WebSocket并发测试: 8个
+  - 脚本停止功能测试: 12个
+  - App类基础功能测试: 25个
 - **Python 单元测试**: 64个测试用例
 - **集成测试**: 13个测试用例
-- **总测试数**: 102个，全部通过
+- **总测试数**: 138个，全部通过
 
 测试覆盖：
 - App类初始化和基本功能
-- 全局函数（executeScript、copyCode、sendInput）
-- WebSocket事件处理
+- 全局函数（executeScript、copyCode、sendInput、stopScript）
+- WebSocket事件处理和并发控制
+- 脚本结果持久化和恢复
+- 脚本停止执行功能
 - 文件扫描和Markdown解析
 - 插件管理系统
 - 脚本执行器

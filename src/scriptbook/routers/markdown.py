@@ -77,9 +77,9 @@ def render_script_block(script):
             <button class="execute-btn" onclick="executeScript('{script_id}')">执行脚本</button>
         </div>
         <pre class="script-code"><code>{script_code}</code></pre>
-        <div class="script-actions">
+        <div class="script-actions" style="display: flex !important; visibility: visible !important;">
             <button class="copy-btn" onclick="copyCode('{script_id}')">复制代码</button>
-            <button class="stop-btn" disabled>停止执行</button>
+            <button class="stop-btn" disabled style="display: inline-block !important; visibility: visible !important; background-color: #dc3545 !important; color: white !important; border: 2px solid white !important; font-weight: bold !important;">停止执行</button>
         </div>
         <div class="script-output" id="output-{script_id}">
             <div class="output-placeholder">点击"执行脚本"查看输出...</div>

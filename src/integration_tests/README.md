@@ -1,11 +1,11 @@
 # 集成测试
 
-此目录包含SOP Online的集成测试，用于验证整个系统的端到端功能。
+此目录包含Scriptbook的集成测试，用于验证整个系统的端到端功能。
 
 ## 测试文件
 
 - `test_routers.py` - 路由器和API端点的集成测试（使用TestClient，无需真实服务器）
-- `test_sop_online_pytest.py` - pytest功能测试，自动启动真实服务器进行端到端测试
+- `test_scriptbook_pytest.py` - pytest功能测试，自动启动真实服务器进行端到端测试
 - `conftest.py` - 公共测试配置和fixture，包含TestServer类管理服务器生命周期
 
 ## ⚠️ 兼容性说明
@@ -50,13 +50,13 @@ pytest integration_tests/ -v --disable-warnings
 
 ```bash
 # 运行所有功能测试
-pytest integration_tests/test_sop_online_pytest.py -v
+pytest integration_tests/test_scriptbook_pytest.py -v
 
 # 运行特定测试
-pytest integration_tests/test_sop_online_pytest.py::TestSOPOnline::test_health_check -v
+pytest integration_tests/test_scriptbook_pytest.py::TestScriptbook::test_health_check -v
 
 # 启用详细输出
-pytest integration_tests/test_sop_online_pytest.py -v -s
+pytest integration_tests/test_scriptbook_pytest.py -v -s
 ```
 
 ### pytest版本功能测试的特点
@@ -96,7 +96,7 @@ def test_server():
 pytest integration_tests/ -v
 
 # 只运行pytest功能测试
-pytest integration_tests/test_sop_online_pytest.py -v
+pytest integration_tests/test_scriptbook_pytest.py -v
 
 # 只运行路由集成测试
 pytest integration_tests/test_routers.py -v
@@ -106,12 +106,12 @@ pytest integration_tests/test_routers.py -v
 
 - **单元测试** (`src/tests/`): 测试核心业务逻辑，所有测试通过
 - **集成测试** (`src/integration_tests/`): 测试API端点，部分测试因依赖版本问题失败
-- **功能测试** (`src/integration_tests/test_sop_online_pytest.py`): 使用pytest自动启动真实服务器进行端到端测试
+- **功能测试** (`src/integration_tests/test_scriptbook_pytest.py`): 使用pytest自动启动真实服务器进行端到端测试
 
 ## 建议
 
 1. **开发时**: 使用核心单元测试验证逻辑 (`pytest src/tests/`)
-2. **部署前**: 使用pytest功能测试验证系统 (`pytest src/integration_tests/test_sop_online_pytest.py -v`)
+2. **部署前**: 使用pytest功能测试验证系统 (`pytest src/integration_tests/test_scriptbook_pytest.py -v`)
 3. **问题调试**: 需要时解决集成测试的依赖问题
 
 ## 参考

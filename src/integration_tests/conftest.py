@@ -6,16 +6,44 @@
 import subprocess
 import time
 import os
+import signal
+import atexit
 import pytest
-import requests
 from pathlib import Path
+
+
+def cleanup_processes():
+    """清理所有可能的残留进程"""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "scriptbook"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                try:
+                    os.kill(int(pid), signal.SIGKILL)
+                    print(f"  🧹 已清理残留进程 PID: {pid}")
+                except (OSError, ValueError):
+                    pass
+    except Exception:
+        pass
+
+
+# 注册退出时清理
+atexit.register(cleanup_processes)
 
 
 class TestServer:
     """测试服务器管理器"""
 
     def __init__(self, content_dir: str, port: int = 8000):
-        self.content_dir = content_dir
+        # 使用相对于项目根目录的路径
+        base_path = Path(__file__).parent.parent.parent
+        self.content_dir = str((base_path / content_dir).resolve())
         self.port = port
         self.process = None
         self.base_url = f"http://127.0.0.1:{port}"
@@ -24,24 +52,29 @@ class TestServer:
         """启动服务器"""
         print(f"\n🚀 启动服务器 (端口: {self.port})...")
 
-        # 获取scriptbook命令的完整路径
+        # 启动前清理端口占用
         try:
             result = subprocess.run(
-                ["which", "scriptbook"],
+                ["lsof", "-ti", f":{self.port}"],
                 capture_output=True,
                 text=True,
                 timeout=5
             )
-            if result.returncode == 0:
-                scriptbook_cmd = result.stdout.strip()
-            else:
-                # 如果which失败，使用默认路径
-                venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "scriptbook"
-                scriptbook_cmd = str(venv_path)
+            if result.returncode == 0 and result.stdout.strip():
+                pids = result.stdout.strip().split('\n')
+                for pid in pids:
+                    try:
+                        os.kill(int(pid), signal.SIGKILL)
+                        print(f"  🧹 已清理端口 {self.port} 上的进程 PID: {pid}")
+                        time.sleep(0.2)
+                    except (OSError, ValueError):
+                        pass
         except Exception:
-            # 使用默认路径
-            venv_path = Path(__file__).parent.parent / ".venv" / "bin" / "scriptbook"
-            scriptbook_cmd = str(venv_path)
+            pass
+
+        # 获取scriptbook命令路径
+        venv_path = Path(__file__).parent.parent.parent / ".venv" / "bin" / "scriptbook"
+        scriptbook_cmd = str(venv_path)
 
         cmd = [
             scriptbook_cmd,
@@ -60,39 +93,76 @@ class TestServer:
             env={**os.environ, "PATH": f"{Path(scriptbook_cmd).parent}:{os.environ.get('PATH', '')}"}
         )
 
+        print(f"  进程已启动 PID: {self.process.pid}")
+        time.sleep(0.5)  # 等待一下让进程启动
+
+        # 检查进程是否立即退出
+        if self.process.poll() is not None:
+            stdout, stderr = self.process.communicate()
+            print(f"  ❌ 进程立即退出")
+            if stdout:
+                print(f"  STDOUT: {stdout}")
+            if stderr:
+                print(f"  STDERR: {stderr}")
+            return False
+
+        print(f"  ✅ 进程正常运行")
+
+        # 注册退出时清理
+        atexit.register(self._safe_kill)
+
         # 等待服务器启动
         max_attempts = 30
         for i in range(max_attempts):
             try:
-                response = requests.get(f"{self.base_url}/health", timeout=1)
-                if response.status_code == 200:
+                import urllib.request
+                response = urllib.request.urlopen(f"{self.base_url}/health", timeout=1)
+                if response.status == 200:
                     print(f"✅ 服务器启动成功 (尝试 {i+1}/{max_attempts})")
                     return True
-            except requests.exceptions.RequestException:
+            except Exception as e:
+                if i == 0:
+                    print(f"    首次连接失败，正在重试...")
                 time.sleep(0.5)
 
         print(f"❌ 服务器启动失败")
+        self.stop()
         return False
+
+    def _safe_kill(self):
+        """安全杀死进程"""
+        if self.process:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=2)
+            except:
+                try:
+                    self.process.kill()
+                except:
+                    pass
 
     def stop(self):
         """停止服务器"""
         if self.process:
             print(f"\n🛑 停止服务器...")
-            self.process.terminate()
             try:
+                self.process.terminate()
                 self.process.wait(timeout=5)
                 print(f"✅ 服务器已停止")
             except subprocess.TimeoutExpired:
-                self.process.kill()
-                print(f"✅ 服务器已强制停止")
+                try:
+                    self.process.kill()
+                    self.process.wait(timeout=2)
+                    print(f"✅ 服务器已强制停止")
+                except:
+                    pass
+            finally:
+                self.process = None
 
 
 @pytest.fixture(scope="session")
 def test_server():
-    """会话级fixture，管理测试服务器生命周期
-
-    服务器在整个测试会话中只启动一次，使用端口8015
-    """
+    """会话级fixture，管理测试服务器生命周期"""
     server = TestServer("content", port=8015)
 
     # 启动服务器
@@ -107,10 +177,7 @@ def test_server():
 
 @pytest.fixture(scope="session")
 def test_server_8016():
-    """会话级fixture，管理测试服务器生命周期（端口8016）
-
-    用于需要独立服务器的测试
-    """
+    """会话级fixture，管理测试服务器生命周期（端口8016）"""
     server = TestServer("content", port=8016)
 
     # 启动服务器

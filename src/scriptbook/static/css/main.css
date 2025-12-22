@@ -190,17 +190,22 @@ footer {
 }
 
 .script-actions {
-    display: flex;
+    display: flex !important;
     gap: 0.5rem;
+    padding: 1rem;
+    background: #f0f0f0;
+    border-top: 1px solid #ddd;
 }
 
 .script-actions button {
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
     border-radius: 4px;
-    border: none;
+    border: 2px solid #333;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-block !important;
+    visibility: visible !important;
 }
 
 .execute-btn:disabled {
@@ -208,11 +213,22 @@ footer {
 }
 
 .stop-btn {
-    display: none;
+    background-color: #dc3545 !important;
+    color: white !important;
+    border: 2px solid #fff !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    font-weight: bold !important;
+}
+
+.stop-btn:hover:not(:disabled) {
+    background-color: #c82333 !important;
 }
 
 .stop-btn:disabled {
     cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .script-code {
