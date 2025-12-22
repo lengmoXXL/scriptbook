@@ -174,9 +174,6 @@ body {
     color: var(--color-text-muted);
 }
 
-.script-output .output-line {
-    border-bottom-color: var(--color-output-border);
-}
 
 .script-output .output-line.stdout .content {
     color: var(--color-text);
@@ -194,6 +191,24 @@ body {
 .script-output .output-line.exit .content {
     color: var(--color-success);
     font-weight: 500;
+}
+
+/* ANSI 转义序列样式支持 */
+.script-output .content span[style*="color"] {
+    /* 在暗色主题中增强对比度 */
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.script-output .content .ansi-bold {
+    font-weight: 600;
+}
+
+.script-output .content .ansi-italic {
+    font-style: italic;
+}
+
+.script-output .content .ansi-underline {
+    text-decoration: underline;
 }
 
 /* 页脚 */

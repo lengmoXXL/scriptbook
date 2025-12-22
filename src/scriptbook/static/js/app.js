@@ -156,7 +156,16 @@ class App {
 
         const contentSpan = document.createElement('span');
         contentSpan.className = 'content';
-        contentSpan.textContent = content;
+
+        // 使用 ANSI 解析器处理内容（支持颜色和格式）
+        if (window.OutputOptimizers && window.OutputOptimizers.ansiParser) {
+            const processedContent = window.OutputOptimizers.ansiParser.processText(content);
+            // 使用 innerHTML 渲染转换后的 HTML（ansiHTML 已处理转义）
+            contentSpan.innerHTML = processedContent;
+        } else {
+            // 如果解析器不可用，使用原始文本
+            contentSpan.textContent = content;
+        }
 
         line.appendChild(timestamp);
         line.appendChild(contentSpan);

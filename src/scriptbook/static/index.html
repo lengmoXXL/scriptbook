@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scriptbook</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <script src="/static/js/lib/ansi-html.js" defer></script>
+    <script src="/static/js/output-optimizers/ansi-parser.js" defer></script>
     <script src="/static/js/app.js" defer></script>
     <script src="/static/js/plugin-loader.js" defer></script>
 </head>
@@ -57,13 +59,13 @@
                     <span class="script-title"></span>
                     <span class="script-language"></span>
                 </div>
-                <button class="execute-btn">执行脚本</button>
+                <div class="script-actions">
+                    <button class="execute-btn">执行脚本</button>
+                    <button class="copy-btn">复制代码</button>
+                    <button class="stop-btn" disabled>停止执行</button>
+                </div>
             </div>
             <pre class="script-code"></pre>
-            <div class="script-actions" style="display: flex !important; visibility: visible !important;">
-                <button class="copy-btn">复制代码</button>
-                <button class="stop-btn" disabled style="display: inline-block !important; visibility: visible !important;">停止执行</button>
-            </div>
         </div>
     </template>
 
