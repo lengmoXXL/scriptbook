@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os
 
+from scriptbook import __version__
+
 
 def create_app(content_dir: Path = None) -> FastAPI:
     """
@@ -27,7 +29,7 @@ def create_app(content_dir: Path = None) -> FastAPI:
     app = FastAPI(
         title="Scriptbook - 可执行脚本的 Markdown 服务器",
         description="支持脚本执行的在线 Markdown 服务器，可用于SOP自动化和交互式文档",
-        version="1.0.0"
+        version=__version__
     )
 
     # 设置content目录到应用状态
@@ -62,7 +64,7 @@ def create_app(content_dir: Path = None) -> FastAPI:
         return {
             "status": "healthy",
             "service": "scriptbook",
-            "version": "1.0.0",
+            "version": __version__,
             "description": "Scriptbook - 可执行脚本的 Markdown 服务器"
         }
 

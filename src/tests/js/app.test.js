@@ -3,6 +3,28 @@
  * 测试 app.js 中的所有功能
  */
 
+// 模拟 localStorage
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: jest.fn((key) => store[key] || null),
+    setItem: jest.fn((key, value) => { store[key] = value.toString(); }),
+    removeItem: jest.fn((key) => { delete store[key]; }),
+    clear: jest.fn(() => { store = {}; }),
+    get store() { return store; }
+  };
+})();
+
+Object.defineProperty(global, 'localStorage', {
+  value: localStorageMock,
+  writable: true
+});
+
+// 在每个测试前清空 localStorage
+beforeEach(() => {
+  localStorageMock.clear();
+});
+
 describe('App 类', () => {
   // 在每个测试前加载 app.js
   beforeEach(() => {
@@ -124,6 +146,22 @@ describe('App 类', () => {
       );
     });
 
+    test('应该将选择的文件保存到 localStorage', async () => {
+      const mockData = {
+        html: '<h1>测试文档</h1>',
+        scripts: [],
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockData,
+      });
+
+      await global.window.app.selectFile('test.md');
+
+      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_currentFile', 'test.md');
+    });
+
     test('应该在空文件名时不执行操作', async () => {
       await global.window.app.selectFile('');
 
@@ -172,6 +210,133 @@ describe('App 类', () => {
       expect(global.window.app.formatFileSize(1048576)).toBe('1 MB');
       expect(global.window.app.formatFileSize(1073741824)).toBe('1 GB');
     });
+  });
+
+  describe('文档持久化', () => {
+    test('选择文件时应该保存到 localStorage', async () => {
+      const mockData = {
+        html: '<h1>测试文档</h1>',
+        scripts: [],
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockData,
+      });
+
+      await global.window.app.selectFile('test.md');
+
+      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_currentFile', 'test.md');
+    });
+  });
+});
+
+describe('文档持久化集成', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorageMock.clear();
+  });
+
+  test('页面刷新后应该恢复之前选择的文档', async () => {
+    // 设置保存的文件
+    localStorageMock.setItem('scriptbook_currentFile', 'test.md');
+
+    jest.resetModules();
+    require('../../scriptbook/static/js/app.js');
+
+    // Mock DOM elements
+    document.body.innerHTML = `
+      <select id="file-select"></select>
+      <span id="current-file"></span>
+      <div id="markdown-content"></div>
+    `;
+
+    const mockData = {
+      html: '<h1>测试文档</h1>',
+      scripts: [],
+    };
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ files: [{ name: 'test.md', size: 100 }] }),
+    });
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    // 调用 init
+    await global.window.app.init();
+
+    // 验证选择了保存的文件
+    expect(global.window.app.currentFile).toBe('test.md');
+  });
+
+  test('如果没有保存的文档，应该选择第一个文件', async () => {
+    jest.resetModules();
+    require('../../scriptbook/static/js/app.js');
+
+    // Mock DOM elements
+    document.body.innerHTML = `
+      <select id="file-select"></select>
+      <span id="current-file"></span>
+      <div id="markdown-content"></div>
+    `;
+
+    const mockData = {
+      html: '<h1>第一个文档</h1>',
+      scripts: [],
+    };
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ files: [{ name: 'first.md', size: 100 }] }),
+    });
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    // 调用 init
+    await global.window.app.init();
+
+    // 验证选择了第一个文件
+    expect(global.window.app.currentFile).toBe('first.md');
+  });
+
+  test('如果保存的文档不存在，应该选择第一个文件', async () => {
+    // 设置一个不存在的文件
+    localStorageMock.setItem('scriptbook_currentFile', 'nonexistent.md');
+
+    jest.resetModules();
+    require('../../scriptbook/static/js/app.js');
+
+    // Mock DOM elements
+    document.body.innerHTML = `
+      <select id="file-select"></select>
+      <span id="current-file"></span>
+      <div id="markdown-content"></div>
+    `;
+
+    const mockData = {
+      html: '<h1>第一个文档</h1>',
+      scripts: [],
+    };
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ files: [{ name: 'first.md', size: 100 }] }),
+    });
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    // 调用 init
+    await global.window.app.init();
+
+    // 验证选择了第一个文件（因为保存的不存在）
+    expect(global.window.app.currentFile).toBe('first.md');
   });
 });
 

@@ -13,7 +13,6 @@ def create_app(content_dir: Path):
     from scriptbook.main import create_app as _create_app
 
     # 设置环境变量传递content目录
-    import os
     os.environ['CONTENT_DIR'] = str(content_dir)
 
     return _create_app()

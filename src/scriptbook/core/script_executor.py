@@ -3,6 +3,12 @@ import subprocess
 from typing import AsyncGenerator, Dict, Any
 from datetime import datetime
 
+
+def _timestamp() -> str:
+    """生成ISO格式的时间戳"""
+    return datetime.now().isoformat()
+
+
 class ScriptExecutor:
     """脚本执行器，用于执行bash脚本"""
 
@@ -49,7 +55,7 @@ class ScriptExecutor:
                     yield {
                         "type": output_type,
                         "content": line.decode("utf-8", errors="replace").rstrip(),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": _timestamp()
                     }
 
             # 同时读取stdout和stderr
@@ -66,7 +72,7 @@ class ScriptExecutor:
                 yield {
                     "type": "exit",
                     "content": f"进程退出，返回码: {returncode}",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": _timestamp()
                 }
             except asyncio.TimeoutError:
                 # 超时，终止进程
@@ -75,14 +81,14 @@ class ScriptExecutor:
                 yield {
                     "type": "error",
                     "content": f"脚本执行超时 ({timeout}秒)，进程已终止",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": _timestamp()
                 }
 
         except Exception as e:
             yield {
                 "type": "error",
                 "content": f"执行错误: {str(e)}",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": _timestamp()
             }
         finally:
             # 清理进程引用
@@ -92,7 +98,8 @@ class ScriptExecutor:
             if process and not terminated and process.returncode is None:
                 try:
                     process.terminate()
-                except:
+                except ProcessLookupError:
+                    # 进程已不存在，忽略
                     pass
 
     async def _merge_outputs(self, *generators):

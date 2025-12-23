@@ -2,7 +2,7 @@
 
 class PluginLoader {
     constructor() {
-        this.activeTheme = 'default';
+        this.activeTheme = localStorage.getItem('scriptbook_theme') || 'default';
         this.plugins = [];
         this.loadedStylesheets = [];
     }
@@ -11,7 +11,19 @@ class PluginLoader {
         console.log('插件加载器初始化...');
         await this.loadPlugins();
         this.bindEvents();
+        // 恢复保存的主题
+        this.restoreTheme();
         console.log('插件加载器初始化完成');
+    }
+
+    restoreTheme() {
+        const savedTheme = localStorage.getItem('scriptbook_theme') || 'default';
+        this.switchTheme(savedTheme);
+        // 更新选择器值
+        const select = document.getElementById('plugin-select');
+        if (select) {
+            select.value = savedTheme;
+        }
     }
 
     async loadPlugins() {
@@ -64,6 +76,9 @@ class PluginLoader {
     switchTheme(themeName) {
         console.log('切换主题:', themeName);
 
+        // 保存到 localStorage
+        localStorage.setItem('scriptbook_theme', themeName);
+
         // 移除所有已加载的主题样式表（包括暗色主题）
         this.loadedStylesheets.forEach(link => {
             if (link && link.parentNode) {
@@ -94,8 +109,7 @@ class PluginLoader {
 
             this.activeTheme = 'default';
             console.log('已切换到默认主题');
-            return;
-        }
+        } else {
 
         // 加载新主题的CSS
         const plugin = this.plugins.find(p => p.name === themeName);
@@ -123,6 +137,7 @@ class PluginLoader {
             }, 100);
 
             console.log('已加载主题:', themeName);
+        }
         }
     }
 }

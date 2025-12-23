@@ -4,6 +4,10 @@ import copy
 from typing import List, Dict, Any, Optional
 from scriptbook.models.schemas import PluginInfo
 
+# 缓存过期时间（秒）
+CACHE_TTL = 60
+
+
 class PluginManager:
     """插件管理器"""
 
@@ -11,18 +15,27 @@ class PluginManager:
         self.plugins_dir = plugins_dir
         self._plugins_cache = None
         self._active_plugins = []
+        self._cache_time = 0
 
     def scan_plugins(self, force_refresh: bool = False) -> List[PluginInfo]:
         """扫描插件目录，返回所有可用插件"""
-        # 如果有缓存且不强制刷新，返回缓存的副本
-        if not force_refresh and self._plugins_cache is not None:
+        import time
+
+        current_time = time.time()
+
+        # 如果有缓存且未过期且不强制刷新，返回缓存的副本
+        if (not force_refresh and
+            self._plugins_cache is not None and
+            current_time - self._cache_time < CACHE_TTL):
             return copy.deepcopy(self._plugins_cache)
 
         plugins = []
 
         if not os.path.exists(self.plugins_dir):
             os.makedirs(self.plugins_dir, exist_ok=True)
-            return plugins
+            self._plugins_cache = []
+            self._cache_time = current_time
+            return []
 
         for plugin_name in os.listdir(self.plugins_dir):
             plugin_path = os.path.join(self.plugins_dir, plugin_name)
@@ -62,11 +75,19 @@ class PluginManager:
 
         # 更新缓存
         self._plugins_cache = plugins
+        self._cache_time = current_time
         return copy.deepcopy(plugins)
 
     def get_plugin(self, plugin_name: str) -> Optional[PluginInfo]:
         """获取指定插件信息"""
-        plugins = self.scan_plugins(force_refresh=True)
+        # 先从缓存中查找
+        if self._plugins_cache is not None:
+            for plugin in self._plugins_cache:
+                if plugin.name == plugin_name:
+                    return copy.deepcopy(plugin)
+
+        # 缓存未命中，扫描插件目录（使用现有缓存，不强制刷新）
+        plugins = self.scan_plugins(force_refresh=False)
         for plugin in plugins:
             if plugin.name == plugin_name:
                 return plugin
@@ -76,7 +97,11 @@ class PluginManager:
         """激活插件"""
         plugin = self.get_plugin(plugin_name)
         if not plugin:
-            return False
+            # 尝试强制刷新缓存后再次获取
+            plugins = self.scan_plugins(force_refresh=True)
+            plugin = next((p for p in plugins if p.name == plugin_name), None)
+            if not plugin:
+                return False
 
         # 避免重复激活
         if plugin_name not in self._active_plugins:
@@ -97,6 +122,9 @@ class PluginManager:
 
     def get_active_plugins_info(self) -> List[PluginInfo]:
         """获取当前激活插件的详细信息"""
+        # 先确保插件缓存已刷新
+        self.scan_plugins(force_refresh=True)
+
         active_plugins = []
         for plugin_name in self._active_plugins:
             plugin = self.get_plugin(plugin_name)

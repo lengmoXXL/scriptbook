@@ -15,8 +15,16 @@ class App {
         // 加载文件列表
         await this.loadFileList();
 
-        // 自动选择第一个文件
-        if (this.fileList && this.fileList.length > 0) {
+        // 恢复之前选择的文件，或自动选择第一个文件
+        const savedFile = localStorage.getItem('scriptbook_currentFile');
+        if (savedFile && this.fileList) {
+            const fileExists = this.fileList.some(f => f.name === savedFile);
+            if (fileExists) {
+                await this.selectFile(savedFile);
+            } else if (this.fileList.length > 0) {
+                await this.selectFile(this.fileList[0].name);
+            }
+        } else if (this.fileList && this.fileList.length > 0) {
             await this.selectFile(this.fileList[0].name);
         }
 
@@ -90,6 +98,9 @@ class App {
             return;
         }
 
+        // 保存到 localStorage
+        localStorage.setItem('scriptbook_currentFile', filename);
+
         try {
             this.currentFile = filename;
             const currentFileElement = document.getElementById('current-file');
@@ -97,6 +108,12 @@ class App {
                 currentFileElement.textContent = `当前文件: ${filename}`;
             } else {
                 console.error('找不到 #current-file 元素');
+            }
+
+            // 更新下拉框选择
+            const fileSelect = document.getElementById('file-select');
+            if (fileSelect) {
+                fileSelect.value = filename;
             }
 
             console.log('请求 /api/markdown/render?file=', encodeURIComponent(filename));
@@ -109,7 +126,6 @@ class App {
 
             const data = await response.json();
             console.log('收到渲染数据，脚本块数量:', data.scripts.length);
-            console.log('HTML长度:', data.html?.length);
 
             // 设置HTML到markdown内容区域（包含脚本块）
             const container = document.getElementById('markdown-content');
@@ -117,7 +133,6 @@ class App {
                 console.error('找不到 #markdown-content 容器');
                 return;
             }
-            console.log('替换 #markdown-content 的innerHTML');
             container.innerHTML = data.html;
 
             console.log('文件加载完成:', filename);

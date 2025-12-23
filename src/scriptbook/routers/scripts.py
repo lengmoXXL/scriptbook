@@ -6,6 +6,12 @@ import sys
 from datetime import datetime
 import json
 
+
+def _timestamp() -> str:
+    """生成ISO格式的时间戳"""
+    return datetime.now().isoformat()
+
+
 # 创建不带prefix的router
 router = APIRouter(tags=["scripts"])
 
@@ -108,7 +114,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
                     message = ScriptOutputMessage(
                         type=output_type,
                         content=line.decode("utf-8", errors="replace").rstrip(),
-                        timestamp=datetime.now().isoformat()
+                        timestamp=_timestamp()
                     )
                     await safe_send(message.dict())
             except Exception as e:
@@ -149,7 +155,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
             exit_message = ScriptOutputMessage(
                 type="exit",
                 content=f"进程退出，返回码: {returncode}",
-                timestamp=datetime.now().isoformat()
+                timestamp=_timestamp()
             )
             await safe_send(exit_message.dict())
 
@@ -164,7 +170,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
             error_message = ScriptOutputMessage(
                 type="error",
                 content=f"执行错误: {str(e)}",
-                timestamp=datetime.now().isoformat()
+                timestamp=_timestamp()
             )
             await safe_send(error_message.dict())
     finally:
@@ -172,7 +178,8 @@ async def execute_script(websocket: WebSocket, script_id: str):
         if process and process.returncode is None:
             try:
                 process.terminate()
-            except:
+            except ProcessLookupError:
+                # 进程已不存在，忽略
                 pass
         # 只有在连接未关闭时才尝试关闭
         if not connection_closed:

@@ -8,7 +8,7 @@ class MarkdownParser:
 
     def __init__(self):
         self.script_pattern = re.compile(
-            r'```(bash|sh|shell)\s*(\{[^}]*\})?\s*\n(.*?)\n\s*```',
+            r'```(bash|sh|shell)\s*(\{[^}]*\})?\s*\n([\s\S]*?)\n```',
             re.DOTALL
         )
 
@@ -48,7 +48,7 @@ class MarkdownParser:
                     else:
                         # 有metadata但没有title，使用智能生成
                         title = self._generate_title(code, language)
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, ValueError):
                     # JSON解析失败，使用默认title
                     pass
             else:
