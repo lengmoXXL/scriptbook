@@ -19,8 +19,10 @@ def extract_script_blocks(content: str):
     提取 markdown 中的脚本块
     返回脚本块列表，包含在原文中的位置
     """
+    # 支持可选的缩进（用于列表中的代码块）
+    # 使用负向前瞻确保不会匹配到代码内容中的 ```
     script_pattern = re.compile(
-        r'```(\w+)?\s*(\{[^}]*\})?\s*\n((?:(?!^```).)*?)\n```(?:\s|$)',
+        r'^[ \t]*```(bash|sh|shell)\s*(\{[^}]*\})?\s*\n((?:(?!```).)*)[ \t]*\n[ \t]*```',
         re.MULTILINE | re.DOTALL
     )
 

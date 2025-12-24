@@ -139,6 +139,11 @@ class PluginLoader {
             console.log('已加载主题:', themeName);
         }
         }
+
+        // 更新终端主题
+        if (window.app && window.app.terminalManager) {
+            window.app.terminalManager.applyTheme(themeName === 'dark-theme' ? 'dark' : 'default');
+        }
     }
 }
 

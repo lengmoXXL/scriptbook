@@ -120,6 +120,7 @@ scriptbook/
 
 ## 版本历史
 
+- **v1.4.2**: xterm.js Canvas渲染器，主题支持，代码清理
 - **v1.4.1**: 修复 docker 命令 TTY 支持问题
 - **v1.4.0**: xterm.js嵌入式终端，TerminalManager单元测试
 - **v1.3.1**: 修复主题和文档持久化，代码优化，回归测试

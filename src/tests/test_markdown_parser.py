@@ -501,3 +501,205 @@ echo "test"
         assert '网络检查' in result
         assert '文件操作' in result
         assert '结束' in result
+
+    def test_extract_scripts_indented_code_blocks(self):
+        """测试提取列表中的缩进代码块"""
+        text = """## 6.2 列表中的脚本
+
+- 第一步：检查系统
+
+  ```bash {"title": "列表中的脚本1"}
+  uname -a
+  ```
+
+- 第二步：检查网络
+
+  ```bash {"title": "列表中的脚本2"}
+  ping -c 1 127.0.0.1
+  ```
+
+- 第三步：检查用户
+
+  ```bash {"title": "列表中的脚本3"}
+  whoami
+  ```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        # 应该提取3个脚本块
+        assert len(scripts) == 3, f"期望3个脚本块，实际{len(scripts)}个"
+
+        # 验证第一个脚本
+        assert scripts[0].title == "列表中的脚本1"
+        assert scripts[0].language == "bash"
+        assert "uname -a" in scripts[0].code
+
+        # 验证第二个脚本
+        assert scripts[1].title == "列表中的脚本2"
+        assert scripts[1].language == "bash"
+        assert "ping -c 1 127.0.0.1" in scripts[1].code
+
+        # 验证第三个脚本
+        assert scripts[2].title == "列表中的脚本3"
+        assert scripts[2].language == "bash"
+        assert "whoami" in scripts[2].code
+
+        # 验证清理后的文本不包含原始代码块
+        assert "```bash" not in cleaned
+
+    def test_extract_scripts_empty_code_block(self):
+        """测试提取空代码块"""
+        text = """```bash {"title": "空代码块测试"}
+
+```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 1
+        assert scripts[0].title == "空代码块测试"
+        assert scripts[0].code == ""
+
+    def test_extract_scripts_consecutive_blocks(self):
+        """测试连续多个代码块（中间无空行）"""
+        text = """```bash {"title": "脚本1"}
+echo "1"
+```
+```bash {"title": "脚本2"}
+echo "2"
+```
+```bash {"title": "脚本3"}
+echo "3"
+```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 3
+        assert scripts[0].title == "脚本1"
+        assert scripts[0].code == 'echo "1"'
+        assert scripts[1].title == "脚本2"
+        assert scripts[1].code == 'echo "2"'
+        assert scripts[2].title == "脚本3"
+        assert scripts[2].code == 'echo "3"'
+
+    def test_extract_scripts_with_backticks_in_code(self):
+        """测试代码中包含反引号的脚本块"""
+        text = r"""```bash {"title": "包含反引号"}
+echo "Test \`with backticks\`"
+echo 'Another `test`'
+```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 1
+        assert scripts[0].title == "包含反引号"
+        # 代码应该包含反引号
+        assert '`' in scripts[0].code or '\\`' in scripts[0].code
+
+    def test_extract_scripts_nested_indentation(self):
+        """测试多级缩进（嵌套列表中的代码块）"""
+        text = """- 一级列表
+
+  - 二级列表
+
+    ```bash {"title": "深层缩进脚本"}
+    echo "deep"
+    ```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 1
+        assert scripts[0].title == "深层缩进脚本"
+        assert "echo" in scripts[0].code
+        assert "deep" in scripts[0].code
+
+    def test_extract_scripts_with_code_containing_triple_backticks(self):
+        """测试代码中包含三个反引号的脚本（edge case）"""
+        text = r"""```bash {"title": "包含三个反引号"}
+echo "Here is a code example:"
+echo "\`\`\`"
+echo "End of example"
+```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 1
+        assert scripts[0].title == "包含三个反引号"
+        # 应该能正确处理包含 ``` 的代码
+        assert "echo" in scripts[0].code
+
+    def test_extract_scripts_tabs_and_spaces_indentation(self):
+        """测试混合缩进（制表符和空格）"""
+        text = """- 使用空格缩进
+
+  ```bash {"title": "空格缩进"}
+  echo "space indented"
+  ```
+
+- 使用制表符缩进
+
+	```bash {"title": "制表符缩进"}
+	echo "tab indented"
+	```
+"""
+        cleaned, scripts = self.parser.extract_scripts(text)
+
+        assert len(scripts) == 2
+        assert scripts[0].title == "空格缩进"
+        assert "space indented" in scripts[0].code
+        assert scripts[1].title == "制表符缩进"
+        assert "tab indented" in scripts[1].code
+
+    def test_router_extract_script_blocks_with_indentation(self):
+        """测试路由层的 extract_script_blocks 支持缩进代码块"""
+        from scriptbook.routers.markdown import extract_script_blocks
+
+        text = """### 6.2 列表中的脚本
+
+- 第一步：检查系统
+
+  ```bash {"title": "脚本1"}
+  uname -a
+  ```
+
+- 第二步：检查网络
+
+  ```bash {"title": "脚本2"}
+  ping -c 1 127.0.0.1
+  ```
+"""
+        scripts = extract_script_blocks(text)
+
+        assert len(scripts) == 2
+        assert scripts[0]['title'] == "脚本1"
+        assert "uname -a" in scripts[0]['code']
+        assert scripts[1]['title'] == "脚本2"
+        assert "ping" in scripts[1]['code']
+
+    def test_router_extract_consecutive_indented_blocks(self):
+        """测试路由层处理连续缩进代码块"""
+        from scriptbook.routers.markdown import extract_script_blocks
+
+        text = """- 项目A
+
+  ```bash {"title": "A脚本"}
+  echo A
+  ```
+
+- 项目B
+
+  ```bash {"title": "B脚本"}
+  echo B
+  ```
+
+- 项目C
+
+  ```bash {"title": "C脚本"}
+  echo C
+  ```
+"""
+        scripts = extract_script_blocks(text)
+
+        assert len(scripts) == 3
+        assert scripts[0]['title'] == "A脚本"
+        assert scripts[1]['title'] == "B脚本"
+        assert scripts[2]['title'] == "C脚本"

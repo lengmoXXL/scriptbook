@@ -7,9 +7,12 @@ class MarkdownParser:
     """Markdown解析器，支持特殊脚本语法"""
 
     def __init__(self):
+        # 支持可选的缩进（用于列表中的代码块）
+        # 使用负向前瞻确保不会匹配到代码内容中的 ```
+        # 模式：开头缩进 + ``` + 语言 + 可选元数据 + 换行 + 代码内容(不含```) + 换行 + 缩进 + ```
         self.script_pattern = re.compile(
-            r'```(bash|sh|shell)\s*(\{[^}]*\})?\s*\n([\s\S]*?)\n```',
-            re.DOTALL
+            r'^[ \t]*```(bash|sh|shell)\s*(\{[^}]*\})?\s*\n((?:(?!```).)*)[ \t]*\n[ \t]*```',
+            re.MULTILINE | re.DOTALL
         )
 
     def extract_scripts(self, markdown_text: str) -> Tuple[str, List[ScriptBlock]]:

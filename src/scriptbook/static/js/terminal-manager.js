@@ -16,6 +16,20 @@ class TerminalManager {
     }
 
     /**
+     * 获取当前主题
+     * @returns {string} 'default' 或 'dark'
+     */
+    getCurrentTheme() {
+        // 优先使用插件加载器的主题
+        if (window.pluginLoader) {
+            return window.pluginLoader.activeTheme === 'dark-theme' ? 'dark' : 'default';
+        }
+        // 回退到 localStorage
+        const theme = localStorage.getItem('scriptbook_theme');
+        return theme === 'dark-theme' ? 'dark' : 'default';
+    }
+
+    /**
      * 为指定脚本创建终端
      * @param {string} scriptId - 脚本ID
      * @param {HTMLElement} container - 终端容器元素
@@ -25,19 +39,23 @@ class TerminalManager {
             this.disposeTerminal(scriptId);
         }
 
-        // 创建终端实例
+        // 根据当前主题设置颜色
+        const isDark = this.getCurrentTheme() === 'dark';
+
+        // 创建终端实例（使用 Canvas renderer 以获得更好的滚动体验）
         const term = new window.Terminal({
             cursorBlink: false, // 禁用闪烁，避免视觉干扰
             cursorStyle: 'block', // 使用方块光标
             convertEol: true, // 转换 \n 为 \r\n
             fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace",
             fontSize: 13,
+            rendererType: 'canvas', // 使用 Canvas renderer
             theme: {
-                background: '#f5f5f5', // 浅色背景
-                foreground: '#333333',  // 深色文字
-                cursor: '#333333',      // 深色光标
-                cursorAccent: '#f5f5f5',
-                selectionBackground: '#add6ff',
+                background: isDark ? '#1e1e1e' : '#ffffff',
+                foreground: isDark ? '#d4d4d4' : '#333333',
+                cursor: isDark ? '#d4d4d4' : '#333333',
+                cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
+                selectionBackground: isDark ? '#264f78' : '#add6ff',
             },
             rows: 10,
             allowTransparency: true,
@@ -46,6 +64,7 @@ class TerminalManager {
 
         // 挂载到容器
         term.open(container);
+
         term.write('\x1b[2m执行结果将显示在这里...\x1b[0m\r\n');
 
         // 保存终端实例
@@ -183,12 +202,16 @@ class TerminalManager {
     applyTheme(theme) {
         const isDark = theme === 'dark';
         this.terminals.forEach((terminal) => {
-            terminal.term.options.theme = {
+            const term = terminal.term;
+            term.options.theme = {
                 background: isDark ? '#1e1e1e' : '#ffffff',
                 foreground: isDark ? '#d4d4d4' : '#333333',
                 cursor: isDark ? '#d4d4d4' : '#333333',
+                cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
                 selectionBackground: isDark ? '#264f78' : '#b4d5ff',
             };
+            // 强制刷新 Canvas renderer
+            term.refresh(0, term.rows - 1);
         });
     }
 }

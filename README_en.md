@@ -75,10 +75,22 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.4.0
+- Current Version: 1.4.2
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.4.2 (2025-12-24)
+- **xterm.js Canvas Renderer** - Switched from DOM to Canvas renderer
+  - Fixed scrolling issues, smoother scrolling experience
+  - Terminal background matches page theme
+  - Terminal automatically changes color when theme switches
+- **Bug Fixes**
+  - Fixed xterm.css issues, downloaded correct stylesheet
+  - Fixed xterm.js gray background issue
+  - Fixed terminal color not changing when theme switches
+  - Fixed terminal initialization as white in dark theme
+- **Code Cleanup** - Removed deprecated styles and debug code
 
 #### v1.4.0 (2025-12-24)
 - **xterm.js Embedded Terminal** - Professional terminal emulator for script output rendering
