@@ -423,3 +423,64 @@ footer {
         align-self: flex-start;
     }
 }
+
+/* xterm.js 终端容器样式 */
+.script-output .xterm {
+    padding: 8px;
+    min-height: 100px;
+    height: 100%;
+}
+
+.script-output .xterm-viewport {
+    overflow-y: auto !important;
+}
+
+.script-output .xterm-viewport::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.script-output .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.script-output .xterm-viewport::-webkit-scrollbar-thumb {
+    background-color: rgba(128, 128, 128, 0.4);
+    border-radius: 4px;
+}
+
+.script-output .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(128, 128, 128, 0.6);
+}
+
+/* 隐藏字符测量元素 */
+.script-output .xterm-char-measure-element,
+.script-output .xterm-helpers .xterm-char-measure-element {
+    position: absolute;
+    visibility: hidden;
+    left: -9999px;
+    overflow: hidden;
+}
+
+/* 隐藏辅助元素 */
+.script-output .xterm-helpers {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* 隐藏光标闪烁效果（避免闪烁问题） */
+.script-output .xterm-cursor-blink {
+    animation: none !important;
+}
+
+/* 修复 scroll-area 导致的滚动问题 - 隐藏滚动占位元素 */
+.script-output .xterm-scroll-area {
+    display: none !important;
+}
+
+/* 让 xterm-screen 自然滚动 */
+.script-output .xterm-screen {
+    overflow: auto !important;
+}

@@ -72,12 +72,15 @@ describe('脚本结果持久化集成测试', () => {
       // 等待异步操作完成
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // 验证结果已恢复
-      const outputElement = document.getElementById('output-script-1');
-      expect(outputElement).not.toBeNull();
-      expect(outputElement.innerHTML).toContain('Hello World');
-      expect(outputElement.innerHTML).toContain('进程退出');
-      expect(outputElement.innerHTML).not.toContain('output-placeholder');
+      // 验证终端已创建
+      const term = global.window.app.terminalManager.getTerminal('script-1');
+      expect(term).not.toBeNull();
+      // 验证恢复结果时终端的 writeln 被调用
+      expect(term.writeln).toHaveBeenCalledWith('Hello World', 'stdout');
+      // 验证包含退出信息（可能有不同的返回码）
+      const writelnCalls = term.writeln.mock.calls;
+      const exitCall = writelnCalls.find(call => call[0].includes('进程退出'));
+      expect(exitCall).toBeDefined();
     });
 
     test('应该在没有保存结果时不恢复', async () => {
@@ -106,10 +109,11 @@ describe('脚本结果持久化集成测试', () => {
       // 等待异步操作完成
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // 验证结果未恢复（输出区域为空）
-      const outputElement = document.getElementById('output-script-1');
-      expect(outputElement).not.toBeNull();
-      expect(outputElement.innerHTML).toBe('');
+      // 验证终端已创建
+      const term = global.window.app.terminalManager.getTerminal('script-1');
+      expect(term).not.toBeNull();
+      // 没有保存结果，writeln 不会被调用（占位符用 write 不是 writeln）
+      expect(term.writeln).not.toHaveBeenCalled();
     });
 
     test('应该在清空后重新执行时清除保存的结果', async () => {
@@ -219,11 +223,21 @@ describe('脚本结果持久化集成测试', () => {
       // 恢复结果
       global.window.app.restoreScriptResults();
 
-      // 验证显示第一个文件的结果
-      const outputElement = document.getElementById(`output-${scriptId}`);
-      expect(outputElement).not.toBeNull();
-      expect(outputElement.innerHTML).toContain('File1 Output');
-      expect(outputElement.innerHTML).not.toContain('File2 Output');
+      // 验证终端显示第一个文件的结果
+      const term1 = global.window.app.terminalManager.getTerminal(scriptId);
+      expect(term1).not.toBeNull();
+      // 验证 File1 Output 被写入
+      const calls1 = term1.writeln.mock.calls;
+      const file1Call = calls1.find(call => call[0] === 'File1 Output');
+      expect(file1Call).toBeDefined();
+
+      // 模拟第二个文件
+      document.body.innerHTML = `
+        <div class="script-block" data-script-id="${scriptId}">
+          <pre class="script-code"><code>echo "test"</code></pre>
+          <div id="output-${scriptId}"></div>
+        </div>
+      `;
 
       // 选择第二个文件
       global.window.app.currentFile = fileName2;
@@ -233,12 +247,15 @@ describe('脚本结果持久化集成测试', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
 
       // 恢复结果
-      outputElement.innerHTML = ''; // 清空
       global.window.app.restoreScriptResults();
 
-      // 验证显示第二个文件的结果
-      expect(outputElement.innerHTML).toContain('File2 Output');
-      expect(outputElement.innerHTML).not.toContain('File1 Output');
+      // 验证终端显示第二个文件的结果
+      const term2 = global.window.app.terminalManager.getTerminal(scriptId);
+      expect(term2).not.toBeNull();
+      // 新终端实例，验证新的 writeln 调用
+      const calls2 = term2.writeln.mock.calls;
+      const file2Call = calls2.find(call => call[0] === 'File2 Output');
+      expect(file2Call).toBeDefined();
     });
   });
 

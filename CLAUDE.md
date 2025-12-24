@@ -49,10 +49,10 @@ scriptbook/
 │   │       ├── js/
 │   │       │   ├── app.js           # 主应用逻辑
 │   │       │   ├── plugin-loader.js # 插件加载器
-│   │       │   ├── lib/
-│   │       │   │   └── ansi-html.js # ANSI转HTML库
-│   │       │   └── output-optimizers/
-│   │       │       └── ansi-parser.js # ANSI序列检测与转换
+│   │       │   ├── terminal-manager.js # 终端管理器
+│   │       │   └── lib/
+│   │       │       ├── xterm.js     # xterm.js终端库
+│   │       │       └── xterm.css    # xterm.js样式
 │   │       ├── index.html           # 主页面模板
 │   │       └── plugins/             # 主题插件
 │   │           ├── default/
@@ -104,8 +104,8 @@ scriptbook/
 - **`static/css/main.css`**: 主样式，修复了停止按钮可见性
 - **`static/index.html`**: 主页面模板
 
-### 测试 (总计86个)
-- **JavaScript测试 (77个)**: 使用Jest + JSDOM
+### 测试 (总计192个)
+- **JavaScript测试 (109个)**: 使用Jest + JSDOM
 - **Python单元测试 (70个)**: 使用pytest
 - **集成测试 (13个)**: 端到端测试
 
@@ -120,6 +120,7 @@ scriptbook/
 
 ## 版本历史
 
+- **v1.4.0**: xterm.js嵌入式终端，TerminalManager单元测试
 - **v1.3.1**: 修复主题和文档持久化，代码优化，回归测试
 - **v1.3.0**: ANSI转义序列解析，按钮布局优化
 - **v1.2.0**: 文档体系完善

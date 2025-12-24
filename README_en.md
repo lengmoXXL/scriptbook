@@ -10,10 +10,15 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 - **Interactive Input** - Support user input during script execution (e.g., `read` command)
 - **Real-time Execution** - WebSocket-based real-time script output streaming
 - **Independent Output** - Each script block has its own output area below
-- **Multi-document Support** - Switch between multiple documents
+- **Result Persistence** - Auto-restore script execution results after page refresh (localStorage)
+- **Stop Execution** - Support terminating running scripts anytime
+- **Multi-document Support** - Switch between multiple documents, results saved independently
 - **Theme Switching** - Support for light and dark themes
+- **ANSI Color Support** - Script output colors and formatting displayed correctly in browser
+- **xterm.js Terminal** - Professional terminal emulator for script output rendering
+- **WebSocket Optimization** - Improved concurrency handling, supports page refresh scenarios
 - **SOP Automation** - Ideal for displaying and executing enterprise standard operating procedures
-- **Comprehensive Testing** - Includes 102 unit and integration tests
+- **Comprehensive Testing** - Includes 192 unit and integration tests
 
 ## Screenshot
 
@@ -70,18 +75,49 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.0.0
+- Current Version: 1.4.0
 - Python Requirement: >=3.10
 
 ### Changelog
 
+#### v1.4.0 (2025-12-24)
+- **xterm.js Embedded Terminal** - Professional terminal emulator for script output rendering
+  - Full ANSI escape sequence support
+  - Better terminal experience (scroll, select, copy)
+  - Light theme adaptation (#f5f5f5 background + #333333 text)
+  - Color coding: stdout (no color), stderr (red), stdin (cyan), exit (yellow)
+- **Technical Improvements**
+  - Added `terminal-manager.js` terminal manager class
+  - Added `lib/xterm.js` and `lib/xterm.css`
+  - Removed deprecated `ansi-html.js` and `ansi-parser.js`
+- **Testing Enhancement** - Added 26 TerminalManager unit tests
+
+#### v1.3.1 (2025-12-23)
+- **Bug Fixes**
+  - Theme persistence on page refresh
+  - Document persistence on page refresh
+  - Added version query params to JS/CSS to prevent browser caching issues
+- **Code Optimization**
+  - Removed redundant imports
+  - Added `_timestamp()` helper function
+  - Added cache TTL (60s) to plugin manager
+
+#### v1.3.0 (2025-12-22)
+- **ANSI Escape Sequence Parsing** - Script output colors and formatting displayed correctly
+  - Support for 16 basic colors (black, red, green, yellow, blue, purple, cyan, white)
+  - Support for bold, italic, underline, inverse formatting
+  - Support for `\x1b[]`, `\033[]`, and `[]` format ANSI sequences
+
+#### v1.2.0 (2025-12-22)
+- **Documentation** - Added release process and project structure documents
+
+#### v1.1.0 (2025-12-22)
+- **Script Result Persistence** - Auto-restore results after page refresh
+- **Stop Script Execution** - Terminate running scripts with stop button
+- **WebSocket Concurrency** - Improved connection handling for page refresh
+
 #### v1.0.0 (2025-12-21)
-- Project renamed to Scriptbook
-- Added interactive input feature, supporting user input during script execution
-- Added 25 JavaScript unit tests
-- Reorganized test directory structure for unified test file management
-- Optimized WebSocket communication with stdin bidirectional interaction support
-- All 102 tests passed
+- Initial release with interactive input and WebSocket streaming
 
 ### License
 
@@ -94,44 +130,32 @@ MIT License
 
 ## Testing
 
-This project includes a comprehensive test suite with a total of 102 test cases.
+This project includes a comprehensive test suite with a total of 192 test cases.
 
 ### Run All Tests
 
 ```bash
 # Run all tests (unit tests + integration tests)
 pytest src/ src/integration_tests/ -v
-```
 
-### Run Tests Separately
-
-```bash
-# Python unit tests
-pytest src/tests/ -v
-
-# JavaScript unit tests
+# JavaScript tests
 cd src/tests/js
 npm test
-
-# Integration tests
-pytest src/integration_tests/ -v
 ```
 
 ### Test Coverage
 
-- **JavaScript Tests**: 25 test cases (using Jest + JSDOM)
-- **Python Unit Tests**: 64 test cases
+- **JavaScript Tests**: 109 test cases (using Jest + JSDOM)
+  - TerminalManager: 26 tests
+  - Plugin Loader: 16 tests
+  - Script Results Persistence: 9 tests
+  - Script Results Persistence Integration: 7 tests
+  - WebSocket Concurrency: 8 tests
+  - Script Stop Functionality: 12 tests
+  - App Class: 25 tests
+- **Python Unit Tests**: 70 test cases
 - **Integration Tests**: 13 test cases
-- **Total Tests**: 102, all passing
-
-Test Coverage Includes:
-- App class initialization and basic functionality
-- Global functions (executeScript, copyCode, sendInput)
-- WebSocket event handling
-- File scanning and Markdown parsing
-- Plugin management system
-- Script executor
-- Interactive input functionality
+- **Total Tests**: 192, all passing
 
 ## Development Guide
 

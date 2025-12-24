@@ -181,25 +181,48 @@ describe('App 类', () => {
 
   describe('addScriptOutput 方法', () => {
     test('应该向输出区域添加内容', () => {
-      // 创建输出区域
-      document.body.innerHTML += '<div id="output-test-script"></div>';
+      // 设置 DOM - 需要有 script-block 结构
+      const scriptBlock = document.createElement('div');
+      scriptBlock.className = 'script-block';
+      scriptBlock.dataset.scriptId = 'test-script';
+      scriptBlock.innerHTML = `
+        <pre class="script-code"></pre>
+        <div id="output-test-script"></div>
+      `;
+      document.body.appendChild(scriptBlock);
+
+      // 先创建终端
+      global.window.app.createTerminalForScript('test-script');
 
       global.window.app.addScriptOutput('test-script', 'stdout', '测试输出');
 
-      const outputElement = document.getElementById('output-test-script');
-      expect(outputElement.innerHTML).not.toContain('output-placeholder');
-      expect(outputElement.innerHTML).toContain('测试输出');
+      // 验证终端的 writeln 方法被调用
+      const term = global.window.app.terminalManager.getTerminal('test-script');
+      expect(term).not.toBeNull();
+      expect(term.writeln).toHaveBeenCalledWith('测试输出', 'stdout');
     });
 
     test('应该处理不同类型的输出', () => {
-      document.body.innerHTML += '<div id="output-test-script"></div>';
+      const scriptBlock = document.createElement('div');
+      scriptBlock.className = 'script-block';
+      scriptBlock.dataset.scriptId = 'test-script2';
+      scriptBlock.innerHTML = `
+        <pre class="script-code"></pre>
+        <div id="output-test-script2"></div>
+      `;
+      document.body.appendChild(scriptBlock);
 
-      global.window.app.addScriptOutput('test-script', 'stderr', '错误信息');
-      global.window.app.addScriptOutput('test-script', 'stdin', '> 用户输入');
+      // 先创建终端
+      global.window.app.createTerminalForScript('test-script2');
 
-      const outputElement = document.getElementById('output-test-script');
-      expect(outputElement.innerHTML).toContain('错误信息');
-      expect(outputElement.innerHTML).toContain('用户输入');
+      global.window.app.addScriptOutput('test-script2', 'stderr', '错误信息');
+      global.window.app.addScriptOutput('test-script2', 'stdin', '> 用户输入');
+
+      // 验证终端的 writeln 方法被调用
+      const term = global.window.app.terminalManager.getTerminal('test-script2');
+      expect(term).not.toBeNull();
+      expect(term.writeln).toHaveBeenCalledWith('错误信息', 'stderr');
+      expect(term.writeln).toHaveBeenCalledWith('> 用户输入', 'stdin');
     });
   });
 

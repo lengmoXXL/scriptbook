@@ -4,10 +4,14 @@ class App {
     constructor() {
         this.currentFile = null;
         this.activeConnections = new Map(); // scriptId -> WebSocket
+        this.terminalManager = new window.TerminalManager();
     }
 
     async init() {
         console.log('Scriptbook 应用初始化...');
+
+        // 等待 xterm.js 加载完成
+        await this.waitForXterm();
 
         // 绑定事件
         this.bindEvents();
@@ -34,6 +38,29 @@ class App {
         }
 
         console.log('Scriptbook 应用初始化完成');
+    }
+
+    /**
+     * 等待 xterm.js 加载完成
+     */
+    waitForXterm() {
+        return new Promise((resolve) => {
+            if (window.Terminal) {
+                resolve();
+            } else {
+                const checkInterval = setInterval(() => {
+                    if (window.Terminal) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+                // 超时保护
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    resolve();
+                }, 5000);
+            }
+        });
     }
 
     bindEvents() {
@@ -137,6 +164,9 @@ class App {
 
             console.log('文件加载完成:', filename);
 
+            // 初始化所有脚本块的终端
+            this.initScriptTerminals();
+
             // 恢复脚本执行结果
             this.restoreScriptResults();
 
@@ -149,47 +179,57 @@ class App {
         }
     }
 
+    /**
+     * 初始化所有脚本块的终端
+     */
+    initScriptTerminals() {
+        const scriptBlocks = document.querySelectorAll('.script-block');
+        scriptBlocks.forEach(block => {
+            const scriptId = block.dataset.scriptId;
+            this.createTerminalForScript(scriptId);
+        });
+    }
+
+    /**
+     * 为指定脚本创建终端
+     * @param {string} scriptId - 脚本ID
+     */
+    createTerminalForScript(scriptId) {
+        const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
+        if (!scriptBlock) return;
+
+        // 查找或创建输出容器
+        let outputContainer = scriptBlock.querySelector('.script-output');
+        if (!outputContainer) {
+            // 创建输出容器
+            outputContainer = document.createElement('div');
+            outputContainer.className = 'script-output';
+            outputContainer.id = `output-${scriptId}`;
+            outputContainer.style.minHeight = '100px';
+            outputContainer.style.maxHeight = '400px';
+            outputContainer.style.overflow = 'hidden';
+            outputContainer.style.borderTop = '1px solid';
+            outputContainer.style.padding = '0';
+
+            // 添加到脚本块
+            const scriptCode = scriptBlock.querySelector('.script-code');
+            if (scriptCode) {
+                scriptCode.parentNode.insertBefore(outputContainer, scriptCode.nextSibling);
+            }
+        }
+
+        // 清除容器内容
+        outputContainer.innerHTML = '';
+
+        // 创建终端
+        this.terminalManager.createTerminal(scriptId, outputContainer);
+    }
+
     addScriptOutput(scriptId, type, content) {
-        // 查找对应的输出区域
-        const outputElement = document.getElementById(`output-${scriptId}`);
-        if (!outputElement) {
-            console.error(`找不到输出区域: output-${scriptId}`);
-            return;
-        }
+        // 使用终端管理器写入内容
+        this.terminalManager.writeln(scriptId, content, type);
 
-        // 移除占位符
-        if (outputElement.querySelector('.output-placeholder')) {
-            outputElement.innerHTML = '';
-        }
-
-        const line = document.createElement('div');
-        line.className = `output-line ${type}`;
-
-        const timestamp = document.createElement('span');
-        timestamp.className = 'timestamp';
-        timestamp.textContent = new Date().toLocaleTimeString();
-
-        const contentSpan = document.createElement('span');
-        contentSpan.className = 'content';
-
-        // 使用 ANSI 解析器处理内容（支持颜色和格式）
-        if (window.OutputOptimizers && window.OutputOptimizers.ansiParser) {
-            const processedContent = window.OutputOptimizers.ansiParser.processText(content);
-            // 使用 innerHTML 渲染转换后的 HTML（ansiHTML 已处理转义）
-            contentSpan.innerHTML = processedContent;
-        } else {
-            // 如果解析器不可用，使用原始文本
-            contentSpan.textContent = content;
-        }
-
-        line.appendChild(timestamp);
-        line.appendChild(contentSpan);
-        outputElement.appendChild(line);
-
-        // 滚动到底部
-        outputElement.scrollTop = outputElement.scrollHeight;
-
-        // 保存到localStorage
+        // 保存到localStorage（用于持久化）
         this.saveScriptResult(scriptId, type, content);
     }
 
@@ -229,26 +269,14 @@ class App {
             // 恢复每个脚本的结果
             Object.keys(savedResults).forEach(scriptId => {
                 const results = savedResults[scriptId];
-                const outputElement = document.getElementById(`output-${scriptId}`);
+                const term = this.terminalManager.getTerminal(scriptId);
 
-                if (outputElement && results.length > 0) {
-                    outputElement.innerHTML = '';
+                if (term && results.length > 0) {
+                    // 清除终端并重新写入历史内容
+                    term.clear();
 
                     results.forEach(result => {
-                        const line = document.createElement('div');
-                        line.className = `output-line ${result.type}`;
-
-                        const timestamp = document.createElement('span');
-                        timestamp.className = 'timestamp';
-                        timestamp.textContent = new Date(result.timestamp).toLocaleTimeString();
-
-                        const contentSpan = document.createElement('span');
-                        contentSpan.className = 'content';
-                        contentSpan.textContent = result.content;
-
-                        line.appendChild(timestamp);
-                        line.appendChild(contentSpan);
-                        outputElement.appendChild(line);
+                        this.terminalManager.writeln(scriptId, result.content, result.type);
                     });
 
                     console.log(`已恢复脚本 ${scriptId} 的 ${results.length} 条结果`);
@@ -349,7 +377,6 @@ window.executeScript = async function executeScript(scriptId) {
     // 获取脚本代码
     const scriptBlock = document.querySelector(`[data-script-id="${scriptId}"]`);
     const codeElement = scriptBlock.querySelector('.script-code');
-    const outputElement = scriptBlock.querySelector(`#output-${scriptId}`);
     const code = codeElement.textContent;
 
     // 获取输入容器和输入框
@@ -393,8 +420,8 @@ window.executeScript = async function executeScript(scriptId) {
         window.app.stopScript(scriptId);
     };
 
-    // 清空输出区域
-    outputElement.innerHTML = '';
+    // 清空终端输出
+    window.app.terminalManager.clear(scriptId);
 
     // 清除保存的结果
     window.app.clearScriptResults(scriptId);
