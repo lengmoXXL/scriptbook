@@ -1,5 +1,11 @@
 # Scriptbook 更新日志
 
+## [1.4.1] - 2025-12-24
+
+### 🐛 错误修复
+- **Docker命令支持**: 添加 `pty=True` 参数，支持 `docker exec` 等需要 TTY 的命令
+  - 修复 "the input device is not tty" 错误
+
 ## [1.4.0] - 2025-12-24
 
 ### ✨ 新增功能

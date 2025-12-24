@@ -40,7 +40,8 @@ class ScriptExecutor:
                 code,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                shell=True
+                shell=True,
+                pty=True  # 分配伪终端，支持docker等需要tty的命令
             )
 
             # 存储进程引用
