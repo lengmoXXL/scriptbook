@@ -80,12 +80,12 @@ pip install scriptbook
 ### 更新日志
 
 #### v1.4.3 (2025-12-25)
-- ✨ **PTY 支持** - 修复 Python 3.14 兼容性问题
+- ✨ **PTY 支持** - 修复 Python 3.10~3.14 兼容性问题
   - 使用 `pty.openpty()` 替代被移除的 `pty` 参数
   - 支持 `tty` 命令和需要 TTY 的命令（如 `docker exec -it`）
 - 🔧 **代码重构** - 重构 `script_executor.py`
   - 提取 `_cleanup()` 方法简化资源清理
-  - 改进异常处理和资源释放
+  - 使用 `asyncio.wait_for` 替代 `asyncio.timeout` 以支持 Python 3.10
 - ✅ **测试增强** - 新增 TTY 命令集成测试
 
 #### v1.4.2 (2025-12-24)

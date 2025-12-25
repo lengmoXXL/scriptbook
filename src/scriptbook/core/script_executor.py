@@ -71,6 +71,23 @@ class ScriptExecutor:
             if script_id in self._processes:
                 del self._processes[script_id]
 
+    async def _wait_for_output_with_timeout(
+        self,
+        queue: asyncio.Queue,
+        timeout: int
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """从队列中异步获取输出，支持超时"""
+        while True:
+            try:
+                # 使用 wait_for 实现超时
+                output = await asyncio.wait_for(queue.get(), timeout=timeout)
+            except asyncio.TimeoutError:
+                raise asyncio.TimeoutError(f"等待输出超时 ({timeout}秒)")
+
+            if output is None:
+                break
+            yield output
+
     async def execute(
         self,
         script_id: str,
@@ -167,10 +184,10 @@ class ScriptExecutor:
             read_task = asyncio.create_task(read_output())
 
             # 从队列yield输出，同时处理超时
+            timed_out = False
             try:
-                async with asyncio.timeout(timeout):
-                    async for output in self._wait_for_output(output_queue):
-                        yield output
+                async for output in self._wait_for_output_with_timeout(output_queue, timeout):
+                    yield output
             except asyncio.TimeoutError:
                 timed_out = True
                 if process and process.returncode is None:
@@ -204,14 +221,6 @@ class ScriptExecutor:
                     "content": f"进程退出，返回码: {returncode}",
                     "timestamp": _timestamp()
                 }
-
-    async def _wait_for_output(self, queue: asyncio.Queue):
-        """从队列中异步获取输出"""
-        while True:
-            output = await queue.get()
-            if output is None:
-                break
-            yield output
 
     def write_stdin(self, script_id: str, data: str):
         """向指定脚本的 stdin 写入数据"""
