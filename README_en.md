@@ -25,7 +25,7 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 
 ## Screenshot
 
-![Scriptbook Interface](docs/screenshot.png)
+![Scriptbook Interface](docs/screenshot-2025-12-25.png)
 
 ## Quick Start
 

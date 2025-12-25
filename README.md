@@ -24,7 +24,7 @@
 
 ## 截图预览
 
-![Scriptbook界面截图](docs/screenshot.png)
+![Scriptbook界面截图](docs/screenshot-2025-12-25.png)
 
 ## 快速开始
 
