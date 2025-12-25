@@ -2,7 +2,7 @@
 
 class PluginLoader {
     constructor() {
-        this.activeTheme = localStorage.getItem('scriptbook_theme') || 'default';
+        this.activeTheme = localStorage.getItem('scriptbook_theme') || 'theme-light';
         this.plugins = [];
         this.loadedStylesheets = [];
     }
@@ -17,7 +17,7 @@ class PluginLoader {
     }
 
     restoreTheme() {
-        const savedTheme = localStorage.getItem('scriptbook_theme') || 'default';
+        const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-light';
         this.switchTheme(savedTheme);
         // 更新选择器值
         const select = document.getElementById('plugin-select');
@@ -32,6 +32,8 @@ class PluginLoader {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             this.plugins = await response.json();
+            // 保存到全局，供其他模块使用（如 TerminalManager）
+            window.plugins = this.plugins;
             this.updateThemeSelect();
             return this.plugins;
         } catch (error) {
@@ -50,7 +52,7 @@ class PluginLoader {
             const option = document.createElement('option');
             option.value = plugin.name;
             option.textContent = plugin.description || plugin.name;
-            if (plugin.name === 'default') {
+            if (plugin.name === 'theme-light') {
                 option.selected = true;
             }
             select.appendChild(option);
@@ -73,13 +75,32 @@ class PluginLoader {
         }
     }
 
+    /**
+     * 获取当前主题的终端配色
+     * @returns {object} terminal theme 配置
+     */
+    getTerminalTheme() {
+        const plugin = this.plugins.find(p => p.name === this.activeTheme);
+        if (plugin && plugin.terminalTheme) {
+            return plugin.terminalTheme;
+        }
+        // 默认返回 light 主题配置
+        return {
+            background: '#ffffff',
+            foreground: '#333333',
+            cursor: '#333333',
+            cursorAccent: '#ffffff',
+            selectionBackground: '#b4d5ff'
+        };
+    }
+
     switchTheme(themeName) {
         console.log('切换主题:', themeName);
 
         // 保存到 localStorage
         localStorage.setItem('scriptbook_theme', themeName);
 
-        // 移除所有已加载的主题样式表（包括暗色主题）
+        // 移除所有已加载的主题样式表
         this.loadedStylesheets.forEach(link => {
             if (link && link.parentNode) {
                 link.parentNode.removeChild(link);
@@ -87,16 +108,16 @@ class PluginLoader {
         });
         this.loadedStylesheets = [];
 
-        // 额外清除所有暗色主题相关的CSS链接
-        const allLinks = document.querySelectorAll('link[href*="dark-theme"], link[href*="dark"]');
+        // 额外清除所有主题相关的CSS链接
+        const allLinks = document.querySelectorAll('link[href*="theme-"]');
         allLinks.forEach(link => {
             if (link.parentNode) {
                 link.parentNode.removeChild(link);
             }
         });
 
-        // 如果是默认主题，重置样式
-        if (themeName === 'default' || !themeName) {
+        // 如果是 theme-light，重置样式
+        if (themeName === 'theme-light' || !themeName) {
             // 重置body样式
             document.body.style.backgroundColor = '';
             document.body.style.color = '';
@@ -107,50 +128,33 @@ class PluginLoader {
                 mainEl.style.color = '';
             }
 
-            this.activeTheme = 'default';
+            this.activeTheme = 'theme-light';
             console.log('已切换到默认主题');
         } else {
+            // 加载新主题的CSS
+            const plugin = this.plugins.find(p => p.name === themeName);
+            if (plugin) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = `/static/plugins/${themeName}/style.css`;
+                // 添加data-theme属性便于追踪
+                link.setAttribute('data-theme', themeName);
+                document.head.appendChild(link);
+                this.loadedStylesheets.push(link);
+                this.activeTheme = themeName;
 
-        // 加载新主题的CSS
-        const plugin = this.plugins.find(p => p.name === themeName);
-        if (plugin) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = `/static/plugins/${themeName}/style.css`;
-            // 添加data-theme属性便于追踪
-            link.setAttribute('data-theme', themeName);
-            document.head.appendChild(link);
-            this.loadedStylesheets.push(link);
-            this.activeTheme = themeName;
-
-            // 强制设置样式（确保覆盖）
-            setTimeout(() => {
-                if (themeName === 'dark-theme') {
-                    document.body.style.backgroundColor = '#0f172a';
-                    document.body.style.color = '#e2e8f0';
-                    const mainEl = document.querySelector('main');
-                    if (mainEl) {
-                        mainEl.style.backgroundColor = '#0f172a';
-                        mainEl.style.color = '#e2e8f0';
-                    }
-                }
-            }, 100);
-
-            console.log('已加载主题:', themeName);
-        }
+                console.log('已加载主题:', themeName);
+            }
         }
 
         // 更新终端主题
         if (window.app && window.app.terminalManager) {
-            window.app.terminalManager.applyTheme(themeName === 'dark-theme' ? 'dark' : 'default');
+            const isDark = themeName === 'theme-dark';
+            window.app.terminalManager.applyTheme(isDark ? 'dark' : 'light');
         }
     }
 }
 
 // 创建全局插件加载器实例
+// 注意：init() 方法会在 app.js 的 init() 中被调用，确保初始化顺序正确
 window.pluginLoader = new PluginLoader();
-
-// 页面加载完成后初始化插件加载器
-document.addEventListener('DOMContentLoaded', async () => {
-    await window.pluginLoader.init();
-});

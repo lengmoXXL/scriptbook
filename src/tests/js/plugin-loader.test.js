@@ -37,19 +37,19 @@ describe('PluginLoader 类', () => {
     });
 
     test('应该从 localStorage 读取保存的主题', () => {
-      localStorageMock.setItem('scriptbook_theme', 'dark-theme');
+      localStorageMock.setItem('scriptbook_theme', 'theme-dark');
       // 重新加载模块以测试构造函数
       jest.resetModules();
       require('../../scriptbook/static/js/plugin-loader.js');
 
-      expect(global.window.pluginLoader.activeTheme).toBe('dark-theme');
+      expect(global.window.pluginLoader.activeTheme).toBe('theme-dark');
     });
 
     test('应该在没有保存的主题时使用默认主题', () => {
       jest.resetModules();
       require('../../scriptbook/static/js/plugin-loader.js');
 
-      expect(global.window.pluginLoader.activeTheme).toBe('default');
+      expect(global.window.pluginLoader.activeTheme).toBe('theme-light');
     });
 
     test('应该初始化 plugins 为空数组', () => {
@@ -63,13 +63,13 @@ describe('PluginLoader 类', () => {
 
   describe('restoreTheme 方法', () => {
     test('应该恢复保存的主题', () => {
-      localStorageMock.setItem('scriptbook_theme', 'dark-theme');
+      localStorageMock.setItem('scriptbook_theme', 'theme-dark');
 
       const switchThemeSpy = jest.spyOn(global.window.pluginLoader, 'switchTheme');
 
       global.window.pluginLoader.restoreTheme();
 
-      expect(switchThemeSpy).toHaveBeenCalledWith('dark-theme');
+      expect(switchThemeSpy).toHaveBeenCalledWith('theme-dark');
     });
 
     test('应该在没有保存的主题时恢复默认主题', () => {
@@ -77,7 +77,7 @@ describe('PluginLoader 类', () => {
 
       global.window.pluginLoader.restoreTheme();
 
-      expect(switchThemeSpy).toHaveBeenCalledWith('default');
+      expect(switchThemeSpy).toHaveBeenCalledWith('theme-light');
     });
 
     test('应该更新选择器的值', () => {
@@ -88,32 +88,32 @@ describe('PluginLoader 类', () => {
       };
       document.getElementById = jest.fn(() => mockSelect);
 
-      localStorageMock.setItem('scriptbook_theme', 'dark-theme');
+      localStorageMock.setItem('scriptbook_theme', 'theme-dark');
 
       global.window.pluginLoader.restoreTheme();
 
-      expect(mockSelect.value).toBe('dark-theme');
+      expect(mockSelect.value).toBe('theme-dark');
     });
   });
 
   describe('switchTheme 方法', () => {
     test('应该保存主题到 localStorage', () => {
-      global.window.pluginLoader.switchTheme('dark-theme');
+      global.window.pluginLoader.switchTheme('theme-dark');
 
-      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'dark-theme');
+      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'theme-dark');
     });
 
-    test('应该切换到默认主题时保存 default', () => {
-      global.window.pluginLoader.switchTheme('default');
+    test('应该切换到默认主题时保存 theme-light', () => {
+      global.window.pluginLoader.switchTheme('theme-light');
 
-      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'default');
+      expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'theme-light');
     });
 
     test('应该更新 activeTheme 属性为暗色主题', () => {
       // 先设置一个不同的主题
-      global.window.pluginLoader.activeTheme = 'default';
+      global.window.pluginLoader.activeTheme = 'theme-light';
       // 设置 plugins 数组
-      global.window.pluginLoader.plugins = [{ name: 'dark-theme', description: '暗色主题' }];
+      global.window.pluginLoader.plugins = [{ name: 'theme-dark', description: '暗色主题' }];
 
       // 设置 mock DOM 方法
       const mockLink = { setAttribute: jest.fn(), parentNode: { removeChild: jest.fn() } };
@@ -125,17 +125,17 @@ describe('PluginLoader 类', () => {
       const mainEl = { style: {} };
       document.querySelector = jest.fn(() => mainEl);
 
-      global.window.pluginLoader.switchTheme('dark-theme');
+      global.window.pluginLoader.switchTheme('theme-dark');
 
-      expect(global.window.pluginLoader.activeTheme).toBe('dark-theme');
+      expect(global.window.pluginLoader.activeTheme).toBe('theme-dark');
     });
   });
 
   describe('loadPlugins 方法', () => {
     test('应该成功加载插件列表', async () => {
       const mockPlugins = [
-        { name: 'default', description: '默认主题' },
-        { name: 'dark-theme', description: '暗色主题' },
+        { name: 'theme-light', description: '默认主题' },
+        { name: 'theme-dark', description: '暗色主题' },
       ];
 
       fetch.mockResolvedValueOnce({
@@ -181,13 +181,13 @@ describe('PluginLoader 主题持久化集成', () => {
 
   test('页面刷新后应该恢复之前选择的主题', () => {
     // 第一次选择暗色主题
-    localStorageMock.setItem('scriptbook_theme', 'dark-theme');
+    localStorageMock.setItem('scriptbook_theme', 'theme-dark');
 
     jest.resetModules();
     require('../../scriptbook/static/js/plugin-loader.js');
 
     // 验证构造函数读取了 localStorage
-    expect(global.window.pluginLoader.activeTheme).toBe('dark-theme');
+    expect(global.window.pluginLoader.activeTheme).toBe('theme-dark');
   });
 
   test('切换主题后应该保存新的选择', () => {
@@ -203,9 +203,9 @@ describe('PluginLoader 主题持久化集成', () => {
     const mainEl = { style: {} };
     document.querySelector = jest.fn(() => mainEl);
 
-    global.window.pluginLoader.switchTheme('dark-theme');
+    global.window.pluginLoader.switchTheme('theme-dark');
 
-    expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'dark-theme');
+    expect(localStorage.setItem).toHaveBeenCalledWith('scriptbook_theme', 'theme-dark');
   });
 
   test('主题选择应该持久化并在下次访问时恢复', () => {
@@ -223,16 +223,16 @@ describe('PluginLoader 主题持久化集成', () => {
     document.querySelector = jest.fn(() => mainEl);
 
     // 切换主题
-    global.window.pluginLoader.switchTheme('dark-theme');
+    global.window.pluginLoader.switchTheme('theme-dark');
 
     // 验证 localStorage 被设置
-    expect(localStorage.getItem('scriptbook_theme')).toBe('dark-theme');
+    expect(localStorage.getItem('scriptbook_theme')).toBe('theme-dark');
 
     // 模拟刷新 - 重新加载模块
     jest.resetModules();
     require('../../scriptbook/static/js/plugin-loader.js');
 
     // 验证构造函数读取了保存的主题
-    expect(global.window.pluginLoader.activeTheme).toBe('dark-theme');
+    expect(global.window.pluginLoader.activeTheme).toBe('theme-dark');
   });
 });

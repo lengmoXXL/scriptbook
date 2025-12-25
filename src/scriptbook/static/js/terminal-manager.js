@@ -16,17 +16,41 @@ class TerminalManager {
     }
 
     /**
-     * 获取当前主题
-     * @returns {string} 'default' 或 'dark'
+     * 获取当前主题名称
+     * @returns {string} 主题名称，如 'theme-light', 'theme-dark'
      */
-    getCurrentTheme() {
-        // 优先使用插件加载器的主题
+    getCurrentThemeName() {
         if (window.pluginLoader) {
-            return window.pluginLoader.activeTheme === 'dark-theme' ? 'dark' : 'default';
+            return window.pluginLoader.activeTheme || 'theme-light';
         }
-        // 回退到 localStorage
-        const theme = localStorage.getItem('scriptbook_theme');
-        return theme === 'dark-theme' ? 'dark' : 'default';
+        return localStorage.getItem('scriptbook_theme') || 'theme-light';
+    }
+
+    /**
+     * 获取当前主题的终端配色
+     * @returns {object} terminal theme 配置
+     */
+    getTerminalTheme() {
+        // 优先从插件加载器获取
+        if (window.pluginLoader) {
+            return window.pluginLoader.getTerminalTheme();
+        }
+        // 回退到本地插件列表
+        if (window.plugins) {
+            const currentTheme = this.getCurrentThemeName();
+            const plugin = window.plugins.find(p => p.name === currentTheme);
+            if (plugin && plugin.terminalTheme) {
+                return plugin.terminalTheme;
+            }
+        }
+        // 默认返回 light 主题配置
+        return {
+            background: '#ffffff',
+            foreground: '#333333',
+            cursor: '#333333',
+            cursorAccent: '#ffffff',
+            selectionBackground: '#b4d5ff'
+        };
     }
 
     /**
@@ -39,8 +63,8 @@ class TerminalManager {
             this.disposeTerminal(scriptId);
         }
 
-        // 根据当前主题设置颜色
-        const isDark = this.getCurrentTheme() === 'dark';
+        // 从当前主题获取终端配色
+        const terminalTheme = this.getTerminalTheme();
 
         // 创建终端实例（使用 Canvas renderer 以获得更好的滚动体验）
         const term = new window.Terminal({
@@ -50,13 +74,7 @@ class TerminalManager {
             fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace",
             fontSize: 13,
             rendererType: 'canvas', // 使用 Canvas renderer
-            theme: {
-                background: isDark ? '#1e1e1e' : '#ffffff',
-                foreground: isDark ? '#d4d4d4' : '#333333',
-                cursor: isDark ? '#d4d4d4' : '#333333',
-                cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
-                selectionBackground: isDark ? '#264f78' : '#add6ff',
-            },
+            theme: terminalTheme,
             rows: 10,
             allowTransparency: true,
             scrollback: 1000, // 滚动缓冲区大小
@@ -197,19 +215,14 @@ class TerminalManager {
 
     /**
      * 应用主题
-     * @param {string} theme - 主题名称 ('default' 或 'dark')
+     * @param {string} theme - 主题类型 ('light' 或 'dark')
      */
     applyTheme(theme) {
-        const isDark = theme === 'dark';
+        // 从插件配置获取终端配色
+        const terminalTheme = this.getTerminalTheme();
         this.terminals.forEach((terminal) => {
             const term = terminal.term;
-            term.options.theme = {
-                background: isDark ? '#1e1e1e' : '#ffffff',
-                foreground: isDark ? '#d4d4d4' : '#333333',
-                cursor: isDark ? '#d4d4d4' : '#333333',
-                cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
-                selectionBackground: isDark ? '#264f78' : '#b4d5ff',
-            };
+            term.options.theme = terminalTheme;
             // 强制刷新 Canvas renderer
             term.refresh(0, term.rows - 1);
         });

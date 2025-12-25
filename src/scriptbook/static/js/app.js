@@ -13,6 +13,11 @@ class App {
         // 等待 xterm.js 加载完成
         await this.waitForXterm();
 
+        // 等待插件加载器初始化完成（确保终端主题配置可用）
+        if (window.pluginLoader) {
+            await window.pluginLoader.init();
+        }
+
         // 绑定事件
         this.bindEvents();
 

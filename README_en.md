@@ -13,8 +13,11 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 - **Result Persistence** - Auto-restore script execution results after page refresh (localStorage)
 - **Stop Execution** - Support terminating running scripts anytime
 - **Multi-document Support** - Switch between multiple documents, results saved independently
-- **Theme Switching** - Support for light and dark themes
+- **Theme Switching** - Support for light, dark, and GitHub themes
+- **Terminal Themes** - Terminal colors match theme style
 - **ANSI Color Support** - Script output colors and formatting displayed correctly in browser
+- **Navbar Layout** - Top navigation bar with file selection and theme switching
+- **GitHub Link** - GitHub repository link in top-right corner
 - **xterm.js Terminal** - Professional terminal emulator for script output rendering
 - **WebSocket Optimization** - Improved concurrency handling, supports page refresh scenarios
 - **SOP Automation** - Ideal for displaying and executing enterprise standard operating procedures
@@ -75,10 +78,28 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.4.4
+- Current Version: 1.5.0
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.5.0 (2025-12-25)
+- **New Theme: GitHub Style**
+  - Added GitHub style theme with consistent Markdown rendering
+  - Optimized code blocks, tables, blockquotes, etc.
+- **Terminal Theme Integration**
+  - Terminal colors match theme style
+  - Terminal theme config via plugin manifest.json
+- **Theme System Refactoring**
+  - Unified theme naming (theme-light, theme-dark, theme-github)
+  - Plugin system supports terminal theme config
+- **Navbar Layout Optimization**
+  - Top navigation bar with file selection and theme switching
+  - Removed standalone controls area
+  - Added GitHub repository link icon
+- **Code Cleanup**
+  - Removed "Markdown Preview" title
+  - Simplified footer content
 
 #### v1.4.4 (2025-12-25)
 - **Python 3.10 Compatibility Fix**

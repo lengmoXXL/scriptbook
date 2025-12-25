@@ -1,33 +1,43 @@
-/* 默认主题样式 - 明亮主题 */
+/* 暗色主题样式 */
 
 :root {
-    /* 颜色变量 */
-    --color-primary: #667eea;
-    --color-primary-hover: #5568d3;
-    --color-success: #28a745;
-    --color-success-hover: #218838;
-    --color-error: #dc3545;
-    --color-error-hover: #c82333;
-    --color-secondary: #6c757d;
-    --color-secondary-hover: #5a6268;
-    --color-border: #e0e0e0;
-    --color-text: #333;
-    --color-text-light: #666;
-    --color-text-muted: #999;
-    --color-background: #f5f5f5;
-    --color-surface: #ffffff;
-    --color-surface-alt: #fafafa;
-    --color-surface-alt-2: #f0f0f0;
+    /* 颜色变量 - 暗色主题 */
+    --color-primary: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-success: #10b981;
+    --color-success-hover: #059669;
+    --color-error: #ef4444;
+    --color-error-hover: #dc2626;
+    --color-secondary: #64748b;
+    --color-secondary-hover: #475569;
+    --color-border: #334155;
+    --color-text: #e2e8f0;
+    --color-text-light: #cbd5e1;
+    --color-text-muted: #94a3b8;
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-alt: #1e293b;
+    --color-surface-alt-2: #334155;
     --color-code-bg: #0d0d0d;
     --color-code-text: #e8e8e8;
-    --color-output-bg: #f8f9fa;
-    --color-output-border: #e9ecef;
+    --color-output-bg: #020617;
+    --color-output-border: #334155;
 }
 
-/* 头部 */
-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* 导航栏 */
+.navbar {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     color: white;
+}
+
+.navbar-brand h1 {
+    color: white;
+}
+
+.navbar-controls .control-item select {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-alt-2);
+    color: var(--color-text);
 }
 
 /* 页面背景 */
@@ -36,46 +46,16 @@ body {
     color: var(--color-text);
 }
 
-/* 控制栏 */
-.controls {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-}
-
-.controls select {
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-}
-
-.controls button {
-    background: var(--color-primary);
-    color: white;
-}
-
-.controls button:hover:not(:disabled) {
-    background: var(--color-primary-hover);
-}
-
-.controls button:disabled {
-    background: var(--color-secondary);
+/* 当前文件栏 */
+.current-file-bar {
+    background: var(--color-surface-alt-2);
+    border-bottom-color: var(--color-border);
+    color: var(--color-text-light);
 }
 
 /* 内容区域 */
 .content-area {
     background: var(--color-surface);
-}
-
-.section-header {
-    border-bottom-color: var(--color-surface-alt-2);
-}
-
-.section-header h2 {
-    color: var(--color-text);
-}
-
-#current-file {
-    color: var(--color-text-light);
 }
 
 /* Markdown内容 */
@@ -89,15 +69,15 @@ body {
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-    color: #222;
+    color: var(--color-text);
 }
 
 .markdown-content code {
-    background: #f4f4f4;
+    background: var(--color-surface-alt-2);
 }
 
 .markdown-content pre {
-    background: #f4f4f4;
+    background: var(--color-surface-alt-2);
 }
 
 /* 脚本块 */
@@ -195,8 +175,8 @@ body {
 
 /* ANSI 转义序列样式支持 */
 .script-output .content span[style*="color"] {
-    /* 确保 ANSI 生成的颜色与主题兼容 */
-    text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+    /* 在暗色主题中增强对比度 */
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .script-output .content .ansi-bold {
@@ -213,5 +193,51 @@ body {
 
 /* 页脚 */
 footer {
+    color: var(--color-text-muted);
+}
+
+/* 其他元素暗色调整 */
+table {
+    border-color: var(--color-border);
+    background-color: var(--color-surface);
+}
+
+th {
+    background-color: var(--color-surface-alt-2);
+    color: var(--color-text);
+}
+
+td {
+    border-color: var(--color-border);
     color: var(--color-text-light);
+}
+
+tr:nth-child(even) {
+    background-color: var(--color-surface-alt);
+}
+
+blockquote {
+    border-left-color: var(--color-primary);
+    background-color: var(--color-surface);
+    color: var(--color-text-light);
+}
+
+hr {
+    border-color: var(--color-border);
+}
+
+strong, b {
+    color: var(--color-text);
+}
+
+em, i {
+    color: var(--color-text-light);
+}
+
+a {
+    color: var(--color-primary);
+}
+
+a:hover {
+    color: var(--color-primary-hover);
 }
