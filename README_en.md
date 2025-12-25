@@ -75,10 +75,15 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.4.3
+- Current Version: 1.4.4
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.4.4 (2025-12-25)
+- **Python 3.10 Compatibility Fix**
+  - Use `asyncio.wait_for` instead of `asyncio.timeout`
+  - Fix async generator timeout handling
 
 #### v1.4.3 (2025-12-25)
 - **PTY Support** - Fixed Python 3.10~3.14 compatibility
