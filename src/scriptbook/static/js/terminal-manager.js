@@ -78,6 +78,7 @@ class TerminalManager {
             rows: 10,
             allowTransparency: true,
             scrollback: 1000, // 滚动缓冲区大小
+            wraparoundLinesEnabled: false, // 禁用自动换行
         });
 
         // 挂载到容器
