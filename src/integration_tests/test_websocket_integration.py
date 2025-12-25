@@ -261,6 +261,48 @@ echo "You are $age years old"'''
         pytest.fail(f"多行交互式输入测试失败: {e}")
 
 
+@pytest.mark.asyncio
+async def test_websocket_tty_command(test_server):
+    """测试 tty 命令（验证 PTY 分配）"""
+    base_url = test_server.base_url
+    ws_url = base_url.replace("http://", "ws://") + "/api/scripts/test_script/execute"
+
+    print(f"🔌 连接WebSocket: {ws_url}")
+    try:
+        # 禁用代理，避免SOCKS代理错误
+        os.environ['no_proxy'] = '*'
+        os.environ['NO_PROXY'] = '*'
+        async with websockets.connect(ws_url, proxy=None) as websocket:
+            print("✅ 连接成功")
+
+            # 发送 tty 命令
+            test_code = "tty"
+            print(f"📤 发送 tty 命令")
+            await websocket.send(json.dumps({"code": test_code}))
+
+            # 接收输出
+            tty_output = None
+            async for message in websocket:
+                data = json.loads(message)
+                print(f"📨 收到: [{data['type']}] {data['content'][:60]}")
+
+                if data['type'] == 'stdout':
+                    # tty 输出应该是 /dev/ttys* 或 /dev/pts/*
+                    tty_output = data['content'].strip()
+                    assert tty_output.startswith('/dev/'), f"tty 输出应该是 /dev/ 开头的路径，实际: {tty_output}"
+                    print(f"✅ 收到有效的 TTY 设备: {tty_output}")
+
+                if data['type'] == 'exit':
+                    print("✅ 脚本执行完成")
+                    break
+
+            assert tty_output is not None, "未收到 tty 命令的输出"
+            print("✅ TTY 命令测试通过")
+
+    except Exception as e:
+        pytest.fail(f"TTY 命令测试失败: {e}")
+
+
 if __name__ == "__main__":
     # 直接运行时的行为（向后兼容）
     print("=" * 60)

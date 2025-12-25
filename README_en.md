@@ -75,10 +75,19 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.4.2
+- Current Version: 1.4.3
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.4.3 (2025-12-25)
+- **PTY Support** - Fixed Python 3.14 compatibility
+  - Use `pty.openpty()` instead of removed `pty` parameter
+  - Support `tty` command and TTY-required commands (e.g., `docker exec -it`)
+- **Code Refactoring** - Refactored `script_executor.py`
+  - Extracted `_cleanup()` method for simpler resource cleanup
+  - Improved exception handling and resource release
+- **Test Enhancement** - Added TTY command integration test
 
 #### v1.4.2 (2025-12-24)
 - **xterm.js Canvas Renderer** - Switched from DOM to Canvas renderer
