@@ -13,7 +13,7 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 - **Result Persistence** - Auto-restore script execution results after page refresh (localStorage)
 - **Stop Execution** - Support terminating running scripts anytime
 - **Multi-document Support** - Switch between multiple documents, results saved independently
-- **Theme Switching** - Support for light, dark, and GitHub themes
+- **Theme Switching** - Support for GitHub Light and GitHub Dark themes
 - **Terminal Themes** - Terminal colors match theme style
 - **ANSI Color Support** - Script output colors and formatting displayed correctly in browser
 - **Navbar Layout** - Top navigation bar with file selection and theme switching
@@ -48,17 +48,17 @@ pip install .
 ### Usage
 
 ```bash
-# Start the server (using default content directory)
-scriptbook content/
+# Start the server (using default examples directory)
+scriptbook examples/
 
 # Specify a custom document directory
 scriptbook /path/to/my/documents/
 
 # Specify a port
-scriptbook content/ --port 9000
+scriptbook examples/ --port 9000
 
 # Allow external access
-scriptbook content/ --host 0.0.0.0
+scriptbook examples/ --host 0.0.0.0
 
 # Access the application
 open http://localhost:8000
@@ -78,10 +78,27 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.5.1
+- Current Version: 1.6.0
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.6.0 (2025-12-26)
+- **New Theme: GitHub Dark**
+  - Added GitHub Dark style dark theme
+  - Terminal colors perfectly match dark theme
+- **Theme Simplification**
+  - Removed default light/dark themes
+  - Only GitHub style themes retained
+- **Directory Renamed**
+  - `content/` directory renamed to `examples/`
+  - More clearly expresses example document purpose
+- **Bug Fixes**
+  - Test fix: hardcoded fd=5 caused terminal device error
+  - Removed input content echo display
+- **Test Enhancement**
+  - Added real fd creation instead of mock
+  - 73 Python tests all passing
 
 #### v1.5.1 (2025-12-26)
 - **Terminal Output Scrollbar Optimization**

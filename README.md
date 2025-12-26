@@ -13,7 +13,7 @@
 - **结果持久化** - 页面刷新后自动恢复脚本执行结果（使用localStorage）
 - **停止执行** - 支持随时终止正在执行的脚本
 - **多文档支持** - 支持多个文档切换，结果独立保存
-- **主题切换** - 支持浅色、暗色、GitHub三种主题
+- **主题切换** - 支持 GitHub Light 和 GitHub Dark 两种主题
 - **终端主题** - 终端配色与主题风格一致
 - **ANSI颜色支持** - 脚本输出的颜色和格式在浏览器中正确显示
 - **导航栏优化** - 顶部导航栏布局，集成文件选择和主题切换
@@ -47,17 +47,17 @@ pip install .
 ### 使用方法
 
 ```bash
-# 启动服务（使用默认content目录）
-scriptbook content/
+# 启动服务（使用默认examples目录）
+scriptbook examples/
 
 # 指定自定义文档目录
 scriptbook /path/to/my/documents/
 
 # 指定端口
-scriptbook content/ --port 9000
+scriptbook examples/ --port 9000
 
 # 允许外部访问
-scriptbook content/ --host 0.0.0.0
+scriptbook examples/ --host 0.0.0.0
 
 # 访问应用
 open http://localhost:8000
@@ -77,10 +77,27 @@ pip install scriptbook
 
 ### 版本
 
-- 当前版本: 1.5.1
+- 当前版本: 1.6.0
 - Python要求: >=3.10
 
 ### 更新日志
+
+#### v1.6.0 (2025-12-26)
+- ✨ **新增 GitHub Dark 主题**
+  - 新增 GitHub Dark 风格暗色主题
+  - 终端配色与暗色主题完美适配
+- 🔧 **主题精简**
+  - 移除默认的 light/dark 主题
+  - 仅保留 GitHub 风格主题
+- 📁 **目录重命名**
+  - `content/` 目录重命名为 `examples/`
+  - 更清晰地表达示例文档用途
+- 🐛 **问题修复**
+  - 测试修复：硬编码 fd=5 导致终端设备错误
+  - 移除脚本输入内容的回显显示
+- ✅ **测试增强**
+  - 新增真实 fd 创建替代模拟
+  - 73 个 Python 测试全部通过
 
 #### v1.5.1 (2025-12-26)
 - 🎨 **终端输出框滚动条优化**

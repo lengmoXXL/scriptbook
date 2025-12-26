@@ -594,9 +594,6 @@ window.sendInput = async function sendInput(scriptId) {
         // 发送输入消息
         ws.send(JSON.stringify({ type: "input", content: inputValue }));
 
-        // 在输出中显示用户输入（可选）
-        window.app.addScriptOutput(scriptId, 'stdin', `> ${inputValue}`);
-
         // 清空输入框
         inputElement.value = '';
 
