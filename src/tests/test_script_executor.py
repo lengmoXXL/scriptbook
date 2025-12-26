@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from scriptbook.core.script_executor import ScriptExecutor
 
 
@@ -24,6 +24,7 @@ class TestScriptExecutor:
 
     def test_kill_process_running(self):
         """测试终止运行中的进程"""
+        import os
         script_id = "running_script"
 
         # 模拟一个运行中的进程
@@ -31,8 +32,11 @@ class TestScriptExecutor:
         mock_process.returncode = None
         mock_process.terminate = MagicMock()
 
+        # 创建真实的 fd
+        fd = os.open("/dev/null", os.O_RDWR)
+
         self.executor._processes[script_id] = mock_process
-        self.executor._master_fds[script_id] = 5  # 模拟 fd
+        self.executor._master_fds[script_id] = fd
 
         self.executor.kill_process(script_id)
 
@@ -59,7 +63,7 @@ class TestScriptExecutor:
 
     @pytest.mark.asyncio
     async def test_wait_for_output(self):
-        """测试 _wait_for_output 方法"""
+        """测试 _wait_for_output_with_timeout 方法"""
         queue = asyncio.Queue()
         outputs = []
 
@@ -71,7 +75,7 @@ class TestScriptExecutor:
         # 并发放入输出
         put_task = asyncio.create_task(put_outputs())
 
-        async for output in self.executor._wait_for_output(queue):
+        async for output in self.executor._wait_for_output_with_timeout(queue, 5):
             outputs.append(output)
 
         await put_task
@@ -105,15 +109,17 @@ class TestScriptExecutor:
     @pytest.mark.asyncio
     async def test_write_stdin(self):
         """测试 write_stdin 方法"""
+        import os
         script_id = "test_stdin"
-        mock_fd = 5
 
-        self.executor._master_fds[script_id] = mock_fd
+        # 创建真实的 fd
+        fd = os.open("/dev/null", os.O_RDWR)
+        self.executor._master_fds[script_id] = fd
 
         with patch('os.write') as mock_write:
-            mock_write.return_value = 5
+            mock_write.return_value = len("test input")
             self.executor.write_stdin(script_id, "test input")
-            mock_write.assert_called_once_with(mock_fd, b"test input")
+            mock_write.assert_called_once_with(fd, b"test input")
 
     @pytest.mark.asyncio
     async def test_write_stdin_no_process(self):
