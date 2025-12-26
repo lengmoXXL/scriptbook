@@ -78,10 +78,16 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.5.0
+- Current Version: 1.5.1
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.5.1 (2025-12-26)
+- **Terminal Output Scrollbar Optimization**
+  - Fixed multiple scrollbars display issue
+  - Terminal output now shows only one scrollbar
+  - Terminal content auto-expands, scrollbar enabled at 400px height
 
 #### v1.5.0 (2025-12-25)
 - **New Theme: GitHub Style**

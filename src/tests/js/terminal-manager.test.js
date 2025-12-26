@@ -33,6 +33,13 @@ global.console = {
   warn: jest.fn(),
 };
 
+// 模拟 ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
 // 模拟 xterm.js
 global.Terminal = jest.fn().mockImplementation(() => {
   const mockTerm = {
@@ -46,6 +53,7 @@ global.Terminal = jest.fn().mockImplementation(() => {
     rows: 10,
     options: {},
     on: jest.fn(),
+    onData: jest.fn(),
   };
   return mockTerm;
 });
@@ -133,7 +141,8 @@ describe('TerminalManager', () => {
       tm.write('script-6', 'test content');
 
       const term = tm.getTerminal('script-6');
-      expect(term.write).toHaveBeenCalledWith('test content');
+      // write 现在接收 (content, callback)
+      expect(term.write).toHaveBeenCalledWith('test content', expect.any(Function));
     });
 
     test('未创建的脚本应该不写入', () => {
@@ -345,8 +354,8 @@ describe('TerminalManager', () => {
       const term1 = tm.getTerminal('script-19');
       const term2 = tm.getTerminal('script-20');
 
-      expect(term1.write).toHaveBeenCalledWith('content1');
-      expect(term2.write).toHaveBeenCalledWith('content2');
+      expect(term1.write).toHaveBeenCalledWith('content1', expect.any(Function));
+      expect(term2.write).toHaveBeenCalledWith('content2', expect.any(Function));
     });
   });
 });

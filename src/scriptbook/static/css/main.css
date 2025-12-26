@@ -279,11 +279,19 @@ footer {
 
 /* 输出区域基础结构 */
 .script-output {
+    position: relative; /* 包含绝对定位的 xterm.js 元素 */
     min-height: 100px;
-    max-height: 400px;
-    overflow-y: auto;
+    max-height: 400px; /* 默认最大高度，超出时在内部滚动 */
+    height: auto; /* 自动高度 */
+    overflow-y: auto; /* 超出时显示滚动条 */
     border-top: 1px solid;
     padding: 0.5rem;
+}
+
+/* 输出区域基础结构 - 当内容较少时自动扩展 */
+.script-output.has-overflow {
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .script-output .output-placeholder {
@@ -403,28 +411,40 @@ footer {
     }
 }
 
-/* xterm.js 终端容器样式（Canvas renderer） */
+/* xterm.js 终端容器样式 */
 .script-output .xterm {
     padding: 8px;
     min-height: 100px;
-    max-height: 400px; /* 限制最大高度 */
+    max-width: 100%; /* 限制最大宽度为容器宽度 */
+    /* 默认允许自适应高度，不限制 max-height */
 }
 
-/* 自定义滚动条样式 */
-.script-output .xterm::-webkit-scrollbar {
+/* 当内容过多时，xterm 容器启用滚动 */
+.script-output.has-overflow .xterm {
+    max-height: 400px; /* 限制最大高度 */
+    overflow: visible; /* 让滚动条只在 script-output 上显示 */
+}
+
+/* 当内容过多时，视口隐藏滚动 */
+.script-output.has-overflow .xterm .xterm-viewport {
+    overflow: hidden !important;
+}
+
+/* 自定义滚动条样式 - 在 script-output 上显示 */
+.script-output.has-overflow::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-.script-output .xterm::-webkit-scrollbar-track {
+.script-output.has-overflow::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.script-output .xterm::-webkit-scrollbar-thumb {
+.script-output.has-overflow::-webkit-scrollbar-thumb {
     background-color: rgba(128, 128, 128, 0.4);
     border-radius: 4px;
 }
 
-.script-output .xterm::-webkit-scrollbar-thumb:hover {
+.script-output.has-overflow::-webkit-scrollbar-thumb:hover {
     background-color: rgba(128, 128, 128, 0.6);
 }

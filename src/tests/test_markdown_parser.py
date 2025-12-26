@@ -481,8 +481,8 @@ echo "test"
         # 提取脚本块
         scripts = extract_script_blocks(content)
 
-        # example.md 应该有 6 个脚本块（包括新增的 tty）
-        assert len(scripts) == 6, f"example.md 应该有 6 个脚本块，实际 {len(scripts)} 个"
+        # example.md 应该有 7 个脚本块
+        assert len(scripts) == 7, f"example.md 应该有 7 个脚本块，实际 {len(scripts)} 个"
 
         # 嵌入脚本块
         result = embed_scripts_in_markdown(content, scripts)
@@ -491,7 +491,7 @@ echo "test"
         assert '```bash' not in result, "example.md 渲染后不应该有残留的 ```bash"
 
         # 验证所有脚本块都被嵌入
-        for i in range(6):
+        for i in range(7):
             assert f'data-script-id="script_{i}"' in result, f"脚本块 script_{i} 应该存在"
 
         # 验证 markdown 标题被保留
