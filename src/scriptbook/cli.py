@@ -25,10 +25,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  %(prog)s content/                    # 使用content目录启动服务
+  %(prog)s examples/                   # 使用examples目录启动服务
   %(prog)s /path/to/sop/documents      # 使用指定SOP目录
-  %(prog)s content/ --port 9000        # 指定端口
-  %(prog)s content/ --host 0.0.0.0     # 指定主机（允许外部访问）
+  %(prog)s examples/ --port 9000       # 指定端口
+  %(prog)s examples/ --host 0.0.0.0    # 指定主机（允许外部访问）
 
 默认端口: 8000
 默认主机: 127.0.0.1

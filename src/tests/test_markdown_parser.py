@@ -470,7 +470,7 @@ echo "test"
         from scriptbook.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
         from pathlib import Path
 
-        example_file = Path('/Users/lzy/Desktop/PROJECTS/web/content/example.md')
+        example_file = Path('/Users/lzy/Desktop/PROJECTS/web/examples/example.md')
         if not example_file.exists():
             # 如果文件不存在，跳过测试
             return

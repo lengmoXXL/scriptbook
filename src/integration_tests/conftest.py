@@ -163,7 +163,7 @@ class TestServer:
 @pytest.fixture(scope="session")
 def test_server():
     """会话级fixture，管理测试服务器生命周期"""
-    server = TestServer("content", port=8015)
+    server = TestServer("examples", port=8015)
 
     # 启动服务器
     if not server.start():
@@ -178,7 +178,7 @@ def test_server():
 @pytest.fixture(scope="session")
 def test_server_8016():
     """会话级fixture，管理测试服务器生命周期（端口8016）"""
-    server = TestServer("content", port=8016)
+    server = TestServer("examples", port=8016)
 
     # 启动服务器
     if not server.start():

@@ -7,7 +7,7 @@ import time
 class FileScanner:
     """文件扫描器，用于扫描markdown文件"""
 
-    def __init__(self, content_dir: str = "content"):
+    def __init__(self, content_dir: str = "examples"):
         self.content_dir = content_dir
         self._cache = None
         self._cache_time = 0

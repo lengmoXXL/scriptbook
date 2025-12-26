@@ -15,14 +15,14 @@ def create_app(content_dir: Path = None) -> FastAPI:
     创建FastAPI应用实例
 
     Args:
-        content_dir: Markdown文件目录，如果为None则使用环境变量CONTENT_DIR或默认content目录
+        content_dir: Markdown文件目录，如果为None则使用环境变量CONTENT_DIR或默认examples目录
 
     Returns:
         FastAPI应用实例
     """
     # 确定content目录
     if content_dir is None:
-        content_dir = os.environ.get('CONTENT_DIR', 'content')
+        content_dir = os.environ.get('CONTENT_DIR', 'examples')
     content_dir = Path(content_dir)
 
     # 创建FastAPI应用

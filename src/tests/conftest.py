@@ -47,7 +47,7 @@ ls -la
 @pytest.fixture
 def test_client():
     """创建FastAPI测试客户端"""
-    app = create_app(Path("content"))
+    app = create_app(Path("examples"))
     with TestClient(app) as client:
         yield client
 

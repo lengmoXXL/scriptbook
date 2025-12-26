@@ -11,7 +11,7 @@ class TestFileScanner:
     def test_initialization(self):
         """测试初始化"""
         scanner = FileScanner()
-        assert scanner.content_dir == "content"
+        assert scanner.content_dir == "examples"
         assert scanner._cache is None
         assert scanner._cache_time == 0
         assert scanner._cache_ttl == 10
