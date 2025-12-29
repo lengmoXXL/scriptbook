@@ -64,7 +64,7 @@ async def execute_script(websocket: WebSocket, script_id: str):
         receive_task = asyncio.create_task(receive_input())
 
         # 使用 ScriptExecutor 执行脚本，传入 stdin_queue
-        async for output in executor.execute(script_id, code, timeout=30, stdin_queue=stdin_queue):
+        async for output in executor.execute(script_id, code, timeout=1800, stdin_queue=stdin_queue):
             await safe_send(output)
 
         # 取消输入接收任务

@@ -92,7 +92,7 @@ class ScriptExecutor:
         self,
         script_id: str,
         code: str,
-        timeout: int = 30,
+        timeout: int = 1800,  # 默认30分钟
         stdin_queue: Optional[asyncio.Queue] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """

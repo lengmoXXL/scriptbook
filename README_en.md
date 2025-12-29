@@ -78,10 +78,15 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.6.0
+- Current Version: 1.6.1
 - Python Requirement: >=3.10
 
 ### Changelog
+
+#### v1.6.1 (2025-12-29)
+- **Default Timeout Increased to 30 Minutes**
+  - Script execution default timeout adjusted from 30 seconds to 30 minutes
+  - Supports long-running script tasks
 
 #### v1.6.0 (2025-12-26)
 - **New Theme: GitHub Dark**
