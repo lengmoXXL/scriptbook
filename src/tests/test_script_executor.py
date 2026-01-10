@@ -126,3 +126,58 @@ class TestScriptExecutor:
         """测试 write_stdin 对于不存在的进程"""
         # 不应该抛出异常
         self.executor.write_stdin("nonexistent", "test input")
+
+    @pytest.mark.asyncio
+    async def test_execute_read_prompt_without_newline(self):
+        """测试 read -p 提示符输出（无换行符）"""
+        import os
+        import pty
+        import subprocess
+
+        script_id = "test_read_prompt"
+        code = 'read -p "请输入您的名字: " name; echo "您好, $name!"'
+
+        # 创建 PTY
+        master_fd, slave_fd = pty.openpty()
+
+        # 启动 bash 脚本
+        process = subprocess.Popen(
+            ['bash', '-c', code],
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=False
+        )
+        os.close(slave_fd)
+
+        # 收集输出
+        outputs = []
+        output_queue = asyncio.Queue()
+
+        # 执行脚本
+        async for output in self.executor.execute(
+            script_id, code, timeout=5, stdin_queue=output_queue
+        ):
+            outputs.append(output)
+
+        # 短暂等待让脚本运行
+        await asyncio.sleep(0.2)
+
+        # 发送输入
+        os.write(master_fd, b'Test\n')
+        os.close(master_fd)
+
+        # 等待进程结束
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+        # 验证输出包含 read -p 提示符
+        stdout_outputs = [o for o in outputs if o.get('type') == 'stdout']
+        contents = [o.get('content', '') for o in stdout_outputs]
+
+        # 应该包含提示符内容
+        assert any('请输入您的名字' in c for c in contents), \
+            f"应该包含 read -p 提示符，实际输出: {contents}"

@@ -143,19 +143,23 @@ class ScriptExecutor:
                     while True:
                         data = await loop.run_in_executor(None, lambda: os.read(master_fd, 4096))
                         if not data:
+                            # EOF: 发送剩余缓冲区的内容
+                            if buffer:
+                                await output_queue.put({
+                                    "type": "stdout",
+                                    "content": buffer.decode("utf-8", errors="replace"),
+                                    "timestamp": _timestamp()
+                                })
                             break
-                        buffer += data
-                        while b'\n' in buffer:
-                            line, buffer = buffer.split(b'\n', 1)
-                            await output_queue.put({
-                                "type": "stdout",
-                                "content": line.decode("utf-8", errors="replace"),
-                                "timestamp": _timestamp()
-                            })
-                    if buffer:
+
+                        # 直接发送数据，支持 read -p 等无换行输出
+                        content = (buffer + data).decode("utf-8", errors="replace")
+                        buffer = b""
+
+                        # 发送内容（保留 \r 用于光标回车）
                         await output_queue.put({
                             "type": "stdout",
-                            "content": buffer.decode("utf-8", errors="replace"),
+                            "content": content,
                             "timestamp": _timestamp()
                         })
                 except OSError:
