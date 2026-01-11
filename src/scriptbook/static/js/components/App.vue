@@ -92,6 +92,14 @@ export default {
 
         // 等待 DOM 更新后初始化终端
         await nextTick()
+        // 再次等待确保 v-html 内容完全渲染
+        await new Promise(resolve => setTimeout(resolve, 100))
+        console.log('HTML 内容已渲染，查找脚本块...')
+        const scriptBlocks = document.querySelectorAll('.script-block')
+        console.log(`找到 ${scriptBlocks.length} 个脚本块`)
+        scriptBlocks.forEach(block => {
+          console.log('脚本块:', block.dataset.scriptId)
+        })
         initScriptTerminals()
         restoreScriptResults()
       } catch (err) {
@@ -163,15 +171,33 @@ export default {
 
     // 初始化脚本终端
     const initScriptTerminals = () => {
-      const scriptBlocks = document.querySelectorAll('.script-block')
-      scriptBlocks.forEach(block => {
-        const scriptId = block.dataset.scriptId
-        createTerminalForScript(scriptId, block)
-      })
+      // 尝试查找脚本块，如果找不到则等待并重试
+      const tryFindTerminals = (retries = 5) => {
+        const scriptBlocks = document.querySelectorAll('.script-block')
+        if (scriptBlocks.length > 0) {
+          console.log(`初始化 ${scriptBlocks.length} 个终端`)
+          scriptBlocks.forEach(block => {
+            const scriptId = block.dataset.scriptId
+            if (!scriptId) {
+              console.warn('脚本块没有 scriptId:', block)
+              return
+            }
+            createTerminalForScript(scriptId, block)
+          })
+          restoreScriptResults()
+        } else if (retries > 0) {
+          console.log(`未找到脚本块，${retries} 次重试...`)
+          setTimeout(() => tryFindTerminals(retries - 1), 200)
+        } else {
+          console.error('无法找到脚本块')
+        }
+      }
+      tryFindTerminals()
     }
 
     // 创建终端
     const createTerminalForScript = (scriptId, block) => {
+      console.log(`创建终端: ${scriptId}`)
       let outputContainer = block.querySelector('.script-output')
       if (!outputContainer) {
         outputContainer = document.createElement('div')
@@ -293,12 +319,25 @@ export default {
 
     // 执行脚本
     window.executeScript = async (scriptId) => {
+      console.log('开始执行脚本:', scriptId)
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
+      if (!block) {
+        console.error(`找不到脚本块: ${scriptId}`)
+        return
+      }
       const codeEl = block.querySelector('.script-code')
       const code = codeEl.textContent
 
       const outputContainer = document.getElementById(`output-${scriptId}`)
+      if (!outputContainer) {
+        console.error(`找不到输出容器: output-${scriptId}`)
+        return
+      }
       const term = outputContainer._xterm
+      if (!term) {
+        console.error(`终端未初始化: output-${scriptId}`)
+        return
+      }
       const inputContainer = document.getElementById(`input-container-${scriptId}`)
       const inputEl = document.getElementById(`input-${scriptId}`)
 
@@ -333,22 +372,28 @@ export default {
       } catch (err) {}
 
       // 建立 WebSocket
-      const ws = new WebSocket(`ws://${window.location.host}/api/scripts/${scriptId}/execute`)
+      const wsUrl = `ws://${window.location.host}/api/scripts/${scriptId}/execute`
+      console.log('连接 WebSocket:', wsUrl)
+      const ws = new WebSocket(wsUrl)
       window.appConnections = window.appConnections || new Map()
       window.appConnections.set(scriptId, ws)
 
       ws.onopen = () => {
+        console.log('WebSocket 已打开:', scriptId)
         writeToTerminal(term, `=== 开始执行: ${scriptId} ===`, 'stdout')
         ws.send(JSON.stringify({ code }))
+        console.log('代码已发送')
       }
 
       ws.onmessage = (event) => {
+        console.log('收到消息:', scriptId, event.data.slice(0, 100))
         const data = JSON.parse(event.data)
         const { type, content } = data
         writeToTerminal(term, content, type)
         saveScriptResult(scriptId, type, content)
 
         if (type === 'exit' || type === 'error') {
+          console.log('脚本结束:', type)
           executeBtn.disabled = false
           executeBtn.textContent = '执行脚本'
           stopBtn.disabled = true
@@ -358,7 +403,8 @@ export default {
       }
 
       ws.onerror = (error) => {
-        writeToTerminal(term, `脚本执行错误: ${error.message}`, 'error')
+        console.error('WebSocket 错误:', scriptId, error)
+        writeToTerminal(term, `脚本执行错误`, 'error')
         executeBtn.disabled = false
         executeBtn.textContent = '执行脚本'
         stopBtn.disabled = true
@@ -366,7 +412,8 @@ export default {
         window.appConnections.delete(scriptId)
       }
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log('WebSocket 已关闭:', scriptId, 'code:', event.code, 'reason:', event.reason)
         executeBtn.disabled = false
         executeBtn.textContent = '执行脚本'
         stopBtn.disabled = true
