@@ -235,17 +235,6 @@ footer {
     box-shadow: none;
 }
 
-.copy-btn {
-    background-color: #17a2b8;
-    color: white;
-    border-color: #17a2b8;
-    box-shadow: none;
-}
-
-.copy-btn:hover {
-    background-color: #138496;
-    border-color: #117a8b;
-}
 
 .stop-btn {
     background-color: #dc3545;

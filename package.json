@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:e2e": "node test/e2e.test.mjs"
+    "test:e2e": "node test/e2e.test.mjs",
+    "test:integration": "node test/integration.test.mjs"
   },
   "type": "module",
   "repository": {
@@ -26,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/lengmoXXL/sop_online/issues"
   },
-  "homepage": "https://github.com/lengmoXXL/sop_online#readme",
+  "homepage": "https://github.com/lengmoXXL/sop_online.git#readme",
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
     "vite": "^7.3.1",

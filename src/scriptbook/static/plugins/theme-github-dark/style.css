@@ -287,18 +287,6 @@ body {
     background: var(--color-secondary);
 }
 
-.copy-btn {
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-}
-
-.copy-btn:hover {
-    background: var(--color-surface-alt-2);
-    border-color: var(--color-secondary-hover);
-}
-
 .script-code {
     background: var(--color-code-bg);
     color: var(--color-code-text);

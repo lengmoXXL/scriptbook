@@ -242,19 +242,6 @@ export default {
       closeModal()
     }
 
-    // 复制代码
-    window.copyCode = async (scriptId) => {
-      const block = document.querySelector(`[data-script-id="${scriptId}"]`)
-      const codeEl = block.querySelector('.script-code')
-      const code = codeEl.textContent
-      try {
-        await navigator.clipboard.writeText(code)
-        console.log('代码已复制到剪贴板')
-      } catch (err) {
-        console.error('复制失败:', err)
-      }
-    }
-
     onMounted(async () => {
       // 等待 xterm.js 加载
       await new Promise(resolve => {
