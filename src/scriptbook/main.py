@@ -71,6 +71,21 @@ def create_app(content_dir: Path = None) -> FastAPI:
 
         app.mount("/static", StaticFiles(directory=str(dist_dir)), name="static")
     else:
+        # 原始静态文件，添加 /js/* 和 /css/* 路由
+        @app.get("/js/{path:path}")
+        async def serve_js_fallback(path: str):
+            file_path = static_dir / "js" / path
+            if file_path.exists():
+                return FileResponse(str(file_path))
+            raise HTTPException(status_code=404, detail="Not found")
+
+        @app.get("/css/{path:path}")
+        async def serve_css_fallback(path: str):
+            file_path = static_dir / "css" / path
+            if file_path.exists():
+                return FileResponse(str(file_path))
+            raise HTTPException(status_code=404, detail="Not found")
+
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     @app.get("/")

@@ -1,6 +1,39 @@
 import { chromium } from 'playwright'
 import { expect } from '@playwright/test'
 
+// 脚本配置：定义每个脚本需要的输入和预期输出
+const scriptConfigs = {
+  'read命令测试': {
+    input: 'hello world\n',
+    waitAfterInput: 500,
+    // 预期输出中应该包含的文本（可以是正则表达式或字符串）
+    expectedOutputs: [
+      '你好, hello world!'
+    ]
+  },
+  'cat交互测试': {
+    input: '这是一行测试输入\n',
+    waitAfterInput: 500,
+    expectedOutputs: []
+  },
+  '多行输入测试': {
+    input: '第一行\n第二行\n第三行\nend\n',
+    waitAfterInput: 500,
+    expectedOutputs: [
+      '你输入了: 第一行',
+      '你输入了: 第二行',
+      '你输入了: 第三行'
+    ]
+  },
+  '密码输入测试': {
+    input: 'secret123\n',
+    waitAfterInput: 500,
+    expectedOutputs: [
+      '密码已接收（不显示）'
+    ]
+  }
+}
+
 async function testAllScripts() {
   console.log('启动浏览器...')
   const browser = await chromium.launch({ headless: true })
@@ -12,9 +45,17 @@ async function testAllScripts() {
     consoleMessages.push({ type: msg.type(), text: msg.text() })
   })
 
+  // 收集网络请求失败
+  page.on('requestfailed', request => {
+    console.log(`[网络失败] ${request.url()}: ${request.failure()?.errorText}`)
+  })
+
   try {
     console.log('打开页面...')
-    await page.goto('http://localhost:8000', { waitUntil: 'networkidle' })
+    await page.goto('http://localhost:8000', {
+      waitUntil: 'networkidle',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    })
 
     // 选择测试文件
     console.log('选择测试文件...')
@@ -23,7 +64,7 @@ async function testAllScripts() {
     // 等待脚本块出现
     console.log('等待脚本块渲染...')
     await page.waitForSelector('.script-block', { timeout: 10000 })
-    await page.waitForTimeout(1500) // 额外等待终端初始化
+    await page.waitForTimeout(1000)
 
     // 获取所有脚本块
     const scriptBlocks = page.locator('.script-block')
@@ -38,62 +79,128 @@ async function testAllScripts() {
 
       // 点击执行
       await block.locator('.execute-btn').click()
-      await page.waitForTimeout(2000)
 
-      // 等待终端
-      const terminal = block.locator('.xterm')
-      await expect(terminal).toBeVisible({ timeout: 10000 })
-      console.log('✓ 终端已创建')
+      // 等待弹窗出现
+      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+      console.log('✓ 弹窗已打开')
 
-      // 检查是否有输入框（交互式脚本）
-      const inputContainer = block.locator('.script-input-container')
-      const isInputVisible = await inputContainer.isVisible().catch(() => false)
+      // 等待终端容器渲染
+      const terminalModal = page.locator('.terminal-modal')
+      await expect(terminalModal.locator('.terminal-container')).toBeVisible({ timeout: 10000 })
+      console.log('✓ 终端容器已创建')
 
-      if (isInputVisible) {
-        console.log('✓ 检测到交互式输入')
+      // 查找终端输入区域并输入
+      const config = scriptConfigs[title]
+      if (config) {
+        // 等待终端显示提示符（检查终端内容）
+        await page.waitForFunction(() => {
+          const xtermEl = document.querySelector('.terminal-modal .xterm')
+          if (!xtermEl) return false
+          const text = xtermEl.textContent || ''
+          return text.includes('请输入') || text.includes('输入')
+        }, { timeout: 10000 })
+        console.log('✓ 终端已显示提示符')
 
-        // 根据脚本类型输入内容
-        let inputValue = 'test'
-        if (title.includes('多行')) {
-          inputValue = 'line1'
-          await inputContainer.locator('.script-input').fill(inputValue)
-          await inputContainer.locator('.input-send-btn').click()
-          await page.waitForTimeout(500)
+        // 等待更多时间确保终端完全准备好
+        await page.waitForTimeout(500)
 
-          await inputContainer.locator('.script-input').fill('line2')
-          await inputContainer.locator('.input-send-btn').click()
-          await page.waitForTimeout(500)
+        // 尝试键盘输入，但中文字符可能丢失第一个字节
+        // 对于中文字符，使用全局事件方式
+        const terminalContainer = page.locator('.terminal-modal .terminal-container')
+        await terminalContainer.click()
+        await page.waitForTimeout(200)
 
-          await inputContainer.locator('.script-input').fill('end')
-          await inputContainer.locator('.input-send-btn').click()
-          console.log('✓ 多行输入已发送')
-        } else if (title.includes('密码')) {
-          // 密码输入不验证
-          await inputContainer.locator('.script-input').fill('mypassword')
-          await inputContainer.locator('.input-send-btn').click()
-          console.log('✓ 密码已发送')
+        // 检测是否包含非ASCII字符
+        const hasNonAscii = /[^\x00-\x7F]/.test(config.input)
+
+        if (hasNonAscii) {
+          // 中文字符：使用全局事件（更可靠）
+          await page.evaluate(({ input }) => {
+            window.dispatchEvent(new CustomEvent('terminal-send-input', { detail: input }))
+          }, { input: config.input })
+          console.log(`✓ 已通过全局事件输入（含非ASCII字符）: ${JSON.stringify(config.input)}`)
         } else {
-          // 普通输入
-          await inputContainer.locator('.script-input').fill(inputValue)
-          await inputContainer.locator('.input-send-btn').click()
-          console.log('✓ 输入已发送')
+          // ASCII字符：使用键盘输入（模拟真实用户）
+          for (const char of config.input) {
+            if (char === '\n') {
+              await page.keyboard.press('Enter')
+            } else if (char === '\t') {
+              await page.keyboard.press('Tab')
+            } else {
+              await page.keyboard.type(char)
+            }
+            await page.waitForTimeout(50)
+          }
+          console.log(`✓ 已通过键盘输入: ${JSON.stringify(config.input)}`)
         }
 
-        // 等待脚本结束
-        await page.waitForTimeout(2000)
+        // 等待脚本处理输入
+        await page.waitForTimeout(config.waitAfterInput + 1000)
+
+        // 验证预期输出
+        if (config.expectedOutputs && config.expectedOutputs.length > 0) {
+          console.log('🔍 验证输出...')
+          // 通过 xterm.js 实例获取文本内容
+          const terminalText = await page.evaluate(() => {
+            const terminalEl = document.querySelector('.terminal-modal .terminal-container')
+            if (!terminalEl) {
+              return ''
+            }
+
+            // 尝试多种方法获取终端内容
+            // 方法1: 查找所有终端实例
+            const terms = document.querySelectorAll('[class*="terminal"]')
+            let text = ''
+
+            // 方法2: 通过选择器获取 xterm 元素内容
+            const xtermEl = document.querySelector('.terminal-modal .xterm')
+            if (xtermEl) {
+              // 获取 xterm 的 DOM 内容
+              const rows = xtermEl.querySelectorAll('.xterm-rows, .xterm-viewport, [class*="row"]')
+              if (rows.length > 0) {
+                text = Array.from(rows).map(r => r.textContent || '').join('\n')
+              } else {
+                // 直接获取 textContent
+                text = xtermEl.textContent || ''
+              }
+            }
+
+            // 清理文本
+            if (text) {
+              text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '') // 移除控制字符
+            }
+
+            return text
+          })
+          console.log('终端内容长度:', terminalText.length)
+          console.log('终端内容预览:', terminalText.substring(0, 200))
+
+          let allMatched = true
+          for (const expected of config.expectedOutputs) {
+            if (terminalText.includes(expected)) {
+              console.log(`✓ 找到预期输出: "${expected}"`)
+            } else {
+              console.log(`✗ 未找到预期输出: "${expected}"`)
+              allMatched = false
+            }
+          }
+
+          if (!allMatched) {
+            console.log('\n--- 终端实际内容 ---')
+            console.log(terminalText)
+            throw new Error(`脚本 "${title}" 的输出不符合预期`)
+          }
+        }
+      } else {
+        // 如果没有配置输入，等待脚本自然结束或超时
+        console.log('⚠ 未配置输入，脚本可能等待输入中...')
+        await page.waitForTimeout(3000)
       }
 
-      // 检查是否需要停止（stopBtn 可见且可用）
-      const stopBtn = block.locator('.stop-btn')
-      const isStopVisible = await stopBtn.isVisible().catch(() => false)
-      const isStopDisabled = await stopBtn.isDisabled().catch(() => true)
-      if (isStopVisible && !isStopDisabled) {
-        await stopBtn.click()
-        console.log('✓ 脚本已停止')
-      }
-
-      // 等待一小会儿再执行下一个
+      // 关闭弹窗
+      await page.locator('.terminal-close-btn').click()
       await page.waitForTimeout(500)
+      console.log('✓ 弹窗已关闭')
     }
 
     console.log('\n✅ 所有脚本测试通过！')

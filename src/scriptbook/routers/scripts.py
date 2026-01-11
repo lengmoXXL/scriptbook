@@ -38,8 +38,13 @@ async def execute_script(websocket: WebSocket, script_id: str):
                     msg = json.loads(data)
                     if msg.get("type") == "input":
                         content = msg.get("content", "")
-                        await stdin_queue.put(content + "\n")
+                        # 只有收到换行符时才添加换行，其他字符直接发送
+                        if content == '\r' or content == '\n':
+                            await stdin_queue.put(content)
+                        else:
+                            await stdin_queue.put(content)
                 except json.JSONDecodeError:
+                    # 非 JSON 数据直接添加换行（向后兼容）
                     await stdin_queue.put(data + "\n")
         except WebSocketDisconnect:
             print(f"客户端断开连接: {script_id}")

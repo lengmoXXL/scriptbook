@@ -8,5 +8,13 @@ export default defineConfig({
     outDir: '../../scriptbook/static/dist',
     assetsDir: 'js',
     emptyOutDir: true
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      }
+    }
   }
 })

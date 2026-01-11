@@ -61,7 +61,7 @@ def extract_script_blocks(content: str):
 
 def render_script_block(script):
     """
-    渲染单个脚本块为 HTML（嵌入版）
+    渲染单个脚本块为 HTML（弹出窗口版）
     """
     # 转义所有动态内容以防止XSS和HTML解析错误
     script_id = html.escape(script['id'], quote=True)
@@ -79,18 +79,9 @@ def render_script_block(script):
             <div class="script-actions">
                 <button class="execute-btn" onclick="executeScript('{script_id}')">执行脚本</button>
                 <button class="copy-btn" onclick="copyCode('{script_id}')">复制代码</button>
-                <button class="stop-btn" disabled>停止执行</button>
             </div>
         </div>
         <pre class="script-code"><code>{script_code}</code></pre>
-        <div class="script-output" id="output-{script_id}">
-            <div class="output-placeholder">点击"执行脚本"查看输出...</div>
-        </div>
-        <div class="script-input-container" id="input-container-{script_id}" style="display: none;">
-            <div class="input-label">输入:</div>
-            <input type="text" class="script-input" id="input-{script_id}" placeholder="输入命令所需内容，按Enter发送">
-            <button class="input-send-btn" onclick="sendInput('{script_id}')">发送</button>
-        </div>
     </div>
     '''
     return html_content
