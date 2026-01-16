@@ -79,6 +79,7 @@ scriptbook/
 │   │       └── theme-github-dark/
 │   │
 │   └── tests/             # Python 单元测试
+│       ├── __init__.py    # 包初始化
 │       ├── conftest.py    # pytest 配置
 │       ├── test_file_scanner.py
 │       ├── test_markdown_parser.py
@@ -120,8 +121,8 @@ scriptbook/
 - **`frontend/js/terminal-manager.js`**: 终端管理器
 - **`frontend/css/main.css`**: 主样式
 
-### 测试 (100+)
-- **Python 单元测试**: 70+ 个（pytest）
+### 测试 (70+)
+- **Python 单元测试**: 74 个（pytest, 位于 `src/backend/tests/`）
 - **Playwright E2E 测试**: 前端 E2E 测试
 
 ## 主要功能
