@@ -51,12 +51,12 @@ scriptbook examples/ --host 0.0.0.0
 ### 前端开发
 
 ```bash
-# 启动 Vite 开发服务器
-npm run dev
+# 构建前端 js 文件
 
-# 构建生产版本
 npm run build
 ```
+
+> **重要**：修改 `src/frontend/` 下的 Vue 文件后，必须运行 `npm run build` 将构建产物更新到 `dist/` 目录，否则后端服务无法加载最新前端代码。
 
 前端源码位于 `src/frontend/`：
 - `index.html` - 主页面

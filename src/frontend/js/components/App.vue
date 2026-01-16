@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="currentTheme">
     <NavBar
       :files="fileList"
       :plugins="pluginList"
@@ -128,23 +128,17 @@ export default {
         link.remove()
       })
 
-      if (themeName === 'theme-light' || !themeName) {
-        document.body.style.backgroundColor = ''
-        document.body.style.color = ''
-        currentTerminalTheme.value = null
-      } else {
-        const plugin = pluginList.value.find(p => p.name === themeName)
-        if (plugin) {
-          const link = document.createElement('link')
-          link.rel = 'stylesheet'
-          link.href = `/static/plugins/${themeName}/style.css`
-          link.setAttribute('data-theme', themeName)
-          document.head.appendChild(link)
-          // 保存终端主题配置
-          currentTerminalTheme.value = plugin.terminalTheme || null
-        } else {
-          currentTerminalTheme.value = null
-        }
+      // 从插件列表获取插件配置（包括 terminalTheme）
+      const plugin = pluginList.value.find(p => p.name === themeName)
+
+      if (plugin) {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = `/static/plugins/${themeName}/style.css`
+        link.setAttribute('data-theme', themeName)
+        document.head.appendChild(link)
+        // 保存终端主题配置
+        currentTerminalTheme.value = plugin.terminalTheme || null
       }
     }
 
@@ -271,7 +265,7 @@ export default {
       await loadPluginList()
 
       // 恢复主题
-      const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-light'
+      const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-github'
       switchTheme(savedTheme)
 
       // 恢复或选择文件

@@ -51,6 +51,34 @@ export default {
     const term = ref(null)
     let resizeObserver = null
 
+    // 从全局 CSS 变量获取当前主题颜色
+    const getThemeColors = () => {
+      const rootStyles = window.getComputedStyle(document.documentElement)
+      return {
+        bg: rootStyles.getPropertyValue('--color-background').trim() || '#ffffff',
+        headerBg: rootStyles.getPropertyValue('--color-surface-alt').trim() || '#f6f8fa',
+        border: rootStyles.getPropertyValue('--color-border').trim() || '#d0d7de',
+        text: rootStyles.getPropertyValue('--color-text').trim() || '#24292f',
+        textSecondary: rootStyles.getPropertyValue('--color-text-light').trim() || '#57606a'
+      }
+    }
+
+    // 应用主题颜色到弹窗 - 通过查询 DOM 获取弹窗元素
+    const applyThemeColors = () => {
+      // 使用 querySelector 获取弹窗元素（因为 Teleport 到 body，ref 可能不工作）
+      const modal = document.querySelector('.terminal-modal')
+      if (!modal) return
+
+      const colors = getThemeColors()
+      modal.style.setProperty('--modal-bg', colors.bg)
+      modal.style.setProperty('--modal-header-bg', colors.headerBg)
+      modal.style.setProperty('--modal-border', colors.border)
+      modal.style.setProperty('--modal-text', colors.text)
+      modal.style.setProperty('--modal-text-secondary', colors.textSecondary)
+      modal.style.backgroundColor = colors.bg
+      modal.style.borderColor = colors.border
+    }
+
     // 初始化终端
     const initTerminal = () => {
       if (!terminalContainer.value || !window.Terminal) return
@@ -105,6 +133,9 @@ export default {
       window[testId] = term.value
       container.setAttribute('data-terminal-id', testId)
       term.value.write('\x1b[2m终端已准备...\x1b[0m\r\n')
+
+      // 应用当前主题颜色到弹窗
+      applyThemeColors()
 
       // 键盘输入处理：直接发送到父组件
       term.value.onData((data) => {
@@ -170,9 +201,7 @@ export default {
 
     watch(() => props.visible, (visible) => {
       if (visible) {
-        nextTick(() => {
-          initTerminal()
-        })
+        nextTick(() => initTerminal())
       } else {
         cleanup()
       }
@@ -221,7 +250,6 @@ export default {
 }
 
 .terminal-modal {
-  background: #1e1e1e;
   border-radius: 8px;
   width: 80%;
   max-width: 900px;
@@ -230,9 +258,8 @@ export default {
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-  /* 动态背景色 */
-  --terminal-bg: #1e1e1e;
-  background-color: var(--terminal-bg);
+  background-color: var(--modal-bg, #ffffff);
+  border: 1px solid var(--modal-border, #d0d7de);
 }
 
 .terminal-modal-header {
@@ -240,12 +267,12 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3d3d3d;
+  background: var(--modal-header-bg, #f6f8fa);
+  border-bottom: 1px solid var(--modal-border, #d0d7de);
 }
 
 .terminal-title {
-  color: #d4d4d4;
+  color: var(--modal-text, #24292f);
   font-size: 14px;
   font-weight: 500;
 }
@@ -253,7 +280,7 @@ export default {
 .terminal-close-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--modal-text-secondary, #57606a);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -263,8 +290,8 @@ export default {
 }
 
 .terminal-close-btn:hover {
-  background: #3d3d3d;
-  color: #fff;
+  background: var(--modal-border, #d0d7de);
+  color: var(--modal-text, #24292f);
 }
 
 .terminal-container {
@@ -272,9 +299,17 @@ export default {
   min-height: 300px;
   max-height: 500px;
   overflow: hidden;
-  background: #1e1e1e;
-  /* 动态背景色 */
-  background-color: var(--terminal-bg, #1e1e1e);
+}
+
+/* 暗色主题 fallback */
+@media (prefers-color-scheme: dark), :global(.theme-github-dark) {
+  .terminal-modal {
+    --modal-bg: #0d1117;
+    --modal-header-bg: #161b22;
+    --modal-border: #30363d;
+    --modal-text: #c9d1d9;
+    --modal-text-secondary: #8b949e;
+  }
 }
 
 /* Transition animations */
