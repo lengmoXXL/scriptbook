@@ -81,7 +81,7 @@ pip install scriptbook
 
 - 当前版本: 1.6.2
 - Python要求: >=3.10
-- 详细更新日志: [CHANGELOG.md](CHANGELOG.md)
+- 详细更新日志: [changelog.md](docs/changelog.md)
 
 ### 许可证
 

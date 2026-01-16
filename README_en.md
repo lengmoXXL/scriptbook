@@ -81,7 +81,7 @@ pip install scriptbook
 
 - Current Version: 1.6.2
 - Python Requirement: >=3.10
-- Full changelog: [CHANGELOG.md](CHANGELOG.md)
+- Full changelog: [changelog.md](docs/changelog.md)
 
 ### License
 
