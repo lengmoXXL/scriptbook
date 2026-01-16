@@ -235,15 +235,44 @@ footer {
     box-shadow: none;
 }
 
+/* 执行结果按钮 */
+.result-btn {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.result-btn:hover:not(:disabled) {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.result-btn:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    border-color: #dee2e6;
+    cursor: not-allowed;
+}
+
+.result-btn[data-status="completed"] {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.result-btn[data-status="failed"] {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
 
 .stop-btn {
     background-color: #dc3545;
     color: white;
     border-color: #dc3545;
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    font-weight: bold !important;
+    display: inline-block;
+    visibility: visible;
+    opacity: 1;
+    font-weight: bold;
     box-shadow: none;
 }
 

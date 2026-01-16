@@ -280,7 +280,7 @@ done
 
 ```bash {"title": "长时间运行测试"}
 echo "脚本开始运行"
-for i in {1..30}; do
+for i in {1..5}; do
     echo "运行中... $i 秒"
     sleep 1
 done

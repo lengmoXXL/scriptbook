@@ -67,6 +67,68 @@ export default {
     const modalCode = ref('')
     const modalWs = ref(null) // WebSocket 连接
 
+    // 脚本状态管理: scriptId -> { status, exitCode, timestamp, outputBuffer }
+    // status: 'idle' | 'running' | 'completed' | 'failed'
+    const scriptStates = ref({})
+    // 终端输出缓存: scriptId -> [{content, type}, ...]
+    const scriptOutputBuffers = ref({})
+
+    // 暴露到 window 供测试使用
+    window.scriptOutputBuffers = scriptOutputBuffers.value
+
+    // 更新脚本状态
+    const updateScriptState = (scriptId, status, exitCode = null) => {
+      scriptStates.value[scriptId] = {
+        status,
+        exitCode,
+        timestamp: Date.now()
+      }
+
+      // 更新 DOM 按钮状态
+      const block = document.querySelector(`[data-script-id="${scriptId}"]`)
+      if (block) {
+        const resultBtn = block.querySelector('.result-btn')
+
+        if (resultBtn) {
+          resultBtn.setAttribute('data-status', status)
+          resultBtn.textContent = getStatusText(scriptId, status)
+          // 根据状态启用/禁用按钮
+          resultBtn.disabled = status === 'idle'
+        }
+      }
+    }
+
+    // 获取状态文本
+    const getStatusText = (scriptId, status) => {
+      const state = scriptStates.value[scriptId]
+      switch (status) {
+        case 'idle':
+          return '执行结果'
+        case 'running':
+          return '执行中...'
+        case 'completed':
+          return '执行完成 ✓'
+        case 'failed':
+          return '执行失败 ✗'
+        default:
+          return '执行结果'
+      }
+    }
+
+    // 初始化脚本状态显示
+    const initScriptStates = () => {
+      for (const [scriptId, state] of Object.entries(scriptStates.value)) {
+        const block = document.querySelector(`[data-script-id="${scriptId}"]`)
+        if (block) {
+          const btn = block.querySelector('.result-btn')
+          if (btn) {
+            btn.setAttribute('data-status', state.status)
+            btn.textContent = getStatusText(scriptId, state.status)
+          }
+        }
+      }
+    }
+
     // 加载文件列表
     const loadFileList = async () => {
       try {
@@ -111,6 +173,8 @@ export default {
 
         // 等待 DOM 更新
         await nextTick()
+        // 初始化脚本状态显示
+        initScriptStates()
       } catch (err) {
         error.value = `加载文件失败: ${err.message}`
         console.error('选择文件失败:', err)
@@ -144,15 +208,12 @@ export default {
 
     // 关闭弹窗
     const closeModal = () => {
-      // 关闭 WebSocket
-      if (modalWs.value) {
-        modalWs.value.close()
-        modalWs.value = null
-      }
+      // 只清除引用，不关闭 WebSocket（让脚本继续运行）
       modalVisible.value = false
       modalScriptId.value = ''
       modalTitle.value = ''
       modalCode.value = ''
+      modalWs.value = null
     }
 
     // 发送输入（键盘输入直接发送）
@@ -161,9 +222,81 @@ export default {
       modalWs.value.send(JSON.stringify({ type: 'input', content: value }))
     }
 
-    // 执行脚本（打开弹窗）
+    // 执行脚本（开始执行，不自动打开终端）
     window.executeScript = async (scriptId) => {
       console.log('开始执行脚本:', scriptId)
+      const block = document.querySelector(`[data-script-id="${scriptId}"]`)
+      if (!block) {
+        console.error(`找不到脚本块: ${scriptId}`)
+        return
+      }
+
+      const titleEl = block.querySelector('.script-title')
+      const codeEl = block.querySelector('.script-code')
+      const title = titleEl ? titleEl.textContent : scriptId
+      const code = codeEl ? codeEl.textContent : ''
+
+      // 清理旧缓冲区，避免重复累积
+      scriptOutputBuffers.value[scriptId] = []
+
+      // 更新状态为执行中
+      updateScriptState(scriptId, 'running')
+
+      // 设置弹窗状态（不自动打开）
+      modalTitle.value = title
+      modalScriptId.value = scriptId
+      modalCode.value = code
+
+      // 建立 WebSocket
+      const wsUrl = `ws://${window.location.host}/api/scripts/${scriptId}/execute`
+      console.log('连接 WebSocket:', wsUrl)
+
+      const ws = new WebSocket(wsUrl)
+      modalWs.value = ws
+      window.appConnections = window.appConnections || new Map()
+      window.appConnections.set(scriptId, ws)
+
+      ws.onopen = () => {
+        console.log('WebSocket 已打开:', scriptId)
+        // 如果终端已打开，写入开始消息
+        const modal = terminalModalRef.value
+        if (modal && modalVisible.value) {
+          modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
+        }
+        ws.send(JSON.stringify({ code }))
+        console.log('代码已发送')
+      }
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        const { type, content } = data
+
+        // 缓存输出（无论终端是否打开）
+        if (!scriptOutputBuffers.value[scriptId]) {
+          scriptOutputBuffers.value[scriptId] = []
+        }
+        scriptOutputBuffers.value[scriptId].push({ content, type })
+
+        // 脚本结束
+        if (type === 'exit') {
+          updateScriptState(scriptId, 'completed', data.exitCode || 0)
+        } else if (type === 'error') {
+          updateScriptState(scriptId, 'failed', 1)
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket 错误:', error)
+        updateScriptState(scriptId, 'failed')
+      }
+
+      ws.onclose = () => {
+        console.log('WebSocket 已关闭:', scriptId)
+      }
+    }
+
+    // 显示终端弹窗（已执行的脚本重新查看结果）
+    window.showTerminal = async (scriptId) => {
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
       if (!block) {
         console.error(`找不到脚本块: ${scriptId}`)
@@ -192,41 +325,23 @@ export default {
         return
       }
 
-      // 建立 WebSocket
-      const wsUrl = `ws://${window.location.host}/api/scripts/${scriptId}/execute`
-      console.log('连接 WebSocket:', wsUrl)
+      // 清空并重写缓存的输出（避免重复显示）
+      const bufferedOutput = scriptOutputBuffers.value[scriptId] || []
 
-      const ws = new WebSocket(wsUrl)
-      modalWs.value = ws
-      window.appConnections = window.appConnections || new Map()
-      window.appConnections.set(scriptId, ws)
+      // 重置终端到初始状态
+      modal.replayOutput(bufferedOutput)
 
-      ws.onopen = () => {
-        console.log('WebSocket 已打开:', scriptId)
-        modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
-        ws.send(JSON.stringify({ code }))
-        console.log('代码已发送')
-      }
-
-      ws.onmessage = (event) => {
-        console.log('收到消息:', scriptId, event.data.slice(0, 150))
-        const data = JSON.parse(event.data)
-        const { type, content } = data
-
-        modal.writeToTerminal(content, type)
-
-        if (type === 'exit' || type === 'error') {
-          console.log('脚本结束:', type)
+      // 如果已有连接，订阅其新消息（不再调用 originalOnMessage，因为缓冲区已有完整历史）
+      // 这样可以实时显示新输出，同时避免重复添加缓冲区
+      const existingWs = window.appConnections?.get(scriptId)
+      if (existingWs) {
+        modalWs.value = existingWs
+        existingWs.onmessage = (event) => {
+          const data = JSON.parse(event.data)
+          const { type, content } = data
+          // 只写入终端，不添加到缓冲区（避免重复）
+          modal.writeToTerminal(content, type)
         }
-      }
-
-      ws.onerror = (error) => {
-        console.error('WebSocket 错误:', error)
-        modal.writeToTerminal('脚本执行错误\r\n', 'error')
-      }
-
-      ws.onclose = () => {
-        console.log('WebSocket 已关闭:', scriptId)
       }
     }
 
@@ -239,6 +354,9 @@ export default {
         ws.close()
         window.appConnections.delete(scriptId)
       }
+
+      // 更新状态为失败
+      updateScriptState(scriptId, 'failed')
 
       closeModal()
     }

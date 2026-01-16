@@ -78,6 +78,7 @@ def render_script_block(script):
             </div>
             <div class="script-actions">
                 <button class="execute-btn" onclick="executeScript('{script_id}')">执行脚本</button>
+                <button class="result-btn" data-status="idle" onclick="showTerminal('{script_id}')" disabled>执行结果</button>
                 <button class="copy-btn" onclick="copyCode('{script_id}')">复制代码</button>
             </div>
         </div>
