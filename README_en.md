@@ -9,19 +9,20 @@ An online Markdown server with script execution support. Inspired by Jupyter Not
 - **Interactive Documents** - Embed executable scripts in Markdown, similar to Jupyter Notebook
 - **Interactive Input** - Support user input during script execution (e.g., `read` command)
 - **Real-time Execution** - WebSocket-based real-time script output streaming
-- **Independent Output** - Each script block has its own output area below
 - **Result Persistence** - Auto-restore script execution results after page refresh (localStorage)
 - **Stop Execution** - Support terminating running scripts anytime
 - **Multi-document Support** - Switch between multiple documents, results saved independently
 - **Theme Switching** - Support for GitHub Light and GitHub Dark themes
-- **Terminal Themes** - Terminal colors match theme style
+- **Terminal Modal** - Script execution in a modal dialog with full-screen support
 - **ANSI Color Support** - Script output colors and formatting displayed correctly in browser
-- **Navbar Layout** - Top navigation bar with file selection and theme switching
-- **GitHub Link** - GitHub repository link in top-right corner
-- **xterm.js Terminal** - Professional terminal emulator for script output rendering
-- **WebSocket Optimization** - Improved concurrency handling, supports page refresh scenarios
 - **SOP Automation** - Ideal for displaying and executing enterprise standard operating procedures
-- **Comprehensive Testing** - Includes 192 unit and integration tests
+- **Comprehensive Testing** - 200+ tests covering unit, integration, and E2E tests
+
+### Tech Stack
+
+- **Backend**: Python 3.10+ / FastAPI / WebSocket
+- **Frontend**: Vue 3 (Composition API) / Vite / xterm.js
+- **Testing**: Jest / pytest / Playwright
 
 ## Screenshot
 
@@ -78,121 +79,9 @@ pip install scriptbook
 
 ### Version
 
-- Current Version: 1.6.1
+- Current Version: 1.6.2
 - Python Requirement: >=3.10
-
-### Changelog
-
-#### v1.6.1 (2025-12-29)
-- **Default Timeout Increased to 30 Minutes**
-  - Script execution default timeout adjusted from 30 seconds to 30 minutes
-  - Supports long-running script tasks
-
-#### v1.6.0 (2025-12-26)
-- **New Theme: GitHub Dark**
-  - Added GitHub Dark style dark theme
-  - Terminal colors perfectly match dark theme
-- **Theme Simplification**
-  - Removed default light/dark themes
-  - Only GitHub style themes retained
-- **Directory Renamed**
-  - `content/` directory renamed to `examples/`
-  - More clearly expresses example document purpose
-- **Bug Fixes**
-  - Test fix: hardcoded fd=5 caused terminal device error
-  - Removed input content echo display
-- **Test Enhancement**
-  - Added real fd creation instead of mock
-  - 73 Python tests all passing
-
-#### v1.5.1 (2025-12-26)
-- **Terminal Output Scrollbar Optimization**
-  - Fixed multiple scrollbars display issue
-  - Terminal output now shows only one scrollbar
-  - Terminal content auto-expands, scrollbar enabled at 400px height
-
-#### v1.5.0 (2025-12-25)
-- **New Theme: GitHub Style**
-  - Added GitHub style theme with consistent Markdown rendering
-  - Optimized code blocks, tables, blockquotes, etc.
-- **Terminal Theme Integration**
-  - Terminal colors match theme style
-  - Terminal theme config via plugin manifest.json
-- **Theme System Refactoring**
-  - Unified theme naming (theme-light, theme-dark, theme-github)
-  - Plugin system supports terminal theme config
-- **Navbar Layout Optimization**
-  - Top navigation bar with file selection and theme switching
-  - Removed standalone controls area
-  - Added GitHub repository link icon
-- **Code Cleanup**
-  - Removed "Markdown Preview" title
-  - Simplified footer content
-
-#### v1.4.4 (2025-12-25)
-- **Python 3.10 Compatibility Fix**
-  - Use `asyncio.wait_for` instead of `asyncio.timeout`
-  - Fix async generator timeout handling
-
-#### v1.4.3 (2025-12-25)
-- **PTY Support** - Fixed Python 3.10~3.14 compatibility
-  - Use `pty.openpty()` instead of removed `pty` parameter
-  - Support `tty` command and TTY-required commands (e.g., `docker exec -it`)
-- **Code Refactoring** - Refactored `script_executor.py`
-  - Extracted `_cleanup()` method for simpler resource cleanup
-  - Use `asyncio.wait_for` instead of `asyncio.timeout` for Python 3.10 support
-- **Test Enhancement** - Added TTY command integration test
-
-#### v1.4.2 (2025-12-24)
-- **xterm.js Canvas Renderer** - Switched from DOM to Canvas renderer
-  - Fixed scrolling issues, smoother scrolling experience
-  - Terminal background matches page theme
-  - Terminal automatically changes color when theme switches
-- **Bug Fixes**
-  - Fixed xterm.css issues, downloaded correct stylesheet
-  - Fixed xterm.js gray background issue
-  - Fixed terminal color not changing when theme switches
-  - Fixed terminal initialization as white in dark theme
-- **Code Cleanup** - Removed deprecated styles and debug code
-
-#### v1.4.0 (2025-12-24)
-- **xterm.js Embedded Terminal** - Professional terminal emulator for script output rendering
-  - Full ANSI escape sequence support
-  - Better terminal experience (scroll, select, copy)
-  - Light theme adaptation (#f5f5f5 background + #333333 text)
-  - Color coding: stdout (no color), stderr (red), stdin (cyan), exit (yellow)
-- **Technical Improvements**
-  - Added `terminal-manager.js` terminal manager class
-  - Added `lib/xterm.js` and `lib/xterm.css`
-  - Removed deprecated `ansi-html.js` and `ansi-parser.js`
-- **Testing Enhancement** - Added 26 TerminalManager unit tests
-
-#### v1.3.1 (2025-12-23)
-- **Bug Fixes**
-  - Theme persistence on page refresh
-  - Document persistence on page refresh
-  - Added version query params to JS/CSS to prevent browser caching issues
-- **Code Optimization**
-  - Removed redundant imports
-  - Added `_timestamp()` helper function
-  - Added cache TTL (60s) to plugin manager
-
-#### v1.3.0 (2025-12-22)
-- **ANSI Escape Sequence Parsing** - Script output colors and formatting displayed correctly
-  - Support for 16 basic colors (black, red, green, yellow, blue, purple, cyan, white)
-  - Support for bold, italic, underline, inverse formatting
-  - Support for `\x1b[]`, `\033[]`, and `[]` format ANSI sequences
-
-#### v1.2.0 (2025-12-22)
-- **Documentation** - Added release process and project structure documents
-
-#### v1.1.0 (2025-12-22)
-- **Script Result Persistence** - Auto-restore results after page refresh
-- **Stop Script Execution** - Terminate running scripts with stop button
-- **WebSocket Concurrency** - Improved connection handling for page refresh
-
-#### v1.0.0 (2025-12-21)
-- Initial release with interactive input and WebSocket streaming
+- Full changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ### License
 
@@ -205,32 +94,55 @@ MIT License
 
 ## Testing
 
-This project includes a comprehensive test suite with a total of 192 test cases.
+This project includes a comprehensive test suite with 200+ test cases.
 
-### Run All Tests
+### Test Types
 
+#### 1. JavaScript Unit Tests (109)
+Run with Jest + JSDOM:
 ```bash
-# Run all tests (unit tests + integration tests)
-pytest src/ src/integration_tests/ -v
-
-# JavaScript tests
 cd src/tests/js
 npm test
 ```
 
-### Test Coverage
+#### 2. Python Unit Tests (70)
+Run with pytest:
+```bash
+pytest src/tests/ -v
+```
 
-- **JavaScript Tests**: 109 test cases (using Jest + JSDOM)
-  - TerminalManager: 26 tests
-  - Plugin Loader: 16 tests
-  - Script Results Persistence: 9 tests
-  - Script Results Persistence Integration: 7 tests
-  - WebSocket Concurrency: 8 tests
-  - Script Stop Functionality: 12 tests
-  - App Class: 25 tests
-- **Python Unit Tests**: 70 test cases
-- **Integration Tests**: 13 test cases
-- **Total Tests**: 192, all passing
+#### 3. Python Integration Tests (13)
+```bash
+pytest src/integration_tests/ -v
+```
+
+#### 4. Playwright E2E Tests
+Real browser testing with Playwright:
+```bash
+# Install Playwright
+npm install -D @playwright/test playwright
+
+# Run E2E tests
+npx playwright test test/e2e.test.mjs
+
+# Run integration tests
+npx playwright test test/integration.test.mjs
+```
+
+### Test Files
+
+- **JavaScript Tests** (`src/tests/js/`):
+  - `app.test.js`: App class tests (25)
+  - `terminal-manager.test.js`: Terminal manager tests (26)
+  - `plugin-loader.test.js`: Plugin loader tests (16)
+  - `script-results-persistence.test.js`: Persistence tests (9)
+  - `script-results-persistence-integration.test.js`: Integration tests (7)
+  - `websocket-concurrency.test.js`: WebSocket concurrency tests (8)
+  - `script-stop-functionality.test.js`: Stop functionality tests (12)
+
+- **Playwright Tests** (`test/`):
+  - `e2e.test.mjs`: E2E tests for interactive input scenarios
+  - `integration.test.mjs`: Integration tests for full user flows
 
 ## Development Guide
 
@@ -259,6 +171,24 @@ cd /path/to/scriptbook
 # Run all tests
 pytest src/ src/integration_tests/ -v
 ```
+
+### Frontend Development
+
+```bash
+# Install Node.js dependencies
+npm install
+
+# Start dev server (Vite)
+npm run dev
+
+# Build for production
+npm run build
+```
+
+Frontend tech stack:
+- **Vue 3** - Composition API
+- **Vite** - Build tool
+- **xterm.js** - Terminal emulator
 
 ### Publish to PyPI
 
