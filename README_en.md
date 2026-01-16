@@ -94,55 +94,35 @@ MIT License
 
 ## Testing
 
-This project includes a comprehensive test suite with 200+ test cases.
+This project includes 100+ test cases (backend unit tests + E2E tests).
 
 ### Test Types
 
-#### 1. JavaScript Unit Tests (109)
-Run with Jest + JSDOM:
-```bash
-cd src/tests/js
-npm test
-```
-
-#### 2. Python Unit Tests (70)
+#### 1. Python Unit Tests (70+)
 Run with pytest:
 ```bash
 pytest src/tests/ -v
 ```
 
-#### 3. Python Integration Tests (13)
-```bash
-pytest src/integration_tests/ -v
-```
-
-#### 4. Playwright E2E Tests
+#### 2. Playwright E2E Tests
 Real browser testing with Playwright:
 ```bash
 # Install Playwright
 npm install -D @playwright/test playwright
 
-# Run E2E tests
-npx playwright test test/e2e.test.mjs
-
-# Run integration tests
-npx playwright test test/integration.test.mjs
+# Run tests
+npx playwright test
 ```
 
-### Test Files
+### Test Coverage
 
-- **JavaScript Tests** (`src/tests/js/`):
-  - `app.test.js`: App class tests (25)
-  - `terminal-manager.test.js`: Terminal manager tests (26)
-  - `plugin-loader.test.js`: Plugin loader tests (16)
-  - `script-results-persistence.test.js`: Persistence tests (9)
-  - `script-results-persistence-integration.test.js`: Integration tests (7)
-  - `websocket-concurrency.test.js`: WebSocket concurrency tests (8)
-  - `script-stop-functionality.test.js`: Stop functionality tests (12)
-
-- **Playwright Tests** (`test/`):
-  - `e2e.test.mjs`: E2E tests for interactive input scenarios
-  - `integration.test.mjs`: Integration tests for full user flows
+- File scanning and Markdown parsing
+- Plugin management system
+- Script executor
+- WebSocket event handling
+- Interactive input functionality
+- Theme switching
+- Terminal modal interaction
 
 ## Development Guide
 
@@ -161,15 +141,8 @@ source .venv/bin/activate
 pip install -e .
 pip install -r requirements-test.txt
 
-# Install JavaScript test dependencies (only needed for testing)
-cd src/tests/js
-npm install
-
-# Return to root directory
-cd /path/to/scriptbook
-
-# Run all tests
-pytest src/ src/integration_tests/ -v
+# Run tests
+pytest src/tests/ -v
 ```
 
 ### Frontend Development

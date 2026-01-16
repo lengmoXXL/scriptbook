@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from scriptbook.models.schemas import ScriptOutputMessage, ScriptInputMessage
-from scriptbook.core.script_executor import executor
+from backend.models.schemas import ScriptOutputMessage, ScriptInputMessage
+from backend.core.script_executor import executor
 import asyncio
 import json
 

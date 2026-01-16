@@ -1,5 +1,5 @@
 import json
-from scriptbook.core.markdown_parser import MarkdownParser
+from backend.core.markdown_parser import MarkdownParser
 
 
 class TestMarkdownParser:
@@ -356,7 +356,7 @@ echo "Hello"
 
     def test_router_extract_script_blocks_position(self):
         """测试路由层 extract_script_blocks 使用正确的位置信息"""
-        from scriptbook.routers.markdown import extract_script_blocks
+        from backend.routers.markdown import extract_script_blocks
 
         text = """# 文档
 
@@ -392,7 +392,7 @@ echo "Second"
 
     def test_embed_scripts_no_residue(self):
         """测试 embed_scripts_in_markdown 不会残留 markdown 代码块"""
-        from scriptbook.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
 
         text = """# 文档
 
@@ -442,7 +442,7 @@ echo "Third"
 
     def test_embed_scripts_preserves_markdown_content(self):
         """测试 embed_scripts_in_markdown 保留非脚本块内容"""
-        from scriptbook.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
 
         text = """# 标题
 
@@ -467,7 +467,7 @@ echo "test"
 
     def test_embed_scripts_with_example_file(self):
         """测试使用 example.md 文件进行完整的嵌入流程"""
-        from scriptbook.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
         from pathlib import Path
 
         example_file = Path('/Users/lzy/Desktop/PROJECTS/web/examples/example.md')
@@ -651,7 +651,7 @@ echo "End of example"
 
     def test_router_extract_script_blocks_with_indentation(self):
         """测试路由层的 extract_script_blocks 支持缩进代码块"""
-        from scriptbook.routers.markdown import extract_script_blocks
+        from backend.routers.markdown import extract_script_blocks
 
         text = """### 6.2 列表中的脚本
 
@@ -677,7 +677,7 @@ echo "End of example"
 
     def test_router_extract_consecutive_indented_blocks(self):
         """测试路由层处理连续缩进代码块"""
-        from scriptbook.routers.markdown import extract_script_blocks
+        from backend.routers.markdown import extract_script_blocks
 
         text = """- 项目A
 

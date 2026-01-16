@@ -2,7 +2,7 @@ import os
 import json
 import copy
 from typing import List, Dict, Any, Optional
-from scriptbook.models.schemas import PluginInfo
+from backend.models.schemas import PluginInfo
 
 # 缓存过期时间（秒）
 CACHE_TTL = 60

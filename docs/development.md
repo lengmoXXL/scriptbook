@@ -131,43 +131,30 @@ git push -u origin feature/xxx
 
 ## 测试
 
-项目包含 200+ 测试用例。
+项目包含 100+ 测试用例（后端单元测试 + E2E 测试）。
 
 ### 测试类型
 
 | 类型 | 框架 | 位置 | 命令 |
 |------|------|------|------|
-| JavaScript 单元测试 | Jest | `src/tests/js/` | `npm test` |
 | Python 单元测试 | pytest | `src/tests/` | `pytest src/tests/ -v` |
-| Python 集成测试 | pytest | `src/integration_tests/` | `pytest src/integration_tests/ -v` |
-| Playwright E2E | Playwright | `test/` | `npx playwright test test/e2e.test.mjs` |
+| Playwright E2E | Playwright | `test/` | `npx playwright test` |
 
 ### 运行测试
 
 ```bash
-# 所有测试
-pytest src/ src/integration_tests/ -v && npm test
-
-# Python 测试
+# Python 单元测试
 pytest src/tests/ -v
 
-# JavaScript 测试
-cd src/tests/js && npm test
-
 # Playwright E2E 测试
-npx playwright test test/e2e.test.mjs
+npx playwright test
 ```
 
 ### 测试文件
 
 | 文件 | 测试内容 |
 |------|----------|
-| `src/tests/js/app.test.js` | App 类基础功能 (25) |
-| `src/tests/js/terminal-manager.test.js` | 终端管理器 (26) |
-| `src/tests/js/plugin-loader.test.js` | 插件加载器 (16) |
-| `src/tests/js/script-*.test.js` | 持久化、并发、停止功能 (36) |
-| `src/tests/test_*.py` | Python 单元测试 (70) |
-| `src/integration_tests/*.py` | 集成测试 (13) |
+| `src/tests/test_*.py` | Python 单元测试 (70+) |
 | `test/e2e.test.mjs` | Playwright E2E |
 | `test/integration.test.mjs` | Playwright 集成 |
 
@@ -253,5 +240,5 @@ npm cache clean --force
 
 ```bash
 cat pyproject.toml | grep version
-cat src/scriptbook/__init__.py | grep __version__
+cat src/backend/__init__.py | grep __version__
 ```

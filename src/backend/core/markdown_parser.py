@@ -1,7 +1,7 @@
 import re
 import json
 from typing import List, Dict, Any, Tuple
-from scriptbook.models.schemas import ScriptBlock
+from backend.models.schemas import ScriptBlock
 
 class MarkdownParser:
     """Markdown解析器，支持特殊脚本语法"""

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from scriptbook.models.schemas import PluginInfo
+from backend.models.schemas import PluginInfo
 import os
 import json
 from pathlib import Path

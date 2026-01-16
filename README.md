@@ -94,66 +94,32 @@ MIT License
 
 ## 测试
 
-本项目包含完整的测试套件，总计 200+ 个测试用例。
+本项目包含 100+ 测试用例（后端单元测试 + E2E 测试）。
 
 ### 测试类型
 
-#### 1. JavaScript 单元测试 (109个)
-使用 Jest + JSDOM 运行：
-```bash
-cd src/tests/js
-npm test
-```
-
-#### 2. Python 单元测试 (70个)
+#### 1. Python 单元测试 (70+)
 使用 pytest 运行：
 ```bash
 pytest src/tests/ -v
 ```
 
-#### 3. Python 集成测试 (13个)
-```bash
-pytest src/integration_tests/ -v
-```
-
-#### 4. Playwright 端到端测试
+#### 2. Playwright E2E 测试
 使用 Playwright 进行真实浏览器测试：
 ```bash
 # 安装 Playwright
 npm install -D @playwright/test playwright
 
-# 运行端到端测试
-npx playwright test test/e2e.test.mjs
-
-# 运行集成测试
-npx playwright test test/integration.test.mjs
+# 运行测试
+npx playwright test
 ```
-
-### 测试文件说明
-
-- **JavaScript 测试** (`src/tests/js/`):
-  - `app.test.js`: App类基础功能测试 (25个)
-  - `terminal-manager.test.js`: 终端管理器测试 (26个)
-  - `plugin-loader.test.js`: 插件加载器测试 (16个)
-  - `script-results-persistence.test.js`: 持久化测试 (9个)
-  - `script-results-persistence-integration.test.js`: 持久化集成测试 (7个)
-  - `websocket-concurrency.test.js`: WebSocket并发测试 (8个)
-  - `script-stop-functionality.test.js`: 停止功能测试 (12个)
-
-- **Playwright 测试** (`test/`):
-  - `e2e.test.mjs`: 端到端测试，覆盖交互输入场景
-  - `integration.test.mjs`: 集成测试，验证完整用户流程
 
 ### 测试覆盖
 
-- App类初始化和基本功能
-- 全局函数（executeScript、copyCode、sendInput、stopScript）
-- WebSocket事件处理和并发控制
-- 脚本结果持久化和恢复
-- 脚本停止执行功能
-- 文件扫描和Markdown解析
+- 文件扫描和 Markdown 解析
 - 插件管理系统
 - 脚本执行器
+- WebSocket 事件处理
 - 交互式输入功能
 - 主题切换
 - 终端弹窗交互
@@ -175,15 +141,8 @@ source .venv/bin/activate
 pip install -e .
 pip install -r requirements-test.txt
 
-# 安装JavaScript测试依赖（仅测试需要）
-cd src/tests/js
-npm install
-
-# 返回根目录
-cd /path/to/scriptbook
-
-# 运行所有测试
-pytest src/ src/integration_tests/ -v
+# 运行测试
+pytest src/tests/ -v
 ```
 
 ### 前端开发

@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os
 
-from scriptbook import __version__
+from backend import __version__
 
 
 def create_app(content_dir: Path = None) -> FastAPI:
@@ -42,7 +42,7 @@ def create_app(content_dir: Path = None) -> FastAPI:
     app.state.plugins_dir = str(plugins_dir)
 
     # 导入路由
-    from scriptbook.routers import markdown, scripts, plugins
+    from backend.routers import markdown, scripts, plugins
 
     # 包含路由
     app.include_router(markdown.router, prefix="/api/markdown")

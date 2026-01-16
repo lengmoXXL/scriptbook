@@ -51,7 +51,10 @@ Repository = "https://github.com/lengmoXXL/scriptbook"
 Issues = "https://github.com/lengmoXXL/scriptbook/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/scriptbook"]
+packages = ["src/backend"]
+
+[project.scripts]
+scriptbook = "backend.cli:main"
 
 [tool.uvicorn]
 port = "8000"

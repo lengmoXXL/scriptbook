@@ -2,7 +2,7 @@ import os
 import tempfile
 import time
 from datetime import datetime
-from scriptbook.core.file_scanner import FileScanner
+from backend.core.file_scanner import FileScanner
 
 
 class TestFileScanner:

@@ -10,7 +10,7 @@ from pathlib import Path
 
 def create_app(content_dir: Path):
     """创建FastAPI应用实例"""
-    from scriptbook.main import create_app as _create_app
+    from backend.main import create_app as _create_app
 
     # 设置环境变量传递content目录
     os.environ['CONTENT_DIR'] = str(content_dir)

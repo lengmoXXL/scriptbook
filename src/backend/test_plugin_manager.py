@@ -2,8 +2,8 @@ import os
 import json
 import tempfile
 from pathlib import Path
-from scriptbook.core.plugin_manager import PluginManager
-from scriptbook.models.schemas import PluginInfo
+from backend.core.plugin_manager import PluginManager
+from backend.models.schemas import PluginInfo
 
 
 class TestPluginManager:

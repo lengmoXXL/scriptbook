@@ -40,74 +40,62 @@ scriptbook/
 │   └── screenshot.png     # 界面截图
 │
 ├── src/                   # 源代码
-│   ├── scriptbook/        # 主包
+│   ├── backend/           # 后端 (Python/FastAPI)
 │   │   ├── __init__.py    # 包初始化，版本信息
 │   │   ├── main.py        # FastAPI应用入口
 │   │   ├── cli.py         # 命令行接口
-│   │   │
 │   │   ├── core/          # 核心功能
 │   │   │   ├── file_scanner.py      # 文件扫描
 │   │   │   ├── markdown_parser.py   # Markdown解析
 │   │   │   ├── plugin_manager.py    # 插件管理
 │   │   │   └── script_executor.py   # 脚本执行
-│   │   │
 │   │   ├── models/        # 数据模型
 │   │   │   └── schemas.py # Pydantic模式
-│   │   │
 │   │   ├── routers/       # API路由
 │   │   │   ├── markdown.py    # Markdown相关API
 │   │   │   ├── plugins.py     # 插件相关API
 │   │   │   └── scripts.py     # 脚本执行API
-│   │   │
-│   │   └── static/        # 静态资源
-│   │       ├── js/
-│   │       │   ├── app.js             # 主应用逻辑
-│   │       │   ├── plugin-loader.js   # 插件加载器
-│   │       │   ├── terminal-manager.js # 终端管理器
-│   │       │   ├── components/        # Vue组件
-│   │       │   │   ├── App.vue        # 主应用组件
-│   │       │   │   └── TerminalModal.vue # 终端弹窗组件
-│   │       │   └── lib/               # 第三方库
-│   │       │       ├── xterm.js
-│   │       │       └── xterm.css
-│   │       ├── css/
-│   │       │   └── main.css
-│   │       ├── index.html
-│   │       └── plugins/               # 主题插件
-│   │           ├── theme-github/
-│   │           └── theme-github-dark/
+│   │   └── plugins/       # 主题插件
+│   │       ├── theme-github/
+│   │       └── theme-github-dark/
 │   │
-│   ├── tests/             # 单元测试
-│   │   ├── conftest.py    # pytest配置
-│   │   ├── js/            # JavaScript测试 (Jest)
-│   │   │   ├── app.test.js
-│   │   │   ├── plugin-loader.test.js
-│   │   │   ├── terminal-manager.test.js
-│   │   │   ├── script-results-persistence.test.js
-│   │   │   ├── script-results-persistence-integration.test.js
-│   │   │   ├── websocket-concurrency.test.js
-│   │   │   └── script-stop-functionality.test.js
-│   │   ├── test_file_scanner.py
-│   │   ├── test_markdown_parser.py
-│   │   ├── test_plugin_manager.py
-│   │   ├── test_report.py
-│   │   └── test_script_executor.py
+│   ├── frontend/          # 前端 (Vue 3/Vite)
+│   │   ├── index.html     # 主页面
+│   │   ├── js/            # JavaScript
+│   │   │   ├── app.js             # 主应用逻辑
+│   │   │   ├── plugin-loader.js   # 插件加载器
+│   │   │   ├── terminal-manager.js # 终端管理器
+│   │   │   ├── components/        # Vue组件
+│   │   │   │   ├── App.vue        # 主应用组件
+│   │   │   │   └── TerminalModal.vue # 终端弹窗组件
+│   │   │   └── lib/               # 第三方库
+│   │   │       ├── xterm.js
+│   │   │       └── xterm.css
+│   │   ├── css/
+│   │   │   └── main.css
+│   │   ├── plugins/       # 主题插件
+│   │   │   ├── theme-github/
+│   │   │   └── theme-github-dark/
+│   │   └── dist/          # Vite 构建产物
 │   │
-│   └── integration_tests/ # 集成测试
-│       ├── conftest.py
-│       ├── test_scriptbook_pytest.py
-│       └── test_websocket_integration.py
+│   └── tests/             # Python 单元测试
+│       ├── conftest.py    # pytest 配置
+│       ├── test_file_scanner.py
+│       ├── test_markdown_parser.py
+│       ├── test_plugin_manager.py
+│       ├── test_report.py
+│       └── test_script_executor.py
 │
-├── test/                   # Playwright测试
-│   ├── e2e.test.mjs        # 端到端测试
+├── test/                  # Playwright 测试
+│   ├── e2e.test.mjs       # 端到端测试
 │   └── integration.test.mjs # 集成测试
 │
-├── pyproject.toml          # 项目配置和依赖
-├── requirements.txt        # 生产依赖
-├── requirements-test.txt   # 测试依赖
-├── README.md               # 项目说明（中文）
-├── README_en.md            # 项目说明（英文）
-└── CLAUDE.md               # 项目结构说明
+├── pyproject.toml         # 项目配置和依赖
+├── requirements.txt       # 生产依赖
+├── requirements-test.txt  # 测试依赖
+├── README.md              # 项目说明（中文）
+├── README_en.md           # 项目说明（英文）
+└── CLAUDE.md              # 项目结构说明
 ```
 
 ## 核心文件说明
@@ -124,11 +112,9 @@ scriptbook/
 - **`static/js/terminal-manager.js`**: 终端管理器
 - **`static/css/main.css`**: 主样式
 
-### 测试 (200+)
-- **JavaScript 测试**: 109 个（Jest + JSDOM）
-- **Python 单元测试**: 70 个（pytest）
-- **集成测试**: 13 个（pytest）
-- **Playwright 测试**: 10+ 个（E2E）
+### 测试 (100+)
+- **Python 单元测试**: 70+ 个（pytest）
+- **Playwright E2E 测试**: 前端 E2E 测试
 
 ## 主要功能
 
@@ -143,7 +129,7 @@ scriptbook/
 
 - **后端**: Python 3.10+ / FastAPI / WebSocket
 - **前端**: Vue 3 (Composition API) / Vite / xterm.js
-- **测试**: Jest / pytest / Playwright
+- **测试**: pytest / Playwright
 
 ## 许可证
 
