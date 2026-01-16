@@ -6,7 +6,7 @@ import path from 'path'
 // 构建完成后复制 plugins 目录
 const copyPlugins = () => {
   const projectRoot = process.cwd()
-  const distDir = path.join(projectRoot, 'src/frontend/dist')
+  const distDir = path.join(projectRoot, 'dist')
   const srcPluginsDir = path.join(projectRoot, 'src/frontend/plugins')
 
   return {
@@ -41,7 +41,7 @@ export default defineConfig({
   plugins: [vue(), copyPlugins()],
   root: 'src/frontend',
   build: {
-    outDir: '../../scriptbook/static/dist',
+    outDir: '../../dist',
     assetsDir: 'js',
     emptyOutDir: true
   },

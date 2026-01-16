@@ -26,11 +26,6 @@ pip install -r requirements-test.txt
 
 # 安装 Node.js 依赖
 npm install
-
-# 安装 JavaScript 测试依赖
-cd src/tests/js
-npm install
-cd ../../..
 ```
 
 ## 开发命令
@@ -63,7 +58,7 @@ npm run dev
 npm run build
 ```
 
-前端源码位于 `src/scriptbook/static/`：
+前端源码位于 `src/frontend/`：
 - `index.html` - 主页面
 - `js/components/` - Vue 组件
 - `css/` - 样式文件
@@ -73,31 +68,35 @@ npm run build
 
 ```
 scriptbook/
-├── src/scriptbook/
-│   ├── main.py           # FastAPI 应用入口
-│   ├── cli.py            # 命令行接口
-│   ├── core/             # 核心功能模块
-│   │   ├── file_scanner.py
-│   │   ├── markdown_parser.py
-│   │   ├── plugin_manager.py
-│   │   └── script_executor.py
-│   ├── routers/          # API 路由
-│   │   ├── markdown.py
-│   │   ├── plugins.py
-│   │   └── scripts.py
-│   ├── models/           # 数据模型
-│   │   └── schemas.py
-│   └── static/           # 静态资源
-│       ├── js/
-│       ├── css/
-│       ├── plugins/
-│       └── dist/         # Vite 构建产物
-├── examples/             # 示例文档
-├── test/                 # Playwright 测试
-├── src/tests/            # 单元测试
-│   ├── js/               # JavaScript 测试
-│   └── python/           # Python 测试
-└── integration_tests/    # 集成测试
+├── src/
+│   ├── backend/           # 后端 (Python/FastAPI)
+│   │   ├── main.py        # FastAPI 应用入口
+│   │   ├── cli.py         # 命令行接口
+│   │   ├── core/          # 核心功能模块
+│   │   │   ├── file_scanner.py
+│   │   │   ├── markdown_parser.py
+│   │   │   ├── plugin_manager.py
+│   │   │   └── script_executor.py
+│   │   ├── routers/       # API 路由
+│   │   │   ├── markdown.py
+│   │   │   ├── plugins.py
+│   │   │   └── scripts.py
+│   │   ├── models/        # 数据模型
+│   │   │   └── schemas.py
+│   │   └── plugins/       # 主题插件
+│   │
+│   ├── frontend/          # 前端 (Vue 3/Vite)
+│   │   ├── index.html
+│   │   ├── js/
+│   │   ├── css/
+│   │   └── plugins/
+│   │
+│   └── tests/             # Python 单元测试
+│       └── test_*.py
+│
+├── dist/                  # Vite 构建产物（项目根目录）
+├── examples/              # 示例文档
+└── test/                  # Playwright 测试
 ```
 
 ## 开发规范
@@ -154,7 +153,7 @@ npx playwright test
 
 | 文件 | 测试内容 |
 |------|----------|
-| `src/tests/test_*.py` | Python 单元测试 (70+) |
+| `src/backend/tests/test_*.py` | Python 单元测试 (70+) |
 | `test/e2e.test.mjs` | Playwright E2E |
 | `test/integration.test.mjs` | Playwright 集成 |
 

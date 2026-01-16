@@ -101,7 +101,7 @@ This project includes 100+ test cases (backend unit tests + E2E tests).
 #### 1. Python Unit Tests (70+)
 Run with pytest:
 ```bash
-pytest src/tests/ -v
+pytest src/backend/tests/ -v
 ```
 
 #### 2. Playwright E2E Tests
@@ -142,7 +142,7 @@ pip install -e .
 pip install -r requirements-test.txt
 
 # Run tests
-pytest src/tests/ -v
+pytest src/backend/tests/ -v
 ```
 
 ### Frontend Development

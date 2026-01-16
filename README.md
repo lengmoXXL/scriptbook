@@ -101,7 +101,7 @@ MIT License
 #### 1. Python 单元测试 (70+)
 使用 pytest 运行：
 ```bash
-pytest src/tests/ -v
+pytest src/backend/tests/ -v
 ```
 
 #### 2. Playwright E2E 测试
@@ -142,7 +142,7 @@ pip install -e .
 pip install -r requirements-test.txt
 
 # 运行测试
-pytest src/tests/ -v
+pytest src/backend/tests/ -v
 ```
 
 ### 前端开发

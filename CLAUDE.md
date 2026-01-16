@@ -62,6 +62,7 @@ scriptbook/
 │   ├── frontend/          # 前端 (Vue 3/Vite)
 │   │   ├── index.html     # 主页面
 │   │   ├── js/            # JavaScript
+│   │   │   ├── main.js            # 主入口
 │   │   │   ├── app.js             # 主应用逻辑
 │   │   │   ├── plugin-loader.js   # 插件加载器
 │   │   │   ├── terminal-manager.js # 终端管理器
@@ -73,10 +74,9 @@ scriptbook/
 │   │   │       └── xterm.css
 │   │   ├── css/
 │   │   │   └── main.css
-│   │   ├── plugins/       # 主题插件
-│   │   │   ├── theme-github/
-│   │   │   └── theme-github-dark/
-│   │   └── dist/          # Vite 构建产物
+│   │   └── plugins/       # 主题插件
+│   │       ├── theme-github/
+│   │       └── theme-github-dark/
 │   │
 │   └── tests/             # Python 单元测试
 │       ├── conftest.py    # pytest 配置
@@ -85,6 +85,14 @@ scriptbook/
 │       ├── test_plugin_manager.py
 │       ├── test_report.py
 │       └── test_script_executor.py
+│
+├── dist/                  # Vite 构建产物（项目根目录）
+│   ├── index.html
+│   ├── js/
+│   ├── css/
+│   └── plugins/           # 主题插件
+│       ├── theme-github/
+│       └── theme-github-dark/
 │
 ├── test/                  # Playwright 测试
 │   ├── e2e.test.mjs       # 端到端测试
@@ -107,10 +115,10 @@ scriptbook/
 - **`core/script_executor.py`**: 脚本执行器
 
 ### 前端 (Vue 3)
-- **`static/js/components/App.vue`**: 主应用组件（Vue 3 组合式 API）
-- **`static/js/components/TerminalModal.vue`**: 终端弹窗组件
-- **`static/js/terminal-manager.js`**: 终端管理器
-- **`static/css/main.css`**: 主样式
+- **`frontend/js/components/App.vue`**: 主应用组件（Vue 3 组合式 API）
+- **`frontend/js/components/TerminalModal.vue`**: 终端弹窗组件
+- **`frontend/js/terminal-manager.js`**: 终端管理器
+- **`frontend/css/main.css`**: 主样式
 
 ### 测试 (100+)
 - **Python 单元测试**: 70+ 个（pytest）

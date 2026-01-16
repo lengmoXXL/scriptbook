@@ -35,11 +35,10 @@ def create_app(content_dir: Path = None) -> FastAPI:
     # 设置content目录到应用状态
     app.state.content_dir = str(content_dir)
 
-    # 设置插件目录到应用状态
-    # 优先使用环境变量，否则使用相对于当前模块目录的路径
-    base_dir = Path(__file__).parent
-    plugins_dir = base_dir / "static" / "plugins"
-    app.state.plugins_dir = str(plugins_dir)
+    # 静态文件目录（从项目根目录的 dist 提供）
+    base_dir = Path(__file__).parent.parent.parent  # 项目根目录
+    dist_dir = base_dir / "dist"
+    app.state.plugins_dir = str(dist_dir / "plugins")
 
     # 导入路由
     from backend.routers import markdown, scripts, plugins
@@ -48,10 +47,6 @@ def create_app(content_dir: Path = None) -> FastAPI:
     app.include_router(markdown.router, prefix="/api/markdown")
     app.include_router(scripts.router, prefix="/api")
     app.include_router(plugins.router, prefix="/api/plugins")
-
-    # 静态文件目录（始终从 dist 提供）
-    static_dir = base_dir / "static"
-    dist_dir = base_dir / "static" / "dist"
 
     @app.get("/js/{path:path}")
     async def serve_js(path: str):
