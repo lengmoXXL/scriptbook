@@ -157,6 +157,52 @@ npx playwright test
 | `test/e2e.test.mjs` | Playwright E2E |
 | `test/integration.test.mjs` | Playwright 集成 |
 
+### MCP 测试
+
+项目集成了 MCP (Model Context Protocol) 测试工具，支持通过截图验证 UI 的一致性。
+
+#### 环境要求
+
+确保 MCP 工具已配置，参考 [MCP Chrome DevTools 文档](https://github.com/anthropics/mcp-chrome-devtools)。
+
+#### 运行 MCP 测试
+
+```bash
+# 启动 scriptbook 服务
+scriptbook examples/
+
+# 运行 MCP 测试脚本
+node test/mcp-theme.test.js
+```
+
+#### MCP 测试用例
+
+##### TC-001: 终端弹窗主题配色一致性
+
+**目标**: 验证脚本执行弹窗的配色与当前主题一致
+
+**步骤**:
+1. 访问 http://localhost:8000
+2. 选择任意包含脚本的 Markdown 文件（如 `example.md`）
+3. 点击任意脚本块右侧的「执行」按钮
+4. 等待终端弹窗完全打开
+5. 使用 MCP 工具截图
+6. 验证弹窗配色与主题一致
+
+**预期结果**:
+- GitHub Light 主题: 弹窗背景为白色或浅灰色，文字为深色
+- GitHub Dark 主题: 弹窗背景为深色 (#0d1117)，文字为浅色 (#c9d1d9)
+
+**截图验证命令**:
+```javascript
+// 截图并保存
+await chromeDevTools.takeScreenshot({ filePath: 'test-results/modal-theme-check.png' })
+
+// 验证弹窗元素存在
+const snapshot = await chromeDevTools.takeSnapshot()
+const modal = snapshot.uid_of_terminal_modal  // 检查终端弹窗存在
+```
+
 ## 文档更新
 
 当添加新功能或修改代码后，需要更新相关文档。
