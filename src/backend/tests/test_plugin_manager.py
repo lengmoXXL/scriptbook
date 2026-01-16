@@ -2,8 +2,8 @@ import os
 import json
 import tempfile
 from pathlib import Path
-from backend.core.plugin_manager import PluginManager
-from backend.models.schemas import PluginInfo
+from ..core.plugin_manager import PluginManager
+from ..models.schemas import PluginInfo
 
 
 class TestPluginManager:

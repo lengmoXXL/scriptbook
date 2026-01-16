@@ -136,14 +136,14 @@ git push -u origin feature/xxx
 
 | 类型 | 框架 | 位置 | 命令 |
 |------|------|------|------|
-| Python 单元测试 | pytest | `src/tests/` | `pytest src/tests/ -v` |
+| Python 单元测试 | pytest | `src/backend/tests/` | `pytest src/backend/tests/ -v` |
 | Playwright E2E | Playwright | `test/` | `npx playwright test` |
 
 ### 运行测试
 
 ```bash
 # Python 单元测试
-pytest src/tests/ -v
+pytest src/backend/tests/ -v
 
 # Playwright E2E 测试
 npx playwright test

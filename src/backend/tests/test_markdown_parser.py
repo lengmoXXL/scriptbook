@@ -1,5 +1,5 @@
 import json
-from backend.core.markdown_parser import MarkdownParser
+from ..core.markdown_parser import MarkdownParser
 
 
 class TestMarkdownParser:
@@ -356,7 +356,7 @@ echo "Hello"
 
     def test_router_extract_script_blocks_position(self):
         """测试路由层 extract_script_blocks 使用正确的位置信息"""
-        from backend.routers.markdown import extract_script_blocks
+        from ..routers.markdown import extract_script_blocks
 
         text = """# 文档
 
@@ -392,7 +392,7 @@ echo "Second"
 
     def test_embed_scripts_no_residue(self):
         """测试 embed_scripts_in_markdown 不会残留 markdown 代码块"""
-        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from ..routers.markdown import embed_scripts_in_markdown, extract_script_blocks
 
         text = """# 文档
 
@@ -442,7 +442,7 @@ echo "Third"
 
     def test_embed_scripts_preserves_markdown_content(self):
         """测试 embed_scripts_in_markdown 保留非脚本块内容"""
-        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from ..routers.markdown import embed_scripts_in_markdown, extract_script_blocks
 
         text = """# 标题
 
@@ -467,7 +467,7 @@ echo "test"
 
     def test_embed_scripts_with_example_file(self):
         """测试使用 example.md 文件进行完整的嵌入流程"""
-        from backend.routers.markdown import embed_scripts_in_markdown, extract_script_blocks
+        from ..routers.markdown import embed_scripts_in_markdown, extract_script_blocks
         from pathlib import Path
 
         example_file = Path('/Users/lzy/Desktop/PROJECTS/web/examples/example.md')
@@ -481,8 +481,8 @@ echo "test"
         # 提取脚本块
         scripts = extract_script_blocks(content)
 
-        # example.md 应该有 7 个脚本块
-        assert len(scripts) == 7, f"example.md 应该有 7 个脚本块，实际 {len(scripts)} 个"
+        # example.md 应该有 8 个脚本块
+        assert len(scripts) == 8, f"example.md 应该有 8 个脚本块，实际 {len(scripts)} 个"
 
         # 嵌入脚本块
         result = embed_scripts_in_markdown(content, scripts)
@@ -491,7 +491,7 @@ echo "test"
         assert '```bash' not in result, "example.md 渲染后不应该有残留的 ```bash"
 
         # 验证所有脚本块都被嵌入
-        for i in range(7):
+        for i in range(8):
             assert f'data-script-id="script_{i}"' in result, f"脚本块 script_{i} 应该存在"
 
         # 验证 markdown 标题被保留
@@ -651,7 +651,7 @@ echo "End of example"
 
     def test_router_extract_script_blocks_with_indentation(self):
         """测试路由层的 extract_script_blocks 支持缩进代码块"""
-        from backend.routers.markdown import extract_script_blocks
+        from ..routers.markdown import extract_script_blocks
 
         text = """### 6.2 列表中的脚本
 
@@ -677,7 +677,7 @@ echo "End of example"
 
     def test_router_extract_consecutive_indented_blocks(self):
         """测试路由层处理连续缩进代码块"""
-        from backend.routers.markdown import extract_script_blocks
+        from ..routers.markdown import extract_script_blocks
 
         text = """- 项目A
 
