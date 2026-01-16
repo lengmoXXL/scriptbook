@@ -66,7 +66,10 @@ def create_app(content_dir: Path = None) -> FastAPI:
 
     @app.get("/")
     async def read_root():
-        return FileResponse(str(dist_dir / "index.html"))
+        index_path = dist_dir / "index.html"
+        if not index_path.exists():
+            raise HTTPException(status_code=404, detail=f"index.html not found at {index_path}")
+        return FileResponse(str(index_path))
 
     # 健康检查端点
     @app.get("/health")

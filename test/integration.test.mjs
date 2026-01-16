@@ -36,7 +36,10 @@ async function waitForWebSocketMessages(page, expectedTypes = []) {
 async function runWebSocketTests() {
   console.log('\n=== WebSocket API 测试 ===\n')
 
-  const browser = await chromium.launch({ headless: true })
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  })
   const page = await browser.newPage()
 
   const messages = []
@@ -248,7 +251,10 @@ async function runAllTests() {
 
   // 启动浏览器进行 E2E 测试
   console.log('\n🌐 启动浏览器进行 E2E 测试...\n')
-  const browser = await chromium.launch({ headless: true })
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  })
   const context = await browser.newContext()
   const page = await context.newPage()
 

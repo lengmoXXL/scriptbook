@@ -36,7 +36,10 @@ const scriptConfigs = {
 
 async function testAllScripts() {
   console.log('启动浏览器...')
-  const browser = await chromium.launch({ headless: true })
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  })
   const page = await browser.newPage()
 
   // 收集控制台消息
