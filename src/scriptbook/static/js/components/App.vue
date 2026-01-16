@@ -32,6 +32,7 @@
       :title="modalTitle"
       :script-id="modalScriptId"
       :code="modalCode"
+      :terminal-theme="currentTerminalTheme"
       @close="closeModal"
       @send-input="onSendInput"
       ref="terminalModalRef"
@@ -52,6 +53,7 @@ export default {
     const pluginList = ref([])
     const currentFile = ref(null)
     const currentTheme = ref('theme-light')
+    const currentTerminalTheme = ref(null) // 当前主题的终端配置
     const contentHtml = ref('<p>请从上方选择Markdown文件...</p>')
     const loading = ref(false)
     const error = ref(null)
@@ -129,6 +131,7 @@ export default {
       if (themeName === 'theme-light' || !themeName) {
         document.body.style.backgroundColor = ''
         document.body.style.color = ''
+        currentTerminalTheme.value = null
       } else {
         const plugin = pluginList.value.find(p => p.name === themeName)
         if (plugin) {
@@ -137,6 +140,10 @@ export default {
           link.href = `/static/plugins/${themeName}/style.css`
           link.setAttribute('data-theme', themeName)
           document.head.appendChild(link)
+          // 保存终端主题配置
+          currentTerminalTheme.value = plugin.terminalTheme || null
+        } else {
+          currentTerminalTheme.value = null
         }
       }
     }
@@ -265,10 +272,7 @@ export default {
 
       // 恢复主题
       const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-light'
-      currentTheme.value = savedTheme
-      if (savedTheme !== 'theme-light') {
-        switchTheme(savedTheme)
-      }
+      switchTheme(savedTheme)
 
       // 恢复或选择文件
       const savedFile = localStorage.getItem('scriptbook_currentFile')
@@ -284,6 +288,7 @@ export default {
       pluginList,
       currentFile,
       currentTheme,
+      currentTerminalTheme,
       contentHtml,
       loading,
       error,

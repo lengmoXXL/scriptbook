@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onUnmounted, onMounted } from 'vue'
 
 export default {
   name: 'TerminalModal',
@@ -39,6 +39,10 @@ export default {
     code: {
       type: String,
       default: ''
+    },
+    terminalTheme: {
+      type: Object,
+      default: null
     }
   },
   emits: ['close', 'send-input'],
@@ -50,6 +54,9 @@ export default {
     // 初始化终端
     const initTerminal = () => {
       if (!terminalContainer.value || !window.Terminal) return
+
+      // 获取主题配置
+      const themeConfig = props.terminalTheme || {}
 
       // 计算终端尺寸
       const container = terminalContainer.value
@@ -79,11 +86,11 @@ export default {
         fontFamily: "'SF Mono', 'Menlo', monospace",
         fontSize: 13,
         theme: {
-          background: '#1e1e1e',
-          foreground: '#d4d4d4',
-          cursor: '#d4d4d4',
-          cursorAccent: '#1e1e1e',
-          selectionBackground: '#264f78'
+          background: themeConfig.background || '#1e1e1e',
+          foreground: themeConfig.foreground || '#d4d4d4',
+          cursor: themeConfig.cursor || '#d4d4d4',
+          cursorAccent: themeConfig.cursorAccent || '#1e1e1e',
+          selectionBackground: themeConfig.selectionBackground || '#264f78'
         },
         cols,
         rows,
@@ -171,6 +178,21 @@ export default {
       }
     })
 
+    // 监听主题变化，更新终端样式
+    watch(() => props.terminalTheme, (theme) => {
+      if (theme && terminalContainer.value) {
+        const bg = theme.background || '#1e1e1e'
+        terminalContainer.value.style.setProperty('--terminal-bg', bg)
+      }
+    }, { immediate: true })
+
+    onMounted(() => {
+      if (props.terminalTheme && terminalContainer.value) {
+        const bg = props.terminalTheme.background || '#1e1e1e'
+        terminalContainer.value.style.setProperty('--terminal-bg', bg)
+      }
+    })
+
     onUnmounted(() => {
       cleanup()
     })
@@ -208,6 +230,9 @@ export default {
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  /* 动态背景色 */
+  --terminal-bg: #1e1e1e;
+  background-color: var(--terminal-bg);
 }
 
 .terminal-modal-header {
@@ -248,6 +273,8 @@ export default {
   max-height: 500px;
   overflow: hidden;
   background: #1e1e1e;
+  /* 动态背景色 */
+  background-color: var(--terminal-bg, #1e1e1e);
 }
 
 /* Transition animations */
