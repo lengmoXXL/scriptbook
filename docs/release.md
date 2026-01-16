@@ -26,7 +26,7 @@
 # pyproject.toml
 version = "x.y.z"
 
-# src/scriptbook/__init__.py
+# src/backend/__init__.py
 __version__ = "x.y.z"
 ```
 
@@ -73,11 +73,10 @@ rm -rf .pytest_cache
 
 ```bash
 # Python 测试
-pytest src/ src/integration_tests/ -v
+pytest src/backend/tests/ -v
 
-# JavaScript 测试
-cd src/tests/js
-npm test
+# Playwright E2E 测试
+npx playwright test
 ```
 
 所有测试必须通过后才能继续。
@@ -122,7 +121,7 @@ git push origin v1.x.x
 git checkout -b fix/rollback-v1.x.x
 
 # 2. 更新版本号
-# 修改 pyproject.toml 和 __init__.py
+# 修改 pyproject.toml 和 src/backend/__init__.py
 
 # 3. 提交修复
 git commit -m "fix: 回滚修复 v1.x.y"
@@ -136,10 +135,10 @@ python -m build && twine upload dist/*
 ```bash
 # 版本号检查
 cat pyproject.toml | grep version
-cat src/scriptbook/__init__.py | grep __version__
+cat src/backend/__init__.py | grep __version__
 
 # 运行测试
-pytest src/ -v && npm test -prefix src/tests/js
+pytest src/backend/tests/ -v && npx playwright test
 
 # 构建并发布
 python -m build && twine upload dist/*
