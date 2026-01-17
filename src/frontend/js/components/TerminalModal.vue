@@ -313,8 +313,9 @@ export default {
 
 .terminal-modal {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   border-radius: 8px;
   width: auto;
   min-width: 600px;
