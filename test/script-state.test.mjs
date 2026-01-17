@@ -56,6 +56,9 @@ async function testScriptStateTransitions() {
     console.log('--- 测试 2: 执行脚本状态 ---')
     await firstBlock.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     // 等待状态更新
     await page.waitForFunction(() => {
       const btn = document.querySelector('.script-block')?.querySelector('.result-btn')
@@ -115,9 +118,7 @@ async function testScriptStateTransitions() {
     // 测试 4: 验证终端可以打开（不验证具体输出，因为回放功能需要进一步调试）
     console.log('--- 测试 4: 验证终端可以打开 ---')
 
-    // 点击结果按钮打开终端
-    await firstBlock.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    // 终端已经自动打开，等待一下确保内容加载完成
     await page.waitForTimeout(1000)
 
     // 检查终端是否打开
@@ -174,6 +175,9 @@ async function testScriptStateTransitions() {
     // 点击停止按钮隐藏（如果有显示的话），然后重新执行
     await firstBlock.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     await page.waitForFunction(() => {
       const btn = document.querySelector('.script-block')?.querySelector('.result-btn')
       return btn?.getAttribute('data-status') === 'running'
@@ -193,6 +197,10 @@ async function testScriptStateTransitions() {
     }, { timeout: 10000 })
 
     console.log('  ✅ 重新执行完成\n')
+
+    // 关闭终端弹窗
+    await page.locator('.terminal-close-btn').click()
+    await page.waitForTimeout(500)
 
     console.log('✅ 所有脚本状态流转测试通过！\n')
   } catch (error) {
@@ -235,6 +243,9 @@ async function testTerminalCloseDoesNotKillScript() {
     console.log('  执行脚本...')
     await simpleScript.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     // 等待完成（简单脚本很快完成，但为了稳健使用轮询）
     let completed = false
     for (let i = 0; i < 20; i++) {
@@ -252,9 +263,7 @@ async function testTerminalCloseDoesNotKillScript() {
     }
     console.log('  状态: completed')
 
-    console.log('--- 打开终端查看结果 ---')
-    await simpleScript.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    console.log('--- 终端已自动打开，查看结果 ---')
     await page.waitForTimeout(500)
 
     // 检查终端是否打开
@@ -344,6 +353,7 @@ async function testTerminalCloseDoesNotKillScript() {
       })
       console.log(`  重新打开前缓冲区消息数: ${debugInfoBefore.info[scriptId]?.messageCount || 0}`)
 
+      // 点击 result-btn 重新打开终端
       await simpleScript.locator('.result-btn').click()
       await page.waitForSelector('.terminal-modal', { timeout: 10000 })
       await page.waitForTimeout(500)
@@ -426,6 +436,9 @@ async function testStopButton() {
     const firstBlock = page.locator('.script-block').first()
     await firstBlock.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     // 等待执行中
     await page.waitForFunction(() => {
       const btn = document.querySelector('.script-block')?.querySelector('.result-btn')
@@ -434,9 +447,7 @@ async function testStopButton() {
 
     console.log('--- 脚本执行中，停止执行 ---')
 
-    // 打开终端
-    await firstBlock.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    // 终端已自动打开，等待内容加载
     await page.waitForTimeout(1000)
 
     // 验证终端有内容
@@ -472,6 +483,10 @@ async function testStopButton() {
     }
 
     console.log('  ✅ 停止执行功能正常\n')
+
+    // 关闭终端弹窗
+    await page.locator('.terminal-close-btn').click()
+    await page.waitForTimeout(500)
 
     console.log('✅ 停止执行按钮测试通过！\n')
   } catch (error) {
@@ -554,6 +569,9 @@ async function testScriptOutputVerification() {
         await scriptBlock.locator('.execute-btn').click()
       }
 
+      // 等待弹窗自动打开
+      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
       // 等待脚本完成（使用轮询）
       let completed = false
       for (let i = 0; i < 30; i++) {
@@ -579,6 +597,9 @@ async function testScriptOutputVerification() {
       console.log('  再次执行...')
       await scriptBlock.locator('.execute-btn').click()
 
+      // 等待弹窗自动打开
+      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
       // 等待完成
       for (let i = 0; i < 30; i++) {
         await page.waitForTimeout(500)
@@ -599,9 +620,7 @@ async function testScriptOutputVerification() {
       }
       console.log('  ✅ 输出没有重复\n')
 
-      // 打开终端查看结果
-      await scriptBlock.locator('.result-btn').click()
-      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+      // 终端已自动打开，等待内容加载
       await page.waitForTimeout(500)
 
       // 获取缓冲区内容
@@ -680,6 +699,9 @@ async function testBackgroundExecutionWithTerminalClose() {
     console.log('--- 点击执行按钮，启动长时间脚本 ---')
     await scriptBlock.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     // 等待状态变为执行中
     await page.waitForFunction(() => {
       const blocks = document.querySelectorAll('.script-block')
@@ -701,10 +723,8 @@ async function testBackgroundExecutionWithTerminalClose() {
     }
     console.log('  ✅ 脚本开始执行\n')
 
-    // 打开终端确认有内容
-    console.log('--- 打开终端确认脚本正在运行 ---')
-    await scriptBlock.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    // 终端已自动打开，确认有内容
+    console.log('--- 终端已自动打开，确认脚本正在运行 ---')
     await page.waitForTimeout(1000)
 
     const modalVisible = await page.locator('.terminal-modal').isVisible()
@@ -848,6 +868,9 @@ async function testTerminalReopenNoDuplicate() {
     console.log('--- 执行脚本 ---')
     await scriptBlock.locator('.execute-btn').click()
 
+    // 等待弹窗自动打开
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
     // 等待完成
     let completed = false
     for (let i = 0; i < 20; i++) {
@@ -866,8 +889,6 @@ async function testTerminalReopenNoDuplicate() {
 
     // 第一次打开终端
     console.log('--- 第一次打开终端 ---')
-    await scriptBlock.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
     await page.waitForTimeout(500)
 
     const contentFirst = await page.evaluate(() => {

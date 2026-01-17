@@ -65,21 +65,20 @@ async function runWebSocketTests() {
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
   await page.waitForSelector('.script-block', { timeout: 10000 })
 
-  // 执行脚本
+  // 执行脚本（弹窗会自动打开）
   await page.locator('.script-block').first().locator('.execute-btn').click()
 
-  // 等待执行完成（结果按钮变为可点击）
-  await page.waitForFunction(() => {
-    const btn = document.querySelector('.script-block .result-btn')
-    return btn && !btn.disabled
-  }, { timeout: 30000 })
-
-  // 点击结果按钮打开弹窗
-  await page.locator('.script-block').first().locator('.result-btn').click()
+  // 等待弹窗自动打开
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
 
-  // 等待执行完成
-  await page.waitForTimeout(3000)
+  // 等待执行完成（结果按钮变为 completed）
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && btn.getAttribute('data-status') === 'completed'
+  }, { timeout: 30000 })
+
+  // 等待一下确保所有输出都显示
+  await page.waitForTimeout(2000)
 
   // 检查是否有 exit 消息
   const hasExit = wsMessages.some(m => m.type === 'exit')
@@ -91,6 +90,7 @@ async function runWebSocketTests() {
 
   // 关闭弹窗
   await page.locator('.terminal-close-btn').click()
+  await page.waitForTimeout(500)
 
   await browser.close()
 
@@ -110,18 +110,17 @@ async function testBrowserExecuteScript(page) {
 
   await block.locator('.execute-btn').click()
 
-  // 等待执行完成（结果按钮变为可点击）
-  await page.waitForFunction(() => {
-    const btn = document.querySelector('.script-block .result-btn')
-    return btn && !btn.disabled
-  }, { timeout: 30000 })
-
-  // 点击结果按钮打开弹窗
-  await block.locator('.result-btn').click()
+  // 等待弹窗自动打开
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   console.log('✅ 终端弹窗已打开')
 
-  await page.waitForTimeout(2000)
+  // 等待执行完成
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && btn.getAttribute('data-status') === 'completed'
+  }, { timeout: 30000 })
+
+  await page.waitForTimeout(1000)
 
   const terminalContent = await page.locator('.terminal-modal .xterm').textContent()
   console.log(`📨 终端内容: ${terminalContent.slice(0, 100)}...`)
@@ -151,8 +150,7 @@ async function testBrowserInteractiveInput(page) {
   // 等待一会让 WebSocket 连接建立
   await page.waitForTimeout(500)
 
-  // 点击结果按钮打开弹窗
-  await page.locator('.script-block').first().locator('.result-btn').click()
+  // 等待弹窗自动打开
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   console.log('✅ 终端弹窗已打开')
 
@@ -172,6 +170,7 @@ async function testBrowserInteractiveInput(page) {
   console.log(`📨 终端内容: ${terminalContent.slice(0, 100)}...`)
 
   await page.locator('.terminal-close-btn').click()
+  await page.waitForTimeout(500)
 
   console.log('✅ 测试 8 通过\n')
 }
@@ -199,12 +198,10 @@ async function testMultipleScripts(page) {
     await page.waitForFunction((idx) => {
       const blocks = document.querySelectorAll('.script-block')
       const btn = blocks[idx]?.querySelector('.result-btn')
-      return btn && !btn.disabled
+      return btn && btn.getAttribute('data-status') === 'completed'
     }, i, { timeout: 30000 })
 
-    // 点击结果按钮打开弹窗
-    await block.locator('.result-btn').click()
-    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    // 弹窗应该已经自动打开，关闭它
     await page.waitForTimeout(500)
     await page.locator('.terminal-close-btn').click()
     await page.waitForTimeout(500)
@@ -287,18 +284,18 @@ async function testTerminalRowsFillContainer(page) {
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
   await page.waitForSelector('.script-block', { timeout: 10000 })
 
-  // 执行一个脚本打开终端
+  // 执行一个脚本（弹窗会自动打开）
   await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待弹窗自动打开
+  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
 
   // 等待执行完成
   await page.waitForFunction(() => {
     const btn = document.querySelector('.script-block .result-btn')
-    return btn && !btn.disabled
+    return btn && btn.getAttribute('data-status') === 'completed'
   }, { timeout: 30000 })
 
-  // 点击结果按钮打开弹窗
-  await page.locator('.script-block').first().locator('.result-btn').click()
-  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   await page.waitForTimeout(500)
 
   // 获取终端容器和 xterm 视口的尺寸
@@ -347,18 +344,18 @@ async function testTerminalRowsAndCols(page) {
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
   await page.waitForSelector('.script-block', { timeout: 10000 })
 
-  // 执行一个脚本打开终端
+  // 执行一个脚本（弹窗会自动打开）
   await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待弹窗自动打开
+  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
 
   // 等待执行完成
   await page.waitForFunction(() => {
     const btn = document.querySelector('.script-block .result-btn')
-    return btn && !btn.disabled
+    return btn && btn.getAttribute('data-status') === 'completed'
   }, { timeout: 30000 })
 
-  // 点击结果按钮打开弹窗
-  await page.locator('.script-block').first().locator('.result-btn').click()
-  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   await page.waitForTimeout(500)
 
   // 获取终端的 rows 和 cols 值，以及容器尺寸

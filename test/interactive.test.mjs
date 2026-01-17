@@ -80,17 +80,11 @@ async function testAllScripts() {
       const title = await block.locator('.script-title').textContent()
       console.log(`\n--- 执行脚本 ${i + 1}: ${title} ---`)
 
-      // 点击执行按钮
+      // 点击执行按钮（弹窗会自动打开）
       await block.locator('.execute-btn').click()
       console.log('✓ 已点击执行按钮')
 
-      // 等待 WebSocket 连接建立和脚本产生输出
-      await page.waitForTimeout(2000)
-
-      // 点击结果按钮打开弹窗（执行中也可点击）
-      await block.locator('.result-btn').click()
-
-      // 等待弹窗出现
+      // 等待弹窗自动打开
       await page.waitForSelector('.terminal-modal', { timeout: 10000 })
       console.log('✓ 弹窗已打开')
 

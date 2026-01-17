@@ -52,8 +52,12 @@ async function testThemeColorConsistency() {
       await page.selectOption('#file-select', 'example.md')
       await page.waitForTimeout(500)
 
-      // 点击执行脚本
+      // 点击执行脚本（弹窗会自动打开）
       await page.locator('.script-block').first().locator('.execute-btn').click()
+
+      // 等待弹窗自动打开
+      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+      await page.waitForTimeout(500)
 
       // 等待脚本执行完成（简单脚本很快）
       await page.waitForFunction(() => {
@@ -61,9 +65,6 @@ async function testThemeColorConsistency() {
         return btn?.getAttribute('data-status') === 'completed' || btn?.getAttribute('data-status') === 'running'
       }, { timeout: 10000 })
 
-      // 点击结果按钮打开终端
-      await page.locator('.script-block').first().locator('.result-btn').click()
-      await page.waitForSelector('.terminal-modal', { timeout: 10000 })
       await page.waitForTimeout(500)
 
       // 获取终端弹窗和终端的样式
