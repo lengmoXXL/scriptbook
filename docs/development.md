@@ -154,8 +154,8 @@ npx playwright test
 | 文件 | 测试内容 |
 |------|----------|
 | `src/backend/tests/test_*.py` | Python 单元测试 (70+) |
-| `test/e2e.test.mjs` | Playwright E2E |
-| `test/integration.test.mjs` | Playwright 集成 |
+| `test/features.test.mjs` | Playwright E2E 测试 |
+| `test/script-state.test.mjs` | 脚本状态和终端测试 |
 
 ### MCP 测试
 

@@ -136,7 +136,14 @@ async function testBrowserExecuteScript(page) {
 async function testBrowserInteractiveInput(page) {
   console.log('\n=== 测试 8: 浏览器端交互式输入 ===')
 
-  await page.selectOption('#file-select', 'test_interactive.md')
+  // 使用 JavaScript 切换到 test_interactive.md
+  await page.evaluate(() => {
+    const select = document.querySelector('select');
+    if (select) {
+      select.value = 'test_interactive.md';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  })
   await page.waitForTimeout(1000)
 
   await page.locator('.script-block').first().locator('.execute-btn').click()
@@ -211,23 +218,24 @@ async function testFileSwitching(page) {
   console.log('\n=== 测试 10: 文件切换 ===')
 
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
-  await page.waitForSelector('#file-select', { timeout: 10000 })
+  await page.waitForSelector('select', { timeout: 10000 })
 
   // 获取当前文件
-  const initialFile = await page.locator('#file-select').inputValue()
+  const select = page.locator('select').first()
+  const initialFile = await select.inputValue()
   console.log(`📝 当前文件: ${initialFile}`)
 
-  // 切换到其他文件
-  const options = page.locator('#file-select option')
+  // 获取所有选项
+  const options = select.locator('option')
   const optionCount = await options.count()
   console.log(`📝 可选文件数: ${optionCount}`)
 
   if (optionCount > 1) {
-    // 使用 select 切换文件
+    // 切换到第二个文件
     const newValue = await options.nth(1).getAttribute('value')
-    await page.selectOption('#file-select', newValue)
+    await page.selectOption(select, newValue)
     await page.waitForTimeout(500)
-    const newFile = await page.locator('#file-select').inputValue()
+    const newFile = await select.inputValue()
     console.log(`📝 切换到: ${newFile}`)
   }
 
@@ -240,15 +248,19 @@ async function testThemeSwitching(page) {
 
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
 
-  // 查找主题选择器（多种可能的选择器）
-  const themeSelect = page.locator('#theme-select, .theme-select')
-  if (await themeSelect.count() > 0) {
+  // 查找所有 select 元素（第二个是主题选择器）
+  const selects = page.locator('select')
+  const count = await selects.count()
+  console.log(`📝 找到 ${count} 个选择器`)
+
+  if (count >= 2) {
+    const themeSelect = selects.nth(1)
     console.log('✅ 找到主题选择器')
 
     // 切换主题
     const options = themeSelect.locator('option')
-    const count = await options.count()
-    if (count > 1) {
+    const optionCount = await options.count()
+    if (optionCount > 1) {
       const newValue = await options.nth(1).getAttribute('value')
       await page.selectOption(themeSelect, newValue)
       await page.waitForTimeout(500)
