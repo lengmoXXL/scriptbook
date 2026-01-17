@@ -233,7 +233,7 @@ async function testFileSwitching(page) {
   if (optionCount > 1) {
     // 切换到第二个文件
     const newValue = await options.nth(1).getAttribute('value')
-    await page.selectOption(select, newValue)
+    await page.selectOption('select', newValue)
     await page.waitForTimeout(500)
     const newFile = await select.inputValue()
     console.log(`📝 切换到: ${newFile}`)
@@ -262,7 +262,14 @@ async function testThemeSwitching(page) {
     const optionCount = await options.count()
     if (optionCount > 1) {
       const newValue = await options.nth(1).getAttribute('value')
-      await page.selectOption(themeSelect, newValue)
+      // 使用 evaluate 来切换主题
+      await page.evaluate((val) => {
+        const selects = document.querySelectorAll('select')
+        if (selects.length >= 2) {
+          selects[1].value = val
+          selects[1].dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      }, newValue)
       await page.waitForTimeout(500)
       console.log('✅ 主题切换成功')
     }
