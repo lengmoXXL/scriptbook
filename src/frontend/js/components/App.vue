@@ -45,6 +45,8 @@
 import { ref, onMounted, nextTick } from 'vue'
 import NavBar from './NavBar.vue'
 import TerminalModal from './TerminalModal.vue'
+// 预加载 xterm.js 模块
+import { Terminal } from '@xterm/xterm'
 
 export default {
   name: 'App',
@@ -324,7 +326,7 @@ export default {
       }
     }
 
-    // 显示终端弹窗（已执行的脚本重新查看结果）
+    // 显示终端弹窗（点击按钮时获取状态并显示）
     window.showTerminal = async (scriptId) => {
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
       if (!block) {
@@ -354,21 +356,63 @@ export default {
         return
       }
 
-      // 清空并重写缓存的输出（避免重复显示）
-      const bufferedOutput = scriptOutputBuffers.value[scriptId] || []
+      // 优先使用本地缓存的输出，避免重复
+      const localBuffer = scriptOutputBuffers.value[scriptId]
+      if (localBuffer && localBuffer.length > 0) {
+        // 使用本地缓存
+        modal.replayOutput(localBuffer)
+        // 同时更新状态（如果已有状态则不覆盖）
+        const currentState = scriptStates.value[scriptId]
+        if (currentState) {
+          // 已有状态，使用现有状态
+        } else {
+          // 从后端获取状态
+          try {
+            const statusResponse = await fetch(`/api/scripts/${scriptId}/status`)
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json()
+              updateScriptState(scriptId, statusData.status, statusData.exit_code)
+            }
+          } catch (err) {
+            console.error('获取脚本状态失败:', err)
+          }
+        }
+      } else {
+        // 没有本地缓存，从后端获取
+        try {
+          const statusResponse = await fetch(`/api/scripts/${scriptId}/status`)
+          if (!statusResponse.ok) {
+            throw new Error('获取状态失败')
+          }
 
-      // 重置终端到初始状态
-      modal.replayOutput(bufferedOutput)
+          const statusData = await statusResponse.json()
+          const { status, exit_code, cached_output } = statusData
 
-      // 如果已有连接，订阅其新消息（不再调用 originalOnMessage，因为缓冲区已有完整历史）
-      // 这样可以实时显示新输出，同时避免重复添加缓冲区
+          // 更新状态
+          updateScriptState(scriptId, status, exit_code)
+
+          // 保存输出缓存
+          if (cached_output && cached_output.length > 0) {
+            scriptOutputBuffers.value[scriptId] = cached_output
+            // 回放输出
+            modal.replayOutput(cached_output)
+          } else {
+            modal.replayOutput([])
+          }
+        } catch (err) {
+          console.error('获取脚本状态失败:', err)
+          modal.replayOutput([])
+        }
+      }
+
+      // 如果已有 WebSocket 连接，订阅新消息
       const existingWs = window.appConnections?.get(scriptId)
       if (existingWs) {
         modalWs.value = existingWs
         existingWs.onmessage = (event) => {
           const data = JSON.parse(event.data)
           const { type, content } = data
-          // 只写入终端，不添加到缓冲区（避免重复）
+          // 只写入终端，不添加到缓冲区
           modal.writeToTerminal(content, type)
         }
       }
@@ -389,43 +433,6 @@ export default {
 
       closeModal()
     }
-
-    onMounted(async () => {
-      // 等待 xterm.js 加载
-      await new Promise(resolve => {
-        if (window.Terminal) resolve()
-        else {
-          const check = setInterval(() => {
-            if (window.Terminal) {
-              clearInterval(check)
-              resolve()
-            }
-          }, 100)
-          setTimeout(() => {
-            clearInterval(check)
-            resolve()
-          }, 5000)
-        }
-      })
-
-      await loadFileList()
-      await loadPluginList()
-
-      // 恢复主题
-      const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-github'
-      switchTheme(savedTheme)
-
-      // 恢复或选择文件
-      const savedFile = localStorage.getItem('scriptbook_currentFile')
-      if (savedFile && fileList.value.some(f => f.name === savedFile)) {
-        await selectFile(savedFile)
-      } else if (fileList.value.length > 0) {
-        await selectFile(fileList.value[0].name)
-      }
-
-      // 恢复正在运行的脚本
-      await restoreRunningScripts()
-    })
 
     // 恢复正在运行的脚本
     const restoreRunningScripts = async () => {
@@ -526,6 +533,26 @@ export default {
         console.error('恢复脚本失败:', err)
       }
     }
+
+    onMounted(async () => {
+      await loadFileList()
+      await loadPluginList()
+
+      // 恢复主题
+      const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-github'
+      switchTheme(savedTheme)
+
+      // 恢复或选择文件
+      const savedFile = localStorage.getItem('scriptbook_currentFile')
+      if (savedFile && fileList.value.some(f => f.name === savedFile)) {
+        await selectFile(savedFile)
+      } else if (fileList.value.length > 0) {
+        await selectFile(fileList.value[0].name)
+      }
+
+      // 恢复正在运行的脚本
+      await restoreRunningScripts()
+    })
 
     return {
       fileList,
