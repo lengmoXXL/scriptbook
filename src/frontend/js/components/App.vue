@@ -265,22 +265,32 @@ export default {
             const modal = terminalModalRef.value
             if (modal) {
               modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
+              // 保存 modal 引用，用于后续消息处理
+              window.currentModal = modal
+              // 发送代码（确保终端已准备好）
+              ws.send(JSON.stringify({ code }))
+              console.log('代码已发送')
             }
           }, 100)
         })
-        ws.send(JSON.stringify({ code }))
-        console.log('代码已发送')
       }
 
-      ws.onmessage = (event) => {
+      // 使用 addEventListener 添加消息处理器
+      ws.addEventListener('message', (event) => {
         const data = JSON.parse(event.data)
         const { type, content } = data
 
-        // 缓存输出（无论终端是否打开）
+        // 缓存输出
         if (!scriptOutputBuffers.value[scriptId]) {
           scriptOutputBuffers.value[scriptId] = []
         }
         scriptOutputBuffers.value[scriptId].push({ content, type })
+
+        // 如果终端已打开，实时写入
+        const modal = window.currentModal
+        if (modal) {
+          modal.writeToTerminal(content, type)
+        }
 
         // 脚本结束
         if (type === 'exit') {
@@ -288,7 +298,7 @@ export default {
         } else if (type === 'error') {
           updateScriptState(scriptId, 'failed', 1)
         }
-      }
+      })
 
       ws.onerror = (error) => {
         console.error('WebSocket 错误:', error)
