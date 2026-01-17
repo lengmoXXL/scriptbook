@@ -394,7 +394,7 @@ export default {
 }
 
 /* 暗色主题 fallback */
-@media (prefers-color-scheme: dark), :global(.theme-github-dark) {
+@media (prefers-color-scheme: dark) {
   .terminal-modal {
     --modal-bg: #0d1117;
     --modal-header-bg: #161b22;
@@ -402,6 +402,14 @@ export default {
     --modal-text: #c9d1d9;
     --modal-text-secondary: #8b949e;
   }
+}
+
+.theme-github-dark .terminal-modal {
+  --modal-bg: #0d1117;
+  --modal-header-bg: #161b22;
+  --modal-border: #30363d;
+  --modal-text: #c9d1d9;
+  --modal-text-secondary: #8b949e;
 }
 
 /* Transition animations */
