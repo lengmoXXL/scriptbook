@@ -92,23 +92,25 @@ async function testRunButtonTerminalContent() {
     }, { timeout: 10000 })
     console.log('✓ 终端已显示内容')
 
-    // 获取终端内容
+    // 获取终端内容（canvas-based xterm.js 使用 buffer 获取）
     const terminalContent = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return ''
+      const container = document.querySelector('.terminal-container')
+      if (!container) return ''
 
-      const rowsEl = xtermEl.querySelector('.xterm-rows')
-      if (rowsEl) {
-        const lines = rowsEl.querySelectorAll('div')
-        if (lines.length > 0) {
-          return Array.from(lines).map(line => {
-            const chars = line.querySelectorAll('span')
-            return Array.from(chars).map(s => s.textContent || '').join('')
-          }).join('\n')
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
         }
+        return lines.join('\n')
       }
 
-      return xtermEl.textContent || ''
+      // 备选
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      return xtermEl ? xtermEl.textContent || '' : ''
     })
 
     console.log('\n--- 终端内容 ---')

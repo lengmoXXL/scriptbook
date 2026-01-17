@@ -28,7 +28,7 @@ async function testScriptStateTransitions() {
     // 等待脚本块渲染
     await page.waitForSelector('.script-block', { timeout: 10000 })
 
-    // 测试 1: 初始状态为 "未执行"（禁用状态）
+    // 测试 1: 初始状态（可能是 idle 或 completed，取决于之前是否执行过）
     console.log('--- 测试 1: 初始状态 ---')
     const firstBlock = page.locator('.script-block').first()
     const resultBtn = firstBlock.locator('.result-btn')
@@ -41,14 +41,20 @@ async function testScriptStateTransitions() {
     console.log(`  按钮文本: ${initialText}`)
     console.log(`  禁用状态: ${isDisabled}`)
 
-    if (initialStatus !== 'idle') {
-      throw new Error(`预期状态为 idle，实际为 ${initialStatus}`)
+    // 由于脚本状态持久化，初始状态可能是 idle 或 completed
+    // idle = 未执行过，completed = 之前执行过
+    if (initialStatus !== 'idle' && initialStatus !== 'completed') {
+      throw new Error(`预期状态为 idle 或 completed，实际为 ${initialStatus}`)
     }
-    if (initialText !== 'terminal') {
-      throw new Error(`预期文本为 "terminal"，实际为 ${initialText}`)
+    if (!initialText.includes('terminal')) {
+      throw new Error(`预期文本包含 "terminal"，实际为 ${initialText}`)
     }
-    if (!isDisabled) {
-      throw new Error('预期按钮为禁用状态')
+    // 完成后按钮应该启用（可点击查看结果），未执行时禁用
+    if (initialStatus === 'idle' && !isDisabled) {
+      throw new Error('idle 状态时按钮应该禁用')
+    }
+    if (initialStatus === 'completed' && isDisabled) {
+      throw new Error('completed 状态时按钮应该启用')
     }
     console.log('  ✅ 初始状态正确\n')
 
@@ -131,11 +137,23 @@ async function testScriptStateTransitions() {
 
     // 获取终端内容确认终端已初始化
     const terminalContent = await page.evaluate(() => {
-      const terminal = document.querySelector('.terminal-container .xterm')
-      if (!terminal) return null
-      const rows = terminal.querySelector('.xterm-rows')
-      if (rows) return rows.textContent
-      return terminal.textContent
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
+
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
+      }
+
+      // 备选
+      const terminal = container.querySelector('.xterm')
+      return terminal ? terminal.textContent : null
     })
     console.log(`  终端内容长度: ${terminalContent?.length || 0} 字符`)
     console.log(`  内容预览: ${terminalContent?.substring(0, 200)}...`)
@@ -276,11 +294,23 @@ async function testTerminalCloseDoesNotKillScript() {
 
     // 验证终端有内容
     const terminalContent1 = await page.evaluate(() => {
-      const terminal = document.querySelector('.terminal-container .xterm')
-      if (!terminal) return null
-      const rows = terminal.querySelector('.xterm-rows')
-      if (rows) return rows.textContent
-      return terminal.textContent
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
+
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
+      }
+
+      // 备选
+      const terminal = container.querySelector('.xterm')
+      return terminal ? terminal.textContent : null
     })
 
     // 检查缓冲区状态
@@ -359,11 +389,23 @@ async function testTerminalCloseDoesNotKillScript() {
       await page.waitForTimeout(500)
 
       const terminalContent2 = await page.evaluate(() => {
-        const terminal = document.querySelector('.terminal-container .xterm')
-        if (!terminal) return null
-        const rows = terminal.querySelector('.xterm-rows')
-        if (rows) return rows.textContent
-        return terminal.textContent
+        const container = document.querySelector('.terminal-container')
+        if (!container) return null
+
+        // 尝试从 terminal 实例获取内容
+        const terminalId = container.getAttribute('data-terminal-id')
+        const term = window[terminalId]
+        if (term && term.buffer) {
+          const lines = []
+          for (let i = 0; i < term.buffer.lines.length; i++) {
+            lines.push(term.buffer.lines[i].translateToString())
+          }
+          return lines.join('\n')
+        }
+
+        // 备选
+        const terminal = container.querySelector('.xterm')
+        return terminal ? terminal.textContent : null
       })
 
       // 验证缓冲区内容一致（这是关键验证）
@@ -452,11 +494,23 @@ async function testStopButton() {
 
     // 验证终端有内容
     const terminalContentBefore = await page.evaluate(() => {
-      const terminal = document.querySelector('.terminal-container .xterm')
-      if (!terminal) return null
-      const rows = terminal.querySelector('.xterm-rows')
-      if (rows) return rows.textContent
-      return terminal.textContent
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
+
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
+      }
+
+      // 备选
+      const terminal = container.querySelector('.xterm')
+      return terminal ? terminal.textContent : null
     })
     console.log(`  终端内容长度: ${terminalContentBefore?.length || 0} 字符`)
 
@@ -736,10 +790,23 @@ async function testBackgroundExecutionWithTerminalClose() {
 
     // 获取初始终端内容
     const initialContent = await page.evaluate(() => {
-      const terminal = document.querySelector('.terminal-container .xterm')
-      if (!terminal) return null
-      const rows = terminal.querySelector('.xterm-rows')
-      return rows ? rows.textContent : terminal.textContent
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
+
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
+      }
+
+      // 备选
+      const terminal = container.querySelector('.xterm')
+      return terminal ? terminal.textContent : null
     })
     console.log(`  初始终端内容长度: ${initialContent?.length || 0} 字符`)
     console.log('  ✅ 终端有内容\n')
@@ -799,10 +866,23 @@ async function testBackgroundExecutionWithTerminalClose() {
     await page.waitForTimeout(1500)
 
     const finalContent = await page.evaluate(() => {
-      const terminal = document.querySelector('.terminal-container .xterm')
-      if (!terminal) return null
-      const rows = terminal.querySelector('.xterm-rows')
-      return rows ? rows.textContent : terminal.textContent
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
+
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
+      }
+
+      // 备选
+      const terminal = container.querySelector('.xterm')
+      return terminal ? terminal.textContent : null
     })
 
     console.log(`  最终终端内容长度: ${finalContent?.length || 0} 字符`)

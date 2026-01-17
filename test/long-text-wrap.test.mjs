@@ -62,21 +62,25 @@ async function testLongTextWrap() {
     // 等待终端内容加载
     await page.waitForTimeout(1000)
 
-    // 获取终端内容
+    // 获取终端内容（canvas-based xterm.js 使用 buffer 获取）
     const terminalContent = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return ''
+      const container = document.querySelector('.terminal-container')
+      if (!container) return ''
 
-      const rowsEl = xtermEl.querySelector('.xterm-rows')
-      if (rowsEl) {
-        const lines = rowsEl.querySelectorAll('div')
-        return Array.from(lines).map(line => {
-          const chars = line.querySelectorAll('span')
-          return Array.from(chars).map(s => s.textContent || '').join('')
-        }).join('\n')
+      // 尝试从 terminal 实例获取内容
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term && term.buffer) {
+        const lines = []
+        for (let i = 0; i < term.buffer.lines.length; i++) {
+          lines.push(term.buffer.lines[i].translateToString())
+        }
+        return lines.join('\n')
       }
 
-      return xtermEl.textContent || ''
+      // 备选
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      return xtermEl ? xtermEl.textContent || '' : ''
     })
 
     console.log('\n--- 终端内容 ---')
@@ -102,39 +106,27 @@ async function testLongTextWrap() {
       }
     }
 
-    // 检查 xterm-rows div 的高度限制
-    const rowsInfo = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return null
+    // 获取终端行数信息（canvas-based xterm）
+    const terminalInfo = await page.evaluate(() => {
+      const container = document.querySelector('.terminal-container')
+      if (!container) return null
 
-      const rowsEl = xtermEl.querySelector('.xterm-rows')
-      if (!rowsEl) return null
-
-      const lines = rowsEl.querySelectorAll('div')
-      return {
-        lineCount: lines.length,
-        lines: Array.from(lines).map(line => {
-          const height = line.style.height
-          const overflow = line.style.overflow
-          const text = Array.from(line.querySelectorAll('span')).map(s => s.textContent).join('')
-          return { height, overflow, text: text.substring(0, 50) }
-        })
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (term) {
+        return {
+          rows: term.rows,
+          cols: term.cols
+        }
       }
+      return null
     })
 
-    console.log(`\n--- xterm-rows 信息 ---`)
-    console.log(`行数: ${rowsInfo.lineCount}`)
-    rowsInfo.lines.forEach((line, i) => {
-      console.log(`  行 ${i + 1}: height=${line.height}, overflow=${line.overflow}, text="${line.text}..."`)
-    })
-    console.log('--- xterm-rows 信息结束 ---\n')
-
-    // 验证没有 overflow: hidden 的行（除了可能的第一行）
-    const hiddenLines = rowsInfo.lines.filter(line => line.overflow === 'hidden')
-    if (hiddenLines.length > 0) {
-      console.warn(`⚠️  发现 ${hiddenLines.length} 行设置了 overflow: hidden，可能导致内容被截断`)
-    } else {
-      console.log('✓ 没有发现 overflow: hidden 的行')
+    if (terminalInfo) {
+      console.log(`\n--- 终端信息 ---`)
+      console.log(`行数: ${terminalInfo.rows}`)
+      console.log(`列数: ${terminalInfo.cols}`)
+      console.log('--- 终端信息结束 ---\n')
     }
 
     console.log('\n✅ 测试通过')

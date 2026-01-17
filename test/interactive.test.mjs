@@ -150,23 +150,23 @@ async function testAllScripts() {
             const xtermEl = document.querySelector('.terminal-modal .xterm')
             if (!xtermEl) return ''
 
-            // 方法1: 直接获取 textContent（最简单但可能包含额外内容）
-            let text = xtermEl.textContent || ''
-
-            // 清理：移除 xterm 内部元素的类名等干扰文本
-            // xterm.js DOM 渲染器会将字符放在 .xterm-rows 下的 span 元素中
-            const rowsEl = xtermEl.querySelector('.xterm-rows')
-            if (rowsEl) {
-              // 获取所有行
-              const lines = rowsEl.querySelectorAll('div')
-              if (lines.length > 0) {
-                text = Array.from(lines).map(line => {
-                  // 获取行内的字符 span
-                  const chars = line.querySelectorAll('span')
-                  return Array.from(chars).map(s => s.textContent || '').join('')
-                }).join('\n')
+            // 新 xterm.js 使用 canvas，尝试从 terminal 实例获取内容
+            const container = document.querySelector('.terminal-modal .terminal-container')
+            if (container) {
+              const terminalId = container.getAttribute('data-terminal-id')
+              const term = window[terminalId]
+              if (term && term.buffer) {
+                // 从 buffer 获取内容
+                const lines = []
+                for (let i = 0; i < term.buffer.lines.length; i++) {
+                  lines.push(term.buffer.lines[i].translateToString())
+                }
+                return lines.join('\n').trim()
               }
             }
+
+            // 备选：直接获取 textContent（可能不准确）
+            let text = xtermEl.textContent || ''
 
             // 清理文本
             if (text) {

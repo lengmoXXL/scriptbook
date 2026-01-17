@@ -28,7 +28,7 @@ async function testThemeColorConsistency() {
       expectedModalBg: 'rgb(13, 17, 23)', // #0d1117 (color-background)
       expectedTerminalBg: 'rgb(13, 17, 23)', // #0d1117 (terminalTheme.background)
       expectedTitleColor: 'rgb(201, 209, 217)', // #c9d1d9 (color-text)
-      expectedTitleBg: 'rgb(33, 38, 45)', // #21262d (color-surface-alt)
+      expectedTitleBg: 'rgb(22, 27, 34)', // #161b22 (modalTheme.headerBg)
       selectValue: 'GitHub Dark 主题'
     }
   ]

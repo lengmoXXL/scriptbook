@@ -298,32 +298,30 @@ async function testTerminalRowsFillContainer(page) {
 
   await page.waitForTimeout(500)
 
-  // 获取终端容器和 xterm 视口的尺寸
+  // 获取终端容器和 canvas 的尺寸（新 xterm.js 使用 canvas）
   const dimensions = await page.evaluate(() => {
     const container = document.querySelector('.terminal-modal .terminal-container')
-    const xtermViewport = document.querySelector('.terminal-modal .xterm-viewport')
-    const xtermScreen = document.querySelector('.terminal-modal .xterm-screen')
+    const xtermCanvas = document.querySelector('.terminal-modal .xterm canvas')
 
-    if (!container || !xtermViewport) {
-      return { error: '无法找到终端元素' }
+    if (!container) {
+      return { error: '无法找到终端容器' }
     }
 
     const containerRect = container.getBoundingClientRect()
-    const viewportRect = xtermViewport.getBoundingClientRect()
-    const screenRect = xtermScreen ? xtermScreen.getBoundingClientRect() : null
+    const canvasRect = xtermCanvas ? xtermCanvas.getBoundingClientRect() : null
 
     return {
       containerHeight: containerRect.height,
-      viewportHeight: viewportRect.height,
-      screenHeight: screenRect ? screenRect.height : 0,
-      // 计算填充比例
-      fillRatio: viewportRect.height / containerRect.height
+      containerWidth: containerRect.width,
+      canvasHeight: canvasRect ? canvasRect.height : 0,
+      canvasWidth: canvasRect ? canvasRect.width : 0,
+      // 计算填充比例（使用 canvas 高度与容器高度比较）
+      fillRatio: canvasRect ? canvasRect.height / containerRect.height : 0
     }
   })
 
   console.log(`📏 容器高度: ${dimensions.containerHeight}px`)
-  console.log(`📏 xterm 视口高度: ${dimensions.viewportHeight}px`)
-  console.log(`📏 xterm 屏幕高度: ${dimensions.screenHeight}px`)
+  console.log(`📏 canvas 高度: ${dimensions.canvasHeight}px`)
   console.log(`📏 填充比例: ${(dimensions.fillRatio * 100).toFixed(1)}%`)
 
   // 关闭弹窗
@@ -358,7 +356,7 @@ async function testTerminalRowsAndCols(page) {
 
   await page.waitForTimeout(500)
 
-  // 获取终端的 rows 和 cols 值，以及容器尺寸
+  // 获取终端的 rows 和 cols 值（新 xterm.js 使用 canvas，通过 terminal 实例获取）
   const result = await page.evaluate(() => {
     const containers = document.querySelectorAll('.terminal-modal .terminal-container')
     const container = containers[0]
@@ -384,26 +382,17 @@ async function testTerminalRowsAndCols(page) {
 
     const containerRect = container.getBoundingClientRect()
 
-    // 计算实际的字符宽度（通过 measure 元素）
-    const measureEl = document.createElement('div')
-    measureEl.style.position = 'fixed'
-    measureEl.style.visibility = 'hidden'
-    measureEl.style.whiteSpace = 'pre'
-    measureEl.style.left = '-9999px'
-    measureEl.style.fontFamily = "'SF Mono', 'Menlo', monospace"
-    measureEl.style.fontSize = '13px'
-    measureEl.textContent = 'W'.repeat(50)
-    document.body.appendChild(measureEl)
-    const charWidth = measureEl.getBoundingClientRect().width / 50
-    document.body.removeChild(measureEl)
+    // 新 xterm.js 使用 canvas，计算 canvas 尺寸
+    const xtermCanvas = document.querySelector('.terminal-modal .xterm canvas')
+    const canvasRect = xtermCanvas ? xtermCanvas.getBoundingClientRect() : null
 
     return {
       rows: term.rows,
       cols: term.cols,
       containerWidth: containerRect.width,
       containerHeight: containerRect.height,
-      charWidth: charWidth,
-      lineHeight: 15 // xterm 行高
+      canvasHeight: canvasRect ? canvasRect.height : 0,
+      canvasWidth: canvasRect ? canvasRect.width : 0
     }
   })
 
@@ -417,6 +406,7 @@ async function testTerminalRowsAndCols(page) {
 
   console.log(`📏 终端尺寸: ${result.cols} 列 x ${result.rows} 行`)
   console.log(`📏 容器尺寸: ${result.containerWidth.toFixed(1)}px x ${result.containerHeight.toFixed(1)}px`)
+  console.log(`📏 canvas 尺寸: ${result.canvasWidth.toFixed(1)}px x ${result.canvasHeight.toFixed(1)}px`)
 
   // 验证 rows 和 cols 是否为固定值
   if (result.rows !== EXPECTED_ROWS) {
