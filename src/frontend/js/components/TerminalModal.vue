@@ -328,6 +328,8 @@ export default {
   overflow: visible;
   background-color: var(--modal-bg, #ffffff);
   border: 1px solid var(--modal-border, #d0d7de);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .terminal-modal-header {
@@ -405,12 +407,13 @@ export default {
 /* Transition animations */
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.12s ease-out;
 }
 
 .modal-enter-active .terminal-modal,
 .modal-leave-active .terminal-modal {
-  transition: transform 0.2s ease;
+  transition: transform 0.12s ease-out;
+  will-change: transform;
 }
 
 .modal-enter-from,
@@ -420,6 +423,6 @@ export default {
 
 .modal-enter-from .terminal-modal,
 .modal-leave-to .terminal-modal {
-  transform: scale(0.95);
+  transform: translate(-50%, -50%) scale(0.99);
 }
 </style>
