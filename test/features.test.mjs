@@ -67,6 +67,15 @@ async function runWebSocketTests() {
 
   // 执行脚本
   await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待执行完成（结果按钮变为可点击）
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && !btn.disabled
+  }, { timeout: 30000 })
+
+  // 点击结果按钮打开弹窗
+  await page.locator('.script-block').first().locator('.result-btn').click()
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
 
   // 等待执行完成
@@ -100,6 +109,15 @@ async function testBrowserExecuteScript(page) {
   console.log(`📝 执行脚本: ${title}`)
 
   await block.locator('.execute-btn').click()
+
+  // 等待执行完成（结果按钮变为可点击）
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && !btn.disabled
+  }, { timeout: 30000 })
+
+  // 点击结果按钮打开弹窗
+  await block.locator('.result-btn').click()
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   console.log('✅ 终端弹窗已打开')
 
@@ -122,6 +140,12 @@ async function testBrowserInteractiveInput(page) {
   await page.waitForTimeout(1000)
 
   await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待一会让 WebSocket 连接建立
+  await page.waitForTimeout(500)
+
+  // 点击结果按钮打开弹窗
+  await page.locator('.script-block').first().locator('.result-btn').click()
   await page.waitForSelector('.terminal-modal', { timeout: 10000 })
   console.log('✅ 终端弹窗已打开')
 
@@ -163,8 +187,18 @@ async function testMultipleScripts(page) {
     console.log(`📝 执行脚本 ${i + 1}: ${title}`)
 
     await block.locator('.execute-btn').click()
+
+    // 等待执行完成
+    await page.waitForFunction((idx) => {
+      const blocks = document.querySelectorAll('.script-block')
+      const btn = blocks[idx]?.querySelector('.result-btn')
+      return btn && !btn.disabled
+    }, i, { timeout: 30000 })
+
+    // 点击结果按钮打开弹窗
+    await block.locator('.result-btn').click()
     await page.waitForSelector('.terminal-modal', { timeout: 10000 })
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(500)
     await page.locator('.terminal-close-btn').click()
     await page.waitForTimeout(500)
   }
@@ -227,6 +261,66 @@ async function testThemeSwitching(page) {
   console.log('✅ 测试 11 通过\n')
 }
 
+// 测试 12: 终端行数填充容器
+async function testTerminalRowsFillContainer(page) {
+  console.log('\n=== 测试 12: 终端行数填充容器 ===')
+
+  await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+  await page.waitForSelector('.script-block', { timeout: 10000 })
+
+  // 执行一个脚本打开终端
+  await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待执行完成
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && !btn.disabled
+  }, { timeout: 30000 })
+
+  // 点击结果按钮打开弹窗
+  await page.locator('.script-block').first().locator('.result-btn').click()
+  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+  await page.waitForTimeout(500)
+
+  // 获取终端容器和 xterm 视口的尺寸
+  const dimensions = await page.evaluate(() => {
+    const container = document.querySelector('.terminal-modal .terminal-container')
+    const xtermViewport = document.querySelector('.terminal-modal .xterm-viewport')
+    const xtermScreen = document.querySelector('.terminal-modal .xterm-screen')
+
+    if (!container || !xtermViewport) {
+      return { error: '无法找到终端元素' }
+    }
+
+    const containerRect = container.getBoundingClientRect()
+    const viewportRect = xtermViewport.getBoundingClientRect()
+    const screenRect = xtermScreen ? xtermScreen.getBoundingClientRect() : null
+
+    return {
+      containerHeight: containerRect.height,
+      viewportHeight: viewportRect.height,
+      screenHeight: screenRect ? screenRect.height : 0,
+      // 计算填充比例
+      fillRatio: viewportRect.height / containerRect.height
+    }
+  })
+
+  console.log(`📏 容器高度: ${dimensions.containerHeight}px`)
+  console.log(`📏 xterm 视口高度: ${dimensions.viewportHeight}px`)
+  console.log(`📏 xterm 屏幕高度: ${dimensions.screenHeight}px`)
+  console.log(`📏 填充比例: ${(dimensions.fillRatio * 100).toFixed(1)}%`)
+
+  // 关闭弹窗
+  await page.locator('.terminal-close-btn').click()
+
+  // 验证终端至少填充了容器的 90%
+  if (dimensions.fillRatio < 0.9) {
+    throw new Error(`终端未填充容器：填充比例仅为 ${(dimensions.fillRatio * 100).toFixed(1)}%，期望至少 90%`)
+  }
+
+  console.log('✅ 测试 12 通过\n')
+}
+
 
 // 主测试函数
 async function runAllTests() {
@@ -264,6 +358,7 @@ async function runAllTests() {
     { name: 'Multiple Scripts', fn: testMultipleScripts },
     { name: 'File Switching', fn: testFileSwitching },
     { name: 'Theme Switching', fn: testThemeSwitching },
+    { name: 'Terminal Rows Fill Container', fn: testTerminalRowsFillContainer },
   ]
 
   for (const test of browserTests) {
