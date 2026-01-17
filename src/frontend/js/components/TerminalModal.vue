@@ -50,6 +50,10 @@ export default {
     terminalTheme: {
       type: Object,
       default: null
+    },
+    modalTheme: {
+      type: Object,
+      default: null
     }
   },
   emits: ['close', 'send-input'],
@@ -59,15 +63,15 @@ export default {
     const pendingReplay = ref(null)  // 待回放的输出数据
     let resizeObserver = null
 
-    // 从全局 CSS 变量获取当前主题颜色
+    // 从插件配置获取弹窗颜色
     const getThemeColors = () => {
-      const rootStyles = window.getComputedStyle(document.documentElement)
+      const modalConfig = props.modalTheme || {}
       return {
-        bg: rootStyles.getPropertyValue('--color-background').trim() || '#ffffff',
-        headerBg: rootStyles.getPropertyValue('--color-surface-alt').trim() || '#f6f8fa',
-        border: rootStyles.getPropertyValue('--color-border').trim() || '#d0d7de',
-        text: rootStyles.getPropertyValue('--color-text').trim() || '#24292f',
-        textSecondary: rootStyles.getPropertyValue('--color-text-light').trim() || '#57606a'
+        bg: modalConfig.bg || '#ffffff',
+        headerBg: modalConfig.headerBg || '#f6f8fa',
+        border: modalConfig.border || '#d0d7de',
+        text: modalConfig.text || '#24292f',
+        textSecondary: modalConfig.textSecondary || '#57606a'
       }
     }
 
@@ -391,25 +395,6 @@ export default {
   min-height: 300px;
   max-height: none;
   overflow: hidden;
-}
-
-/* 暗色主题 fallback */
-@media (prefers-color-scheme: dark) {
-  .terminal-modal {
-    --modal-bg: #0d1117;
-    --modal-header-bg: #161b22;
-    --modal-border: #30363d;
-    --modal-text: #c9d1d9;
-    --modal-text-secondary: #8b949e;
-  }
-}
-
-.theme-github-dark .terminal-modal {
-  --modal-bg: #0d1117;
-  --modal-header-bg: #161b22;
-  --modal-border: #30363d;
-  --modal-text: #c9d1d9;
-  --modal-text-secondary: #8b949e;
 }
 
 /* Transition animations */

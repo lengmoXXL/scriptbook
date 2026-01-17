@@ -33,6 +33,7 @@
       :script-id="modalScriptId"
       :code="modalCode"
       :terminal-theme="currentTerminalTheme"
+      :modal-theme="currentModalTheme"
       @close="closeModal"
       @send-input="onSendInput"
       ref="terminalModalRef"
@@ -54,6 +55,7 @@ export default {
     const currentFile = ref(null)
     const currentTheme = ref('theme-light')
     const currentTerminalTheme = ref(null) // 当前主题的终端配置
+    const currentModalTheme = ref(null) // 当前主题的弹窗配置
     const contentHtml = ref('<p>请从上方选择Markdown文件...</p>')
     const loading = ref(false)
     const error = ref(null)
@@ -203,6 +205,8 @@ export default {
         document.head.appendChild(link)
         // 保存终端主题配置
         currentTerminalTheme.value = plugin.terminalTheme || null
+        // 保存弹窗主题配置
+        currentModalTheme.value = plugin.modalTheme || null
       }
     }
 
@@ -416,6 +420,7 @@ export default {
       currentFile,
       currentTheme,
       currentTerminalTheme,
+      currentModalTheme,
       contentHtml,
       loading,
       error,

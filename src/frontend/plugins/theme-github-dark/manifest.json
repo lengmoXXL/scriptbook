@@ -11,5 +11,12 @@
         "cursor": "#c9d1d9",
         "cursorAccent": "#0d1117",
         "selectionBackground": "#3fb9504d"
+    },
+    "modalTheme": {
+        "bg": "#0d1117",
+        "headerBg": "#161b22",
+        "border": "#30363d",
+        "text": "#c9d1d9",
+        "textSecondary": "#8b949e"
     }
 }
