@@ -77,8 +77,8 @@ def render_script_block(script):
                 <span class="script-language">{script_language}</span>
             </div>
             <div class="script-actions">
-                <button class="execute-btn" onclick="executeScript('{script_id}')">执行脚本</button>
-                <button class="result-btn" data-status="idle" onclick="showTerminal('{script_id}')" disabled>执行结果</button>
+                <button class="execute-btn" onclick="executeScript('{script_id}')">run</button>
+                <button class="result-btn" data-status="idle" onclick="showTerminal('{script_id}')" disabled>terminal</button>
             </div>
         </div>
         <pre class="script-code"><code>{script_code}</code></pre>

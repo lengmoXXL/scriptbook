@@ -103,15 +103,15 @@ export default {
       const state = scriptStates.value[scriptId]
       switch (status) {
         case 'idle':
-          return '执行结果'
+          return 'terminal'
         case 'running':
-          return '执行中...'
+          return 'terminal'
         case 'completed':
-          return '执行完成 ✓'
+          return 'terminal ✓'
         case 'failed':
-          return '执行失败 ✗'
+          return 'terminal ✗'
         default:
-          return '执行结果'
+          return 'terminal'
       }
     }
 
@@ -257,11 +257,17 @@ export default {
 
       ws.onopen = () => {
         console.log('WebSocket 已打开:', scriptId)
-        // 如果终端已打开，写入开始消息
-        const modal = terminalModalRef.value
-        if (modal && modalVisible.value) {
-          modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
-        }
+        // 自动打开终端弹窗
+        modalVisible.value = true
+        // 等待弹窗渲染后初始化终端
+        nextTick(() => {
+          setTimeout(() => {
+            const modal = terminalModalRef.value
+            if (modal) {
+              modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
+            }
+          }, 100)
+        })
         ws.send(JSON.stringify({ code }))
         console.log('代码已发送')
       }
