@@ -1035,6 +1035,187 @@ async function testTerminalReopenNoDuplicate() {
   }
 }
 
+// 测试刷新页面后终端输出保持一致
+async function testRefreshPreservesOutput() {
+  console.log('\n=== 测试：刷新页面后终端输出保持一致 ===\n')
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  })
+  const page = await browser.newPage()
+
+  try {
+    await page.goto('http://localhost:8000', {
+      waitUntil: 'networkidle',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
+    await page.waitForSelector('#file-select', { timeout: 10000 })
+
+    // 选择测试文件
+    await page.selectOption('#file-select', 'example.md')
+    await page.waitForTimeout(500)
+
+    await page.waitForSelector('.script-block', { timeout: 10000 })
+
+    // 使用第一个脚本块
+    const scriptBlock = page.locator('.script-block').first()
+    const scriptId = await scriptBlock.getAttribute('data-script-id')
+    console.log(`  脚本ID: ${scriptId}`)
+
+    // === 先清空脚本执行结果 ===
+    console.log('--- 清空脚本执行结果 ---')
+    await page.evaluate(async () => {
+      await fetch('/api/scripts/clear-all', { method: 'POST' })
+    })
+    await page.waitForTimeout(500)
+    console.log('  ✅ 脚本状态已清空')
+
+    // === 第一次执行脚本 ===
+    console.log('--- 第一次执行脚本 ---')
+    await scriptBlock.locator('.execute-btn').click()
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
+    // 等待完成
+    let completed = false
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(500)
+      const status = await scriptBlock.locator('.result-btn').getAttribute('data-status')
+      if (status === 'completed') {
+        completed = true
+        break
+      }
+    }
+
+    if (!completed) {
+      throw new Error('第一次脚本执行超时')
+    }
+    console.log('  ✅ 第一次执行完成')
+
+    // 获取缓冲区中的输出行数
+    const getBufferLineCount = () => page.evaluate((id) => {
+      const buffer = window.scriptOutputBuffers?.[id]
+      if (!buffer) return 0
+      // 计算所有 stdout 内容的行数
+      return buffer.filter(b => b.type === 'stdout').reduce((count, b) => {
+        return count + (b.content?.split('\n').length || 0)
+      }, 0)
+    }, scriptId)
+
+    const lineCountAfterFirst = await getBufferLineCount()
+    console.log(`  第一次执行后缓冲区行数: ${lineCountAfterFirst} 行`)
+
+    // 关闭终端
+    console.log('--- 关闭终端 ---')
+    await page.locator('.terminal-close-btn').click()
+    await page.waitForTimeout(500)
+
+    // === 第二次执行脚本（验证输出不累积） ===
+    console.log('--- 第二次执行脚本 ---')
+    await scriptBlock.locator('.execute-btn').click()
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+
+    // 等待完成
+    completed = false
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(500)
+      const status = await scriptBlock.locator('.result-btn').getAttribute('data-status')
+      if (status === 'completed') {
+        completed = true
+        break
+      }
+    }
+
+    if (!completed) {
+      throw new Error('第二次脚本执行超时')
+    }
+    console.log('  ✅ 第二次执行完成')
+
+    // 获取第二次执行后的缓冲区行数
+    const lineCountAfterSecond = await getBufferLineCount()
+    console.log(`  第二次执行后缓冲区行数: ${lineCountAfterSecond} 行`)
+
+    // 验证：两次执行后行数应该一致（不累积）
+    if (Math.abs(lineCountAfterSecond - lineCountAfterFirst) > 5) {
+      throw new Error(`多次执行后输出不一致！第一次: ${lineCountAfterFirst} 行，第二次: ${lineCountAfterSecond} 行`)
+    }
+    console.log('  ✅ 多次执行输出行数一致')
+
+    // 关闭终端
+    console.log('--- 关闭终端 ---')
+    await page.locator('.terminal-close-btn').click()
+    await page.waitForTimeout(500)
+
+    // 刷新前记录缓冲区内容
+    const bufferBeforeRefresh = await page.evaluate((id) => {
+      return window.scriptOutputBuffers?.[id]?.map(b => ({ type: b.type, content: b.content?.substring(0, 100) }))
+    }, scriptId)
+    console.log(`  刷新前缓冲区消息数: ${bufferBeforeRefresh?.length || 0}`)
+
+    // === 刷新页面 ===
+    console.log('--- 刷新页面 ---')
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForSelector('.script-block', { timeout: 10000 })
+    await page.waitForTimeout(1000)
+
+    // 验证脚本状态仍为 completed
+    const statusAfterRefresh = await page.locator(`[data-script-id="${scriptId}"] .result-btn`).getAttribute('data-status')
+    console.log(`  刷新后脚本状态: ${statusAfterRefresh}`)
+
+    // 刷新后记录缓冲区内容
+    const bufferAfterRefresh = await page.evaluate((id) => {
+      return window.scriptOutputBuffers?.[id]?.map(b => ({ type: b.type, content: b.content?.substring(0, 100) }))
+    }, scriptId)
+    console.log(`  刷新后缓冲区消息数: ${bufferAfterRefresh?.length || 0}`)
+
+    if (statusAfterRefresh !== 'completed') {
+      throw new Error(`刷新后脚本状态不正确: ${statusAfterRefresh}`)
+    }
+    console.log('  ✅ 刷新后脚本状态保持')
+
+    // === 刷新后打开终端查看 ===
+    console.log('--- 刷新后打开终端 ---')
+    const resultBtn = page.locator(`[data-script-id="${scriptId}"] .result-btn`)
+    await resultBtn.click()
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    await page.waitForTimeout(500)
+
+    // 获取刷新后的缓冲区行数
+    const lineCountAfterRefresh = await getBufferLineCount()
+    console.log(`  刷新后缓冲区行数: ${lineCountAfterRefresh} 行`)
+
+    // 验证：刷新后行数应该和刷新前一致
+    if (Math.abs(lineCountAfterRefresh - lineCountAfterSecond) > 5) {
+      throw new Error(`刷新后输出不一致！刷新前: ${lineCountAfterSecond} 行，刷新后: ${lineCountAfterRefresh} 行`)
+    }
+    console.log('  ✅ 刷新后输出保持一致')
+
+    // 关闭终端后再次打开，验证不重复
+    console.log('--- 再次打开终端 ---')
+    await page.locator('.terminal-close-btn').click()
+    await page.waitForTimeout(500)
+    await resultBtn.click()
+    await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+    await page.waitForTimeout(500)
+
+    const lineCountSecondOpen = await getBufferLineCount()
+    console.log(`  再次打开缓冲区行数: ${lineCountSecondOpen} 行`)
+
+    if (Math.abs(lineCountSecondOpen - lineCountAfterRefresh) > 5) {
+      throw new Error(`终端输出重复！刷新后: ${lineCountAfterRefresh} 行，再次打开: ${lineCountSecondOpen} 行`)
+    }
+    console.log('  ✅ 多次打开终端不会重复添加输出')
+
+    console.log('✅ 刷新页面后终端输出保持一致测试通过！\n')
+  } catch (error) {
+    console.error(`\n❌ 测试失败: ${error.message}\n`)
+    await browser.close()
+    process.exit(1)
+  } finally {
+    await browser.close()
+  }
+}
+
 async function runAllTests() {
   console.log('开始运行脚本状态 E2E 测试...\n')
 
@@ -1043,6 +1224,7 @@ async function runAllTests() {
   await testStopButton()
   await testScriptOutputVerification()
   await testTerminalReopenNoDuplicate()
+  await testRefreshPreservesOutput()
   // 注意：testBackgroundExecutionWithTerminalClose 测试需要更长时间运行，
   // 且其核心功能（关闭终端后脚本继续运行）已在 testTerminalCloseDoesNotKillScript 中验证
 

@@ -23,6 +23,13 @@ async def get_script_status(script_id: str):
         raise HTTPException(status_code=404, detail="Script not found")
     return status
 
+
+@router.post("/scripts/clear-all")
+async def clear_all_scripts():
+    """清空所有脚本执行状态（用于测试）"""
+    executor.clear_all()
+    return {"message": "All script states cleared"}
+
 @router.websocket("/scripts/{script_id}/execute")
 async def execute_script(websocket: WebSocket, script_id: str):
     """

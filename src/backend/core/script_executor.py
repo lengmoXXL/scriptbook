@@ -109,6 +109,26 @@ class ScriptExecutor:
         Yields:
             输出消息字典，包含type, content, timestamp
         """
+        # 彻底清理该脚本的旧状态（每次执行都是新的开始）
+        if script_id in self._output_caches:
+            del self._output_caches[script_id]
+        if script_id in self._script_states:
+            del self._script_states[script_id]
+        if script_id in self._processes:
+            try:
+                process = self._processes[script_id]
+                if process.returncode is None:
+                    process.terminate()
+                del self._processes[script_id]
+            except Exception:
+                pass
+        if script_id in self._master_fds:
+            try:
+                os.close(self._master_fds[script_id])
+            except OSError:
+                pass
+            del self._master_fds[script_id]
+
         process = None
         output_queue = asyncio.Queue()
         self._output_queues[script_id] = output_queue
@@ -298,13 +318,21 @@ class ScriptExecutor:
         """添加输出到缓存，限制最多 1000 行"""
         if script_id not in self._output_caches:
             self._output_caches[script_id] = []
-        
+
         cache = self._output_caches[script_id]
         cache.append(output)
-        
+
         # 限制缓存大小
         if len(cache) > 1000:
             self._output_caches[script_id] = cache[-1000:]
+
+    def clear_all(self):
+        """清空所有脚本执行状态（用于测试）"""
+        self._processes.clear()
+        self._master_fds.clear()
+        self._output_queues.clear()
+        self._script_states.clear()
+        self._output_caches.clear()
 
 
 # 创建全局脚本执行器实例
