@@ -44,8 +44,8 @@ async function testScriptStateTransitions() {
     if (initialStatus !== 'idle') {
       throw new Error(`预期状态为 idle，实际为 ${initialStatus}`)
     }
-    if (initialText !== '执行结果') {
-      throw new Error(`预期文本为 "执行结果"，实际为 ${initialText}`)
+    if (initialText !== 'terminal') {
+      throw new Error(`预期文本为 "terminal"，实际为 ${initialText}`)
     }
     if (!isDisabled) {
       throw new Error('预期按钮为禁用状态')
@@ -73,8 +73,8 @@ async function testScriptStateTransitions() {
     if (runningStatus !== 'running') {
       throw new Error(`预期状态为 running，实际为 ${runningStatus}`)
     }
-    if (runningText !== '执行中...') {
-      throw new Error(`预期文本为 "执行中..."，实际为 ${runningText}`)
+    if (runningText !== 'terminal') {
+      throw new Error(`预期文本为 "terminal"，实际为 ${runningText}`)
     }
     if (runningDisabled) {
       throw new Error('执行中时按钮应该启用')
@@ -103,8 +103,8 @@ async function testScriptStateTransitions() {
     if (completedStatus !== 'completed') {
       throw new Error(`预期状态为 completed，实际为 ${completedStatus}`)
     }
-    if (!completedText.includes('执行完成')) {
-      throw new Error(`预期文本包含 "执行完成"，实际为 ${completedText}`)
+    if (!completedText.includes('terminal')) {
+      throw new Error(`预期文本包含 "terminal"，实际为 ${completedText}`)
     }
     // 完成后按钮应该启用（可点击查看结果）
     if (completedDisabled) {
@@ -767,8 +767,8 @@ async function testBackgroundExecutionWithTerminalClose() {
     if (completedStatus !== 'completed') {
       throw new Error(`预期状态为 completed，实际为 ${completedStatus}`)
     }
-    if (!completedText.includes('执行完成')) {
-      throw new Error(`预期文本包含 "执行完成"，实际为 ${completedText}`)
+    if (!completedText.includes('terminal')) {
+      throw new Error(`预期文本包含 "terminal"，实际为 ${completedText}`)
     }
     console.log('  ✅ 脚本执行完成\n')
 
