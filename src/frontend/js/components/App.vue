@@ -126,6 +126,8 @@ export default {
           if (btn) {
             btn.setAttribute('data-status', state.status)
             btn.textContent = getStatusText(scriptId, state.status)
+            // 根据状态启用/禁用按钮
+            btn.disabled = state.status === 'idle'
           }
         }
       }
@@ -412,7 +414,110 @@ export default {
       } else if (fileList.value.length > 0) {
         await selectFile(fileList.value[0].name)
       }
+
+      // 恢复正在运行的脚本
+      await restoreRunningScripts()
     })
+
+    // 恢复正在运行的脚本
+    const restoreRunningScripts = async () => {
+      try {
+        // 从后端获取所有脚本
+        const response = await fetch('/api/scripts')
+        if (!response.ok) return
+
+        const allScripts = await response.json()
+
+        if (!allScripts || allScripts.length === 0) {
+          return
+        }
+
+        console.log('恢复脚本状态:', allScripts)
+
+        // 处理所有脚本（运行中、已完成、失败）
+        for (const script of allScripts) {
+          const { script_id, status } = script
+
+          try {
+            // 获取脚本状态和缓存的输出
+            const statusResponse = await fetch(`/api/scripts/${script_id}/status`)
+            if (!statusResponse.ok) continue
+
+            const statusData = await statusResponse.json()
+            const { status: actualStatus, cached_output } = statusData
+
+            // 恢复脚本状态
+            updateScriptState(script_id, actualStatus, statusData.exit_code)
+
+            // 恢复输出缓存
+            if (cached_output && cached_output.length > 0) {
+              scriptOutputBuffers.value[script_id] = cached_output
+            }
+
+            // 如果脚本正在运行，重新建立 WebSocket 连接
+            if (actualStatus === 'running') {
+              // 获取脚本代码
+              const block = document.querySelector(`[data-script-id="${script_id}"]`)
+              if (!block) continue
+
+              const codeEl = block.querySelector('.script-code')
+              const code = codeEl ? codeEl.textContent : ''
+
+              // 建立 WebSocket 连接
+              const wsUrl = `ws://${window.location.host}/api/scripts/${script_id}/execute`
+              const ws = new WebSocket(wsUrl)
+
+              ws.onopen = () => {
+                console.log('重新连接到正在运行的脚本:', script_id)
+                // 发送代码以连接到正在运行的脚本
+                ws.send(JSON.stringify({ code }))
+              }
+
+              ws.addEventListener('message', (event) => {
+                const data = JSON.parse(event.data)
+                const { type, content } = data
+
+                // 缓存输出
+                if (!scriptOutputBuffers.value[script_id]) {
+                  scriptOutputBuffers.value[script_id] = []
+                }
+                scriptOutputBuffers.value[script_id].push({ content, type })
+
+                // 如果终端已打开，实时写入
+                const modal = window.currentModal
+                if (modal && modalScriptId.value === script_id) {
+                  modal.writeToTerminal(content, type)
+                }
+
+                // 脚本结束
+                if (type === 'exit') {
+                  updateScriptState(script_id, 'completed', data.exitCode || 0)
+                } else if (type === 'error') {
+                  updateScriptState(script_id, 'failed', 1)
+                }
+              })
+
+              ws.onerror = (error) => {
+                console.error('WebSocket 错误:', error)
+                updateScriptState(script_id, 'failed')
+              }
+
+              ws.onclose = () => {
+                console.log('WebSocket 已关闭:', script_id)
+              }
+
+              // 保存 WebSocket 连接
+              window.appConnections = window.appConnections || new Map()
+              window.appConnections.set(script_id, ws)
+            }
+          } catch (err) {
+            console.error(`恢复脚本 ${script_id} 失败:`, err)
+          }
+        }
+      } catch (err) {
+        console.error('恢复脚本失败:', err)
+      }
+    }
 
     return {
       fileList,

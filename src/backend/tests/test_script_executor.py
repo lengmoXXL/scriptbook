@@ -181,3 +181,187 @@ class TestScriptExecutor:
         # 应该包含提示符内容
         assert any('请输入您的名字' in c for c in contents), \
             f"应该包含 read -p 提示符，实际输出: {contents}"
+
+    def test_script_states_initialization(self):
+        """测试脚本状态字典初始化"""
+        assert hasattr(self.executor, '_script_states')
+        assert self.executor._script_states == {}
+
+    def test_output_caches_initialization(self):
+        """测试输出缓存字典初始化"""
+        assert hasattr(self.executor, '_output_caches')
+        assert self.executor._output_caches == {}
+
+    def test_add_to_cache(self):
+        """测试添加输出到缓存"""
+        script_id = "test_script"
+        output1 = {"type": "stdout", "content": "line 1", "timestamp": "1"}
+        output2 = {"type": "stdout", "content": "line 2", "timestamp": "2"}
+
+        # 添加第一条输出
+        self.executor._add_to_cache(script_id, output1)
+        assert script_id in self.executor._output_caches
+        assert len(self.executor._output_caches[script_id]) == 1
+        assert self.executor._output_caches[script_id][0] == output1
+
+        # 添加第二条输出
+        self.executor._add_to_cache(script_id, output2)
+        assert len(self.executor._output_caches[script_id]) == 2
+
+    def test_add_to_cache_limit(self):
+        """测试缓存大小限制（1000行）"""
+        script_id = "test_script_limit"
+        limit = 1000
+
+        # 添加超过限制的输出
+        for i in range(limit + 100):
+            output = {"type": "stdout", "content": f"line {i}", "timestamp": str(i)}
+            self.executor._add_to_cache(script_id, output)
+
+        # 验证缓存大小不超过限制
+        assert len(self.executor._output_caches[script_id]) == limit
+        # 验证保留的是最新的输出
+        assert self.executor._output_caches[script_id][0]["content"] == f"line 100"
+        assert self.executor._output_caches[script_id][-1]["content"] == f"line {limit + 99}"
+
+    def test_get_all_scripts_empty(self):
+        """测试获取正在运行的脚本列表（空）"""
+        scripts = self.executor.get_all_scripts()
+        assert scripts == []
+
+    def test_get_all_scripts_with_running(self):
+        """测试获取所有脚本列表（有运行中的脚本）"""
+        script_id1 = "running_script_1"
+        script_id2 = "running_script_2"
+
+        # 设置脚本状态
+        self.executor._script_states[script_id1] = "running"
+        self.executor._script_states[script_id2] = "running"
+        self.executor._script_states["completed_script"] = "completed"
+        self.executor._script_states["failed_script"] = "failed"
+
+        # 添加一些缓存输出
+        self.executor._output_caches[script_id1] = [{"type": "stdout", "content": "line 1"}]
+        self.executor._output_caches[script_id2] = [{"type": "stdout", "content": "line 1"}, {"type": "stdout", "content": "line 2"}]
+
+        scripts = self.executor.get_all_scripts()
+
+        assert len(scripts) == 4
+        assert scripts[0]["script_id"] == script_id1
+        assert scripts[0]["status"] == "running"
+        assert scripts[0]["cached_lines"] == 1
+        assert scripts[1]["script_id"] == script_id2
+        assert scripts[1]["status"] == "running"
+        assert scripts[1]["cached_lines"] == 2
+        assert scripts[2]["script_id"] == "completed_script"
+        assert scripts[2]["status"] == "completed"
+        assert scripts[3]["script_id"] == "failed_script"
+        assert scripts[3]["status"] == "failed"
+
+    def test_get_script_status_not_found(self):
+        """测试获取不存在脚本的状态"""
+        status = self.executor.get_script_status("nonexistent")
+        assert status is None
+
+    def test_get_script_status_running(self):
+        """测试获取正在运行脚本的状态"""
+        script_id = "running_script"
+        self.executor._script_states[script_id] = "running"
+        self.executor._output_caches[script_id] = [
+            {"type": "stdout", "content": "line 1"},
+            {"type": "stderr", "content": "error line"}
+        ]
+
+        status = self.executor.get_script_status(script_id)
+
+        assert status is not None
+        assert status["script_id"] == script_id
+        assert status["status"] == "running"
+        assert len(status["cached_output"]) == 2
+        assert status["cached_output"][0]["type"] == "stdout"
+
+    def test_get_script_status_completed(self):
+        """测试获取已完成脚本的状态"""
+        script_id = "completed_script"
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+
+        self.executor._script_states[script_id] = "completed"
+        self.executor._output_caches[script_id] = [{"type": "stdout", "content": "done"}]
+        self.executor._processes[script_id] = mock_process
+
+        status = self.executor.get_script_status(script_id)
+
+        assert status is not None
+        assert status["status"] == "completed"
+        assert status["exit_code"] == 0
+
+    def test_get_script_status_failed(self):
+        """测试获取失败脚本的状态"""
+        script_id = "failed_script"
+        mock_process = MagicMock()
+        mock_process.returncode = 1
+
+        self.executor._script_states[script_id] = "failed"
+        self.executor._output_caches[script_id] = [{"type": "stderr", "content": "error"}]
+        self.executor._processes[script_id] = mock_process
+
+        status = self.executor.get_script_status(script_id)
+
+        assert status is not None
+        assert status["status"] == "failed"
+        assert status["exit_code"] == 1
+
+    @pytest.mark.asyncio
+    async def test_execute_sets_running_state(self):
+        """测试执行脚本时设置运行状态"""
+        script_id = "test_state"
+        code = "echo 'hello'; exit 0"
+
+        outputs = []
+        async for output in self.executor.execute(script_id, code, timeout=5):
+            outputs.append(output)
+
+        # 验证状态被设置
+        assert script_id in self.executor._script_states
+        assert self.executor._script_states[script_id] in ["completed", "failed"]
+
+    @pytest.mark.asyncio
+    async def test_execute_caches_output(self):
+        """测试执行脚本时缓存输出"""
+        script_id = "test_cache"
+        code = "echo 'line 1'; echo 'line 2'"
+
+        outputs = []
+        async for output in self.executor.execute(script_id, code, timeout=5):
+            outputs.append(output)
+
+        # 验证输出被缓存
+        assert script_id in self.executor._output_caches
+        assert len(self.executor._output_caches[script_id]) > 0
+
+    @pytest.mark.asyncio
+    async def test_execute_updates_state_on_completion(self):
+        """测试脚本完成后更新状态为 completed"""
+        script_id = "test_complete"
+        code = "echo 'done'; exit 0"
+
+        outputs = []
+        async for output in self.executor.execute(script_id, code, timeout=5):
+            outputs.append(output)
+
+        # 验证状态为 completed
+        assert self.executor._script_states[script_id] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_execute_updates_state_on_failure(self):
+        """测试脚本失败时更新状态为 failed"""
+        script_id = "test_fail"
+        code = "exit 1"
+
+        outputs = []
+        async for output in self.executor.execute(script_id, code, timeout=5):
+            outputs.append(output)
+
+        # 验证状态为 failed
+        assert self.executor._script_states[script_id] == "failed"

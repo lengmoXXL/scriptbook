@@ -17,6 +17,8 @@ class ScriptExecutor:
         self._processes: Dict[str, asyncio.subprocess.Process] = {}
         self._master_fds: Dict[str, int] = {}
         self._output_queues: Dict[str, asyncio.Queue] = {}
+        self._script_states: Dict[str, str] = {}  # 脚本状态: running/completed/failed
+        self._output_caches: Dict[str, list] = {}  # 输出缓存
 
     async def _cleanup(
         self,
@@ -134,6 +136,9 @@ class ScriptExecutor:
             self._processes[script_id] = process
             self._master_fds[script_id] = master_fd
 
+            # 设置脚本状态为运行中
+            self._script_states[script_id] = 'running'
+
             loop = asyncio.get_event_loop()
 
             # 读取 PTY 输出的任务
@@ -158,6 +163,13 @@ class ScriptExecutor:
 
                         # 发送内容（保留 \r 用于光标回车）
                         await output_queue.put({
+                            "type": "stdout",
+                            "content": content,
+                            "timestamp": _timestamp()
+                        })
+                        
+                        # 同时添加到缓存
+                        self._add_to_cache(script_id, {
                             "type": "stdout",
                             "content": content,
                             "timestamp": _timestamp()
@@ -217,6 +229,14 @@ class ScriptExecutor:
             # 正常结束：等待进程退出并发送退出消息
             await self._cleanup(script_id, process, read_task, stdin_task)
 
+            # 更新脚本状态为完成
+            if script_id in self._script_states:
+                if process and process.returncode is not None:
+                    if process.returncode == 0:
+                        self._script_states[script_id] = 'completed'
+                    else:
+                        self._script_states[script_id] = 'failed'
+            
             # 发送退出消息
             if process:
                 returncode = process.returncode if process.returncode is not None else 0
@@ -250,6 +270,41 @@ class ScriptExecutor:
             del self._master_fds[script_id]
         if script_id in self._output_queues:
             del self._output_queues[script_id]
+
+    def get_all_scripts(self) -> list:
+        """返回所有脚本列表（包括正在运行、已完成和失败的脚本）"""
+        scripts = []
+        for script_id, state in self._script_states.items():
+            scripts.append({
+                'script_id': script_id,
+                'status': state,
+                'cached_lines': len(self._output_caches.get(script_id, []))
+            })
+        return scripts
+
+    def get_script_status(self, script_id: str):
+        """获取脚本状态和缓存的输出"""
+        if script_id not in self._script_states:
+            return None
+        
+        return {
+            'script_id': script_id,
+            'status': self._script_states[script_id],
+            'cached_output': self._output_caches.get(script_id, []),
+            'exit_code': self._processes.get(script_id, {}).returncode if script_id in self._processes else None
+        }
+
+    def _add_to_cache(self, script_id: str, output: dict):
+        """添加输出到缓存，限制最多 1000 行"""
+        if script_id not in self._output_caches:
+            self._output_caches[script_id] = []
+        
+        cache = self._output_caches[script_id]
+        cache.append(output)
+        
+        # 限制缓存大小
+        if len(cache) > 1000:
+            self._output_caches[script_id] = cache[-1000:]
 
 
 # 创建全局脚本执行器实例

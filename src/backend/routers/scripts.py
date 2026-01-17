@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from backend.models.schemas import ScriptOutputMessage, ScriptInputMessage
 from backend.core.script_executor import executor
 import asyncio
@@ -7,6 +7,21 @@ import json
 
 # 创建不带prefix的router
 router = APIRouter(tags=["scripts"])
+
+
+@router.get("/scripts")
+async def get_all_scripts():
+    """返回所有正在运行的脚本列表"""
+    return executor.get_all_scripts()
+
+
+@router.get("/scripts/{script_id}/status")
+async def get_script_status(script_id: str):
+    """获取脚本状态和缓存的输出"""
+    status = executor.get_script_status(script_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Script not found")
+    return status
 
 @router.websocket("/scripts/{script_id}/execute")
 async def execute_script(websocket: WebSocket, script_id: str):
@@ -82,7 +97,8 @@ async def execute_script(websocket: WebSocket, script_id: str):
     except WebSocketDisconnect:
         print(f"客户端断开连接: {script_id}")
         connection_closed = True
-        executor.kill_process(script_id)
+        # 不再自动杀死进程，允许脚本继续运行
+        # 客户端可以重新连接来查看输出
     except Exception as e:
         print(f"执行脚本错误: {e}")
         if not connection_closed:
@@ -91,7 +107,8 @@ async def execute_script(websocket: WebSocket, script_id: str):
                 "content": f"执行错误: {str(e)}"
             })
     finally:
-        executor.kill_process(script_id)
+        # 注意：不在这里杀死进程，允许脚本继续运行
+        # 进程会在脚本执行完成时自动清理
         if not connection_closed:
             try:
                 await websocket.close()
