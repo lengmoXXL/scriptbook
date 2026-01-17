@@ -151,8 +151,9 @@ async function testScriptStateTransitions() {
     }
 
     // 验证输出包含预期内容（检查缓冲区中的内容）
+    // 检查是否包含 "当前目录文件列表" 和 ls 输出的特征（以 "total" 开头）
     const hasEchoOutput = bufferInfo && bufferInfo.some(b => b.includes('当前目录文件列表'))
-    const hasLsOutput = bufferInfo && bufferInfo.some(b => b.includes('total 256'))
+    const hasLsOutput = bufferInfo && bufferInfo.some(b => b.includes('[stdout]total '))
 
     if (!hasEchoOutput) {
       throw new Error('缓冲区不包含 echo 输出')

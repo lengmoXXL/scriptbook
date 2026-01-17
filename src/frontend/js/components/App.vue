@@ -224,7 +224,6 @@ export default {
 
     // 执行脚本（开始执行，不自动打开终端）
     window.executeScript = async (scriptId) => {
-      console.log('开始执行脚本:', scriptId)
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
       if (!block) {
         console.error(`找不到脚本块: ${scriptId}`)

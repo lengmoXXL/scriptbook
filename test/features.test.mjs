@@ -321,6 +321,104 @@ async function testTerminalRowsFillContainer(page) {
   console.log('✅ 测试 12 通过\n')
 }
 
+// 测试 13: 终端 rows 和 columns 数量验证
+async function testTerminalRowsAndCols(page) {
+  console.log('\n=== 测试 13: 终端 rows 和 columns 数量验证 ===')
+
+  await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+  await page.waitForSelector('.script-block', { timeout: 10000 })
+
+  // 执行一个脚本打开终端
+  await page.locator('.script-block').first().locator('.execute-btn').click()
+
+  // 等待执行完成
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('.script-block .result-btn')
+    return btn && !btn.disabled
+  }, { timeout: 30000 })
+
+  // 点击结果按钮打开弹窗
+  await page.locator('.script-block').first().locator('.result-btn').click()
+  await page.waitForSelector('.terminal-modal', { timeout: 10000 })
+  await page.waitForTimeout(500)
+
+  // 获取终端的 rows 和 cols 值，以及容器尺寸
+  const result = await page.evaluate(() => {
+    const containers = document.querySelectorAll('.terminal-modal .terminal-container')
+    const container = containers[0]
+    const allContainers = Array.from(containers).map(c => ({
+      exists: !!c,
+      dataTerminalId: c?.getAttribute('data-terminal-id'),
+      className: c?.className
+    }))
+
+    if (!container) {
+      return { error: '找不到 terminal-container', allContainers }
+    }
+
+    const containerId = container.getAttribute('data-terminal-id')
+    if (!containerId) {
+      return { error: '找不到 data-terminal-id', allContainers, containerHtml: container.outerHTML?.substring(0, 200) }
+    }
+
+    const term = window[containerId]
+    if (!term) {
+      return { error: '找不到 terminal 实例', containerId, windowTerminals: Object.keys(window).filter(k => k.startsWith('terminal_')) }
+    }
+
+    const containerRect = container.getBoundingClientRect()
+
+    // 计算实际的字符宽度（通过 measure 元素）
+    const measureEl = document.createElement('div')
+    measureEl.style.position = 'fixed'
+    measureEl.style.visibility = 'hidden'
+    measureEl.style.whiteSpace = 'pre'
+    measureEl.style.left = '-9999px'
+    measureEl.style.fontFamily = "'SF Mono', 'Menlo', monospace"
+    measureEl.style.fontSize = '13px'
+    measureEl.textContent = 'W'.repeat(50)
+    document.body.appendChild(measureEl)
+    const charWidth = measureEl.getBoundingClientRect().width / 50
+    document.body.removeChild(measureEl)
+
+    return {
+      rows: term.rows,
+      cols: term.cols,
+      containerWidth: containerRect.width,
+      containerHeight: containerRect.height,
+      charWidth: charWidth,
+      lineHeight: 15 // xterm 行高
+    }
+  })
+
+  if (result.error) {
+    throw new Error(`${result.error}, allContainers: ${JSON.stringify(result.allContainers)}`)
+  }
+
+  // 期望的固定尺寸
+  const EXPECTED_COLS = 120
+  const EXPECTED_ROWS = 35
+
+  console.log(`📏 终端尺寸: ${result.cols} 列 x ${result.rows} 行`)
+  console.log(`📏 容器尺寸: ${result.containerWidth.toFixed(1)}px x ${result.containerHeight.toFixed(1)}px`)
+
+  // 验证 rows 和 cols 是否为固定值
+  if (result.rows !== EXPECTED_ROWS) {
+    throw new Error(`rows 值不正确: 期望 ${EXPECTED_ROWS}, 实际 ${result.rows}`)
+  }
+  if (result.cols !== EXPECTED_COLS) {
+    throw new Error(`cols 值不正确: 期望 ${EXPECTED_COLS}, 实际 ${result.cols}`)
+  }
+
+  console.log(`📏 期望 rows: ${EXPECTED_ROWS}, 实际: ${result.rows}`)
+  console.log(`📏 期望 cols: ${EXPECTED_COLS}, 实际: ${result.cols}`)
+
+  // 关闭弹窗
+  await page.locator('.terminal-close-btn').click()
+
+  console.log('✅ 测试 13 通过\n')
+}
+
 
 // 主测试函数
 async function runAllTests() {
@@ -359,6 +457,7 @@ async function runAllTests() {
     { name: 'File Switching', fn: testFileSwitching },
     { name: 'Theme Switching', fn: testThemeSwitching },
     { name: 'Terminal Rows Fill Container', fn: testTerminalRowsFillContainer },
+    { name: 'Terminal Rows And Cols', fn: testTerminalRowsAndCols },
   ]
 
   for (const test of browserTests) {

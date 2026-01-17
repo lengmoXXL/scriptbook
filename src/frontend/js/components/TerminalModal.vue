@@ -91,117 +91,97 @@ export default {
     const initTerminal = () => {
       if (!terminalContainer.value || !window.Terminal) return
 
-      // 如果终端已存在，更新主题并重新附加到 DOM
+      const container = terminalContainer.value
+      const themeConfig = props.terminalTheme || {}
+
+      // 如果终端已存在，先销毁
       if (term.value) {
-        // 更新主题配置
-        const themeConfig = props.terminalTheme || {}
-        const newTheme = {
+        term.value.dispose()
+        term.value = null
+      }
+
+      // 固定的终端尺寸
+      const cols = 120  // 终端列数
+      const rows = 35
+      // xterm.js 默认字体大小13px时，实测行高约为15px
+      const charWidth = 9   // 字符宽度（像素）
+      const charHeight = 15 // 行高（像素），基于xterm.js实际渲染测量
+
+      // 根据终端尺寸动态设置容器和弹窗大小
+      const terminalWidth = cols * charWidth
+      const terminalHeight = rows * charHeight
+
+      // 设置容器大小
+      container.style.width = `${terminalWidth}px`
+      container.style.height = `${terminalHeight}px`
+
+      // 设置弹窗大小
+      const modal = document.querySelector('.terminal-modal')
+      if (modal) {
+        modal.style.width = `${terminalWidth + 32}px`
+        modal.style.height = 'auto'
+      }
+
+      // 创建终端
+      term.value = new window.Terminal({
+        cursorBlink: false,
+        cursorStyle: 'block',
+        convertEol: true,
+        fontFamily: "'SF Mono', 'Menlo', monospace",
+        fontSize: 13,
+        theme: {
           background: themeConfig.background || '#1e1e1e',
           foreground: themeConfig.foreground || '#d4d4d4',
           cursor: themeConfig.cursor || '#d4d4d4',
           cursorAccent: themeConfig.cursorAccent || '#1e1e1e',
           selectionBackground: themeConfig.selectionBackground || '#264f78'
-        }
-        term.value.options.theme = newTheme
+        },
+        cols,
+        rows,
+        allowTransparency: true,
+        scrollback: 10000,
+        wraparoundLinesEnabled: true
+      })
 
-        // 应用弹窗主题颜色
-        applyThemeColors()
+      console.log('[initTerminal] 终端实例创建完成, 调用 open()')
+      term.value.open(container)
+      console.log('[initTerminal] open() 完成')
 
-        // 重新附加到 DOM
-        try {
-          term.value.open(terminalContainer.value)
-        } catch (e) {
-          // 如果已经附加，忽略错误
-        }
-        return
-      }
+      // 暴露 terminal 实例到 window 以便测试 (使用唯一ID)
+      const testId = `terminal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      window[testId] = term.value
+      container.setAttribute('data-terminal-id', testId)
+      term.value.write('\x1b[2m终端已准备...\x1b[0m\r\n')
+      console.log('[initTerminal] 初始化完成')
 
-      // 如果终端不存在，创建新终端
-      if (!term.value) {
-        // 获取主题配置
-        const themeConfig = props.terminalTheme || {}
+      // 应用当前主题颜色到弹窗
+      applyThemeColors()
 
-        // 计算终端尺寸
-        const container = terminalContainer.value
-        const measureEl = document.createElement('div')
-        measureEl.style.position = 'fixed'
-        measureEl.style.visibility = 'hidden'
-        measureEl.style.whiteSpace = 'pre'
-        measureEl.style.left = '-9999px'
-        measureEl.style.fontFamily = "'SF Mono', 'Menlo', monospace"
-        measureEl.style.fontSize = '13px'
-        measureEl.textContent = 'W'.repeat(50)
-        document.body.appendChild(measureEl)
-        const charWidth = measureEl.getBoundingClientRect().width / 50
-        document.body.removeChild(measureEl)
-
-        const paddingLeft = 10
-        const paddingRight = 10
-        const availableWidth = container.clientWidth - paddingLeft - paddingRight
-        const cols = Math.max(60, Math.floor(availableWidth / charWidth) - 3)
-        const rows = 15
-
-        // 创建终端
-        term.value = new window.Terminal({
-          cursorBlink: false,
-          cursorStyle: 'block',
-          convertEol: true,
-          fontFamily: "'SF Mono', 'Menlo', monospace",
-          fontSize: 13,
-          theme: {
-            background: themeConfig.background || '#1e1e1e',
-            foreground: themeConfig.foreground || '#d4d4d4',
-            cursor: themeConfig.cursor || '#d4d4d4',
-            cursorAccent: themeConfig.cursorAccent || '#1e1e1e',
-            selectionBackground: themeConfig.selectionBackground || '#264f78'
-          },
-          cols,
-          rows,
-          allowTransparency: true,
-          scrollback: 10000,
-          wraparoundLinesEnabled: true
-        })
-
-        term.value.open(container)
-        // 暴露 terminal 实例到 window 以便测试 (使用唯一ID)
-        const testId = `terminal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        window[testId] = term.value
-        container.setAttribute('data-terminal-id', testId)
-        term.value.write('\x1b[2m终端已准备...\x1b[0m\r\n')
-
-        // 应用当前主题颜色到弹窗
-        applyThemeColors()
-
-        // 键盘输入处理：直接发送到父组件
-        term.value.onData((data) => {
-          // 过滤控制字符，只发送实际输入
-          // 支持 ASCII 可打印字符和 UTF-8 多字节字符（如中文）
-          const isAsciiPrintable = data.length === 1 && data >= ' ' && data <= '~'
-          const isUtf8MultiByte = data.length > 1 || (data.charCodeAt(0) > 127)
-          if (isAsciiPrintable || isUtf8MultiByte || data === '\r' || data === '\n' || data === '\t' || data.charCodeAt(0) === 127) {
-            emit('send-input', data)
-          }
-        })
-
-        // 测试用：监听全局输入事件
-        window.addEventListener('terminal-send-input', (e) => {
-          const data = e.detail
-          if (term.value) {
-            term.value.write(data)
-          }
+      // 键盘输入处理：直接发送到父组件
+      term.value.onData((data) => {
+        // 过滤控制字符，只发送实际输入
+        // 支持 ASCII 可打印字符和 UTF-8 多字节字符（如中文）
+        const isAsciiPrintable = data.length === 1 && data >= ' ' && data <= '~'
+        const isUtf8MultiByte = data.length > 1 || (data.charCodeAt(0) > 127)
+        if (isAsciiPrintable || isUtf8MultiByte || data === '\r' || data === '\n' || data === '\t' || data.charCodeAt(0) === 127) {
           emit('send-input', data)
-        })
+        }
+      })
 
-        // 设置 ResizeObserver
-        resizeObserver = new ResizeObserver(() => {
-          if (term.value) {
-            const w = container.clientWidth - paddingLeft - paddingRight
-            const c = Math.max(60, Math.floor(w / charWidth) - 3)
-            term.value.resize(c, rows)
-          }
-        })
-        resizeObserver.observe(container)
-      }
+      // 测试用：监听全局输入事件
+      window.addEventListener('terminal-send-input', (e) => {
+        const data = e.detail
+        if (term.value) {
+          term.value.write(data)
+        }
+        emit('send-input', data)
+      })
+
+      // 设置 ResizeObserver（保持固定尺寸，不调整）
+      resizeObserver = new ResizeObserver(() => {
+        // 终端尺寸固定，不根据容器大小调整
+      })
+      resizeObserver.observe(container)
     }
 
     // 写入终端
@@ -214,7 +194,6 @@ export default {
       else if (type === 'exit') prefix = '\x1b[33m'
 
       const suffix = (type === 'stderr' || type === 'exit') ? '\x1b[0m' : ''
-      // 不再手动添加 \r\n，让 convertEol 处理
       term.value.write(`${prefix}${content}${suffix}`)
     }
 
@@ -329,21 +308,23 @@ export default {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
 }
 
 .terminal-modal {
+  position: absolute;
+  top: 20px;
+  left: 20px;
   border-radius: 8px;
-  width: 80%;
-  max-width: 900px;
-  max-height: 80vh;
+  width: auto;
+  min-width: 600px;
+  max-width: 1400px;
+  height: auto;
+  max-height: none;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--modal-bg, #ffffff);
   border: 1px solid var(--modal-border, #d0d7de);
 }
@@ -405,7 +386,7 @@ export default {
 .terminal-container {
   flex: 1;
   min-height: 300px;
-  max-height: 500px;
+  max-height: none;
   overflow: hidden;
 }
 
