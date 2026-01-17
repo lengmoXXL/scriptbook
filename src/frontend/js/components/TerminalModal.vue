@@ -27,6 +27,7 @@
 
 <script>
 import { ref, watch, nextTick, onUnmounted, onMounted } from 'vue'
+import { Terminal } from '@xterm/xterm'
 
 export default {
   name: 'TerminalModal',
@@ -93,7 +94,7 @@ export default {
 
     // 初始化终端
     const initTerminal = () => {
-      if (!terminalContainer.value || !window.Terminal) return
+      if (!terminalContainer.value || !Terminal) return
 
       const container = terminalContainer.value
       const themeConfig = props.terminalTheme || {}
@@ -127,7 +128,7 @@ export default {
       }
 
       // 创建终端
-      term.value = new window.Terminal({
+      term.value = new Terminal({
         cursorBlink: false,
         cursorStyle: 'block',
         convertEol: true,
