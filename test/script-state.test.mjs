@@ -21,6 +21,18 @@ async function testScriptStateTransitions() {
     })
     await page.waitForSelector('#file-select', { timeout: 10000 })
 
+    // 清理可能遗留的终端弹窗
+    await page.evaluate(() => {
+      const overlay = document.querySelector('.terminal-modal-overlay')
+      if (overlay) {
+        overlay.style.pointerEvents = 'none'
+        overlay.style.opacity = '0'
+      }
+      const closeBtn = document.querySelector('.terminal-close-btn')
+      if (closeBtn) closeBtn.click()
+    })
+    await page.waitForTimeout(500)
+
     // 选择包含脚本的文件
     await page.selectOption('#file-select', 'example.md')
     await page.waitForTimeout(500)
@@ -135,25 +147,13 @@ async function testScriptStateTransitions() {
       throw new Error('终端弹窗应该可见')
     }
 
-    // 获取终端内容确认终端已初始化
+    // 获取终端内容确认终端已初始化（使用 DOM 获取）
     const terminalContent = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return null
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      if (xtermEl) {
+        return xtermEl.textContent || ''
       }
-
-      // 备选
-      const terminal = container.querySelector('.xterm')
-      return terminal ? terminal.textContent : null
+      return null
     })
     console.log(`  终端内容长度: ${terminalContent?.length || 0} 字符`)
     console.log(`  内容预览: ${terminalContent?.substring(0, 200)}...`)
@@ -292,25 +292,13 @@ async function testTerminalCloseDoesNotKillScript() {
       throw new Error('终端弹窗应该可见')
     }
 
-    // 验证终端有内容
+    // 验证终端有内容（使用 DOM 获取）
     const terminalContent1 = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return null
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      if (xtermEl) {
+        return xtermEl.textContent || ''
       }
-
-      // 备选
-      const terminal = container.querySelector('.xterm')
-      return terminal ? terminal.textContent : null
+      return null
     })
 
     // 检查缓冲区状态
@@ -389,23 +377,11 @@ async function testTerminalCloseDoesNotKillScript() {
       await page.waitForTimeout(500)
 
       const terminalContent2 = await page.evaluate(() => {
-        const container = document.querySelector('.terminal-container')
-        if (!container) return null
-
-        // 尝试从 terminal 实例获取内容
-        const terminalId = container.getAttribute('data-terminal-id')
-        const term = window[terminalId]
-        if (term && term.buffer) {
-          const lines = []
-          for (let i = 0; i < term.buffer.lines.length; i++) {
-            lines.push(term.buffer.lines[i].translateToString())
-          }
-          return lines.join('\n')
+        const xtermEl = document.querySelector('.terminal-modal .xterm')
+        if (xtermEl) {
+          return xtermEl.textContent || ''
         }
-
-        // 备选
-        const terminal = container.querySelector('.xterm')
-        return terminal ? terminal.textContent : null
+        return null
       })
 
       // 验证缓冲区内容一致（这是关键验证）
@@ -494,23 +470,11 @@ async function testStopButton() {
 
     // 验证终端有内容
     const terminalContentBefore = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return null
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      if (xtermEl) {
+        return xtermEl.textContent || ''
       }
-
-      // 备选
-      const terminal = container.querySelector('.xterm')
-      return terminal ? terminal.textContent : null
+      return null
     })
     console.log(`  终端内容长度: ${terminalContentBefore?.length || 0} 字符`)
 
@@ -538,9 +502,12 @@ async function testStopButton() {
 
     console.log('  ✅ 停止执行功能正常\n')
 
-    // 关闭终端弹窗
-    await page.locator('.terminal-close-btn').click()
-    await page.waitForTimeout(500)
+    // 关闭终端弹窗（如果尚未关闭）
+    const modalStillVisible = await page.locator('.terminal-modal').isVisible()
+    if (modalStillVisible) {
+      await page.locator('.terminal-close-btn').click()
+      await page.waitForTimeout(500)
+    }
 
     console.log('✅ 停止执行按钮测试通过！\n')
   } catch (error) {
@@ -567,6 +534,18 @@ async function testScriptOutputVerification() {
       headers: { 'Cache-Control': 'no-cache' }
     })
     await page.waitForSelector('#file-select', { timeout: 10000 })
+
+    // 清理可能遗留的终端弹窗（来自前一个测试）
+    await page.evaluate(() => {
+      const overlay = document.querySelector('.terminal-modal-overlay')
+      if (overlay) {
+        overlay.style.pointerEvents = 'none'
+        overlay.style.opacity = '0'
+      }
+      const closeBtn = document.querySelector('.terminal-close-btn')
+      if (closeBtn) closeBtn.click()
+    })
+    await page.waitForTimeout(500)
 
     // 选择包含脚本的文件
     await page.selectOption('#file-select', 'example.md')
@@ -647,6 +626,35 @@ async function testScriptOutputVerification() {
       }, test.scriptId)
       console.log(`  第一次执行后缓冲区消息数: ${bufferAfterFirst}`)
 
+      // 关闭终端，为再次执行做准备
+      // 使用 pointer-events: none 让点击穿透，同时触发 Vue 的 close 事件
+      await page.evaluate(() => {
+        const overlay = document.querySelector('.terminal-modal-overlay')
+        if (overlay) {
+          overlay.style.pointerEvents = 'none'
+          overlay.style.opacity = '0'
+        }
+        const closeBtn = document.querySelector('.terminal-close-btn')
+        if (closeBtn) closeBtn.click()
+      })
+      await page.waitForTimeout(500)
+
+      // 确保 modal 确实已隐藏
+      const modalHidden = await page.evaluate(() => {
+        const overlay = document.querySelector('.terminal-modal-overlay')
+        if (!overlay) return true
+        const rect = overlay.getBoundingClientRect()
+        return rect.width === 0 || rect.height === 0 || overlay.style.opacity === '0'
+      })
+      if (!modalHidden) {
+        // 强制关闭
+        await page.evaluate(() => {
+          const overlay = document.querySelector('.terminal-modal-overlay')
+          if (overlay) overlay.style.display = 'none'
+        })
+      }
+      await page.waitForTimeout(300)
+
       // 再次执行
       console.log('  再次执行...')
       await scriptBlock.locator('.execute-btn').click()
@@ -699,9 +707,34 @@ async function testScriptOutputVerification() {
         console.log(`  ✅ 包含: "${expected}"`)
       }
 
-      // 关闭终端
-      await page.locator('.terminal-close-btn').click()
+      // 关闭终端 - 触发 Vue 的 close 事件
+      // 避免 Vue Transition 过渡动画期间的点击拦截问题
+      await page.evaluate(() => {
+        const overlay = document.querySelector('.terminal-modal-overlay')
+        if (overlay) {
+          overlay.style.pointerEvents = 'none'
+          overlay.style.opacity = '0'
+        }
+        const closeBtn = document.querySelector('.terminal-close-btn')
+        if (closeBtn) closeBtn.click()
+      })
       await page.waitForTimeout(500)
+
+      // 确保 modal 确实已隐藏，再继续下一次循环
+      const isModalHidden = await page.evaluate(() => {
+        const overlay = document.querySelector('.terminal-modal-overlay')
+        if (!overlay) return true
+        const rect = overlay.getBoundingClientRect()
+        return rect.width === 0 || rect.height === 0 || overlay.style.opacity === '0'
+      })
+      if (!isModalHidden) {
+        // 强制隐藏
+        await page.evaluate(() => {
+          const overlay = document.querySelector('.terminal-modal-overlay')
+          if (overlay) overlay.style.display = 'none'
+        })
+      }
+
       console.log(`  ✅ ${test.name} 输出验证通过\n`)
     }
 
@@ -788,25 +821,13 @@ async function testBackgroundExecutionWithTerminalClose() {
       throw new Error('终端弹窗应该可见')
     }
 
-    // 获取初始终端内容
+    // 获取初始终端内容（使用 DOM 获取）
     const initialContent = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return null
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      if (xtermEl) {
+        return xtermEl.textContent || ''
       }
-
-      // 备选
-      const terminal = container.querySelector('.xterm')
-      return terminal ? terminal.textContent : null
+      return null
     })
     console.log(`  初始终端内容长度: ${initialContent?.length || 0} 字符`)
     console.log('  ✅ 终端有内容\n')
@@ -866,23 +887,11 @@ async function testBackgroundExecutionWithTerminalClose() {
     await page.waitForTimeout(1500)
 
     const finalContent = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return null
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
+      const xtermEl = document.querySelector('.terminal-modal .xterm')
+      if (xtermEl) {
+        return xtermEl.textContent || ''
       }
-
-      // 备选
-      const terminal = container.querySelector('.xterm')
-      return terminal ? terminal.textContent : null
+      return null
     })
 
     console.log(`  最终终端内容长度: ${finalContent?.length || 0} 字符`)

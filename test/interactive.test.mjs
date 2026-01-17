@@ -146,35 +146,16 @@ async function testAllScripts() {
           console.log('🔍 验证输出...')
           // 通过 xterm DOM 元素获取文本内容
           const terminalText = await page.evaluate(() => {
-            // 查找 xterm 元素
             const xtermEl = document.querySelector('.terminal-modal .xterm')
-            if (!xtermEl) return ''
-
-            // 新 xterm.js 使用 canvas，尝试从 terminal 实例获取内容
-            const container = document.querySelector('.terminal-modal .terminal-container')
-            if (container) {
-              const terminalId = container.getAttribute('data-terminal-id')
-              const term = window[terminalId]
-              if (term && term.buffer) {
-                // 从 buffer 获取内容
-                const lines = []
-                for (let i = 0; i < term.buffer.lines.length; i++) {
-                  lines.push(term.buffer.lines[i].translateToString())
-                }
-                return lines.join('\n').trim()
+            if (xtermEl) {
+              let text = xtermEl.textContent || ''
+              if (text) {
+                text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+                text = text.trim()
               }
+              return text
             }
-
-            // 备选：直接获取 textContent（可能不准确）
-            let text = xtermEl.textContent || ''
-
-            // 清理文本
-            if (text) {
-              text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
-              text = text.trim()
-            }
-
-            return text
+            return ''
           })
           console.log('终端内容长度:', terminalText.length)
           console.log('终端内容预览:', terminalText.substring(0, 200))

@@ -57,3 +57,4 @@ class PluginInfo(BaseModel):
     css: Optional[str] = None
     js: Optional[str] = None
     terminalTheme: Optional[Dict[str, str]] = None
+    modalTheme: Optional[Dict[str, str]] = None

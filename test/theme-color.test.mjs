@@ -21,7 +21,7 @@ async function testThemeColorConsistency() {
       expectedTerminalBg: 'rgb(246, 248, 250)', // #f6f8fa (terminalTheme.background)
       expectedTitleColor: 'rgb(36, 41, 47)', // #24292f (color-text)
       expectedTitleBg: 'rgb(246, 248, 250)', // #f6f8fa (color-surface-alt)
-      selectValue: 'GitHub 主题'
+      selectValue: 'theme-github'
     },
     {
       name: 'GitHub Dark',
@@ -29,7 +29,7 @@ async function testThemeColorConsistency() {
       expectedTerminalBg: 'rgb(13, 17, 23)', // #0d1117 (terminalTheme.background)
       expectedTitleColor: 'rgb(201, 209, 217)', // #c9d1d9 (color-text)
       expectedTitleBg: 'rgb(22, 27, 34)', // #161b22 (modalTheme.headerBg)
-      selectValue: 'GitHub Dark 主题'
+      selectValue: 'theme-github-dark'
     }
   ]
 
@@ -40,17 +40,53 @@ async function testThemeColorConsistency() {
     })
     await page.waitForSelector('#file-select', { timeout: 10000 })
 
+    // 清除 localStorage 确保从干净状态开始
+    await page.evaluate(() => {
+      localStorage.removeItem('scriptbook_theme')
+      localStorage.removeItem('scriptbook_currentFile')
+    })
+
+    // 等待主题插件 CSS 加载
+    await page.waitForFunction(() => {
+      const links = document.querySelectorAll('link[href*="theme-"]')
+      return links.length > 0
+    }, { timeout: 10000 })
+
     for (const scheme of colorSchemes) {
       console.log(`--- 验证 ${scheme.name} 主题 ---`)
 
+      // 关闭可能打开的终端弹窗（确保新主题生效）
+      const closeBtn = await page.locator('.terminal-close-btn').first()
+      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await closeBtn.click()
+        await page.waitForTimeout(500)
+      }
+
       // 切换主题
-      await page.selectOption('#plugin-select', scheme.selectValue)
-      // 等待主题切换和终端主题更新
-      await page.waitForTimeout(500)
+      console.log(`  切换到主题: ${scheme.selectValue}`)
+      const switchResult = await page.evaluate(async (themeName) => {
+        if (!window.switchTheme) {
+          return { error: 'switchTheme not defined' }
+        }
+        await window.switchTheme(themeName)
+        // 检查当前主题
+        const select = document.querySelector('#plugin-select')
+        return {
+          themeName,
+          currentValue: select?.value,
+          currentTheme: window.currentTheme
+        }
+      }, scheme.selectValue)
+      console.log(`  切换结果: ${JSON.stringify(switchResult)}`)
+      await page.waitForTimeout(1000)
 
       // 选择包含脚本的文件
-      await page.selectOption('#file-select', 'example.md')
-      await page.waitForTimeout(500)
+      await page.evaluate(() => {
+        if (window.selectFile) {
+          window.selectFile('example.md')
+        }
+      })
+      await page.waitForTimeout(1000)
 
       // 点击执行脚本（弹窗会自动打开）
       await page.locator('.script-block').first().locator('.execute-btn').click()

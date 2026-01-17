@@ -62,25 +62,13 @@ async function testLongTextWrap() {
     // 等待终端内容加载
     await page.waitForTimeout(1000)
 
-    // 获取终端内容（canvas-based xterm.js 使用 buffer 获取）
+    // 获取终端内容（使用 DOM 获取，因为 xterm.js DOM 渲染模式不提供标准 buffer API）
     const terminalContent = await page.evaluate(() => {
-      const container = document.querySelector('.terminal-container')
-      if (!container) return ''
-
-      // 尝试从 terminal 实例获取内容
-      const terminalId = container.getAttribute('data-terminal-id')
-      const term = window[terminalId]
-      if (term && term.buffer) {
-        const lines = []
-        for (let i = 0; i < term.buffer.lines.length; i++) {
-          lines.push(term.buffer.lines[i].translateToString())
-        }
-        return lines.join('\n')
-      }
-
-      // 备选
       const xtermEl = document.querySelector('.terminal-modal .xterm')
-      return xtermEl ? xtermEl.textContent || '' : ''
+      if (xtermEl) {
+        return xtermEl.textContent || ''
+      }
+      return ''
     })
 
     console.log('\n--- 终端内容 ---')

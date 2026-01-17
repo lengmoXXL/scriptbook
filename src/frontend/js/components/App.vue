@@ -188,7 +188,7 @@ export default {
     }
 
     // 切换主题
-    const switchTheme = (themeName) => {
+    const switchTheme = async (themeName) => {
       currentTheme.value = themeName
       localStorage.setItem('scriptbook_theme', themeName)
 
@@ -210,7 +210,15 @@ export default {
         // 保存弹窗主题配置
         currentModalTheme.value = plugin.modalTheme || null
       }
+
+      // 等待 DOM 更新
+      await nextTick()
     }
+
+    // 暴露到 window 供测试使用（必须在函数定义之后）
+    window.selectFile = selectFile
+    window.switchTheme = switchTheme
+    window.pluginList = pluginList.value
 
     // 关闭弹窗
     const closeModal = () => {

@@ -275,6 +275,15 @@ export default {
       // 注意：不自动销毁终端，保持输出历史
     })
 
+    // 监听弹窗打开事件，确保主题颜色正确应用
+    watch(() => props.visible, (visible) => {
+      if (visible) {
+        nextTick(() => {
+          applyThemeColors()
+        })
+      }
+    })
+
     // 监听主题变化，更新终端样式
     watch(() => props.terminalTheme, (theme) => {
       if (theme && terminalContainer.value) {

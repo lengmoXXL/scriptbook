@@ -35,7 +35,8 @@ async def get_plugins(request: Request):
                     type=manifest.get("type", "theme"),
                     css=manifest.get("css"),
                     js=manifest.get("js"),
-                    terminalTheme=manifest.get("terminalTheme")
+                    terminalTheme=manifest.get("terminalTheme"),
+                    modalTheme=manifest.get("modalTheme")
                 )
                 plugins.append(plugin_info)
 
