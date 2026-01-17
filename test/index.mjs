@@ -8,17 +8,17 @@
 import { spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { readdirSync } from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const testDir = join(__dirname, '..', 'test')
-const testFiles = [
-  'interactive.test.mjs',    // 交互式输入测试
-  'features.test.mjs',       // 功能集成测试
-  'script-state.test.mjs',   // 脚本状态测试
-  'theme-color.test.mjs'     // 主题配色测试
-]
+
+// 自动读取所有 .test.mjs 文件
+const testFiles = readdirSync(testDir)
+  .filter(file => file.endsWith('.test.mjs'))
+  .sort() // 按文件名排序，确保执行顺序一致
 
 async function runTest(file) {
   return new Promise((resolve) => {
