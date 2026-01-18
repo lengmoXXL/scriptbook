@@ -423,77 +423,63 @@ export default {
         for (const script of allScripts) {
           const { script_id, status } = script
 
+          // 只处理正在运行的脚本
+          if (status !== 'running') continue
+
           try {
-            const statusResponse = await fetch(`/api/scripts/${script_id}/status`)
-            if (!statusResponse.ok) continue
+            const block = document.querySelector(`[data-script-id="${script_id}"]`)
+            if (!block) continue
 
-            const statusData = await statusResponse.json()
-            const { status: actualStatus, cached_output } = statusData
+            // 获取脚本标题
+            const titleEl = block.querySelector('.script-title')
+            const title = titleEl ? titleEl.textContent : script_id
 
-            updateScriptState(script_id, actualStatus, statusData.exit_code)
+            const wsUrl = `ws://${window.location.host}/api/scripts/${script_id}/execute`
+            const ws = new WebSocket(wsUrl)
 
-            if (cached_output && cached_output.length > 0) {
-              scriptOutputBuffers.value[script_id] = cached_output
+            // 打开终端（不传递 code，进入附加模式）
+            openTerminal(script_id, title, '')
+
+            // 设置 WebSocket
+            const terminal = activeTerminals.value.get(script_id)
+            if (terminal) {
+              terminal.ws = ws
             }
 
-            // 如果正在运行，重新建立 WebSocket
-            if (actualStatus === 'running') {
-              const block = document.querySelector(`[data-script-id="${script_id}"]`)
-              if (!block) continue
+            ws.onopen = () => {
+              console.log('附加到正在运行的脚本:', script_id)
+              // 发送空 code 进入附加模式，由后端恢复历史输出
+              ws.send(JSON.stringify({}))
+            }
 
-              const codeEl = block.querySelector('.script-code')
-              const code = codeEl ? codeEl.textContent : ''
+            ws.addEventListener('message', (event) => {
+              const data = JSON.parse(event.data)
+              const { type, content } = data
 
-              const wsUrl = `ws://${window.location.host}/api/scripts/${script_id}/execute`
-              const ws = new WebSocket(wsUrl)
+              if (!scriptOutputBuffers.value[script_id]) {
+                scriptOutputBuffers.value[script_id] = []
+              }
+              scriptOutputBuffers.value[script_id].push({ content, type })
 
-              // 获取脚本标题
-              const titleEl = block.querySelector('.script-title')
-              const title = titleEl ? titleEl.textContent : script_id
-
-              // 打开终端
-              openTerminal(script_id, title, code)
-
-              // 设置 WebSocket
-              const terminal = activeTerminals.value.get(script_id)
-              if (terminal) {
-                terminal.ws = ws
+              const modal = getTerminalRef(script_id)
+              if (modal) {
+                modal.writeToTerminal(content, type)
               }
 
-              ws.onopen = () => {
-                console.log('重新连接到正在运行的脚本:', script_id)
-                ws.send(JSON.stringify({ code }))
+              if (type === 'exit') {
+                updateScriptState(script_id, 'completed', data.exitCode || 0)
+              } else if (type === 'error') {
+                updateScriptState(script_id, 'failed', 1)
               }
+            })
 
-              ws.addEventListener('message', (event) => {
-                const data = JSON.parse(event.data)
-                const { type, content } = data
+            ws.onerror = (error) => {
+              console.error('WebSocket 错误:', error)
+              updateScriptState(script_id, 'failed')
+            }
 
-                if (!scriptOutputBuffers.value[script_id]) {
-                  scriptOutputBuffers.value[script_id] = []
-                }
-                scriptOutputBuffers.value[script_id].push({ content, type })
-
-                const modal = getTerminalRef(script_id)
-                if (modal) {
-                  modal.writeToTerminal(content, type)
-                }
-
-                if (type === 'exit') {
-                  updateScriptState(script_id, 'completed', data.exitCode || 0)
-                } else if (type === 'error') {
-                  updateScriptState(script_id, 'failed', 1)
-                }
-              })
-
-              ws.onerror = (error) => {
-                console.error('WebSocket 错误:', error)
-                updateScriptState(script_id, 'failed')
-              }
-
-              ws.onclose = () => {
-                console.log('WebSocket 已关闭:', script_id)
-              }
+            ws.onclose = () => {
+              console.log('WebSocket 已关闭:', script_id)
             }
           } catch (err) {
             console.error(`恢复脚本 ${script_id} 失败:`, err)

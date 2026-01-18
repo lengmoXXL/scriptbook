@@ -334,6 +334,34 @@ class ScriptExecutor:
         self._script_states.clear()
         self._output_caches.clear()
 
+    async def attach(self, script_id: str) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        附加到正在运行的脚本，发送缓存输出并继续监听新输出
+
+        用于页面刷新后重新建立 WebSocket 连接时恢复输出
+        """
+        if script_id not in self._script_states:
+            return
+
+        # 发送缓存的历史输出
+        cached = self._output_caches.get(script_id, [])
+        for output in cached:
+            yield output
+
+        # 如果仍在运行，继续监听新输出
+        if self._script_states[script_id] == 'running':
+            output_queue = self._output_queues.get(script_id)
+            if output_queue:
+                try:
+                    async for output in self._wait_for_output_with_timeout(output_queue, 1800):
+                        yield output
+                except asyncio.TimeoutError:
+                    yield {
+                        "type": "error",
+                        "content": "附加监听超时，脚本可能仍在运行",
+                        "timestamp": _timestamp()
+                    }
+
 
 # 创建全局脚本执行器实例
 executor = ScriptExecutor()

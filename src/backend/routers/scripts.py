@@ -35,6 +35,10 @@ async def execute_script(websocket: WebSocket, script_id: str):
     """
     WebSocket端点，用于执行脚本并实时输出，支持交互式输入
     使用 ScriptExecutor 执行脚本，支持 PTY（伪终端）
+
+    支持两种模式：
+    1. 首次执行：发送 code 参数，启动新脚本
+    2. 附加模式：不发送 code 或 code 为空，附加到正在运行的脚本并恢复输出
     """
     await websocket.accept()
 
@@ -76,30 +80,53 @@ async def execute_script(websocket: WebSocket, script_id: str):
             await stdin_queue.put(None)
 
     try:
-        # 接收脚本代码
+        # 接收客户端消息
         data = await websocket.receive_json()
         code = data.get("code", "")
 
-        if not code:
-            await safe_send({
-                "type": "error",
-                "content": "脚本代码为空"
-            })
-            return
+        # 判断是"附加模式"还是"首次执行模式"
+        script_status = executor.get_script_status(script_id)
+        is_attached = script_status is not None and script_status["status"] == "running" and not code
 
-        # 启动输入接收任务
-        receive_task = asyncio.create_task(receive_input())
+        if is_attach := (not code and script_status is not None and script_status["status"] == "running"):
+            # 附加模式：恢复缓存输出并继续监听
+            print(f"附加到正在运行的脚本: {script_id}")
 
-        # 使用 ScriptExecutor 执行脚本，传入 stdin_queue
-        async for output in executor.execute(script_id, code, timeout=1800, stdin_queue=stdin_queue):
-            await safe_send(output)
+            # 启动输入接收任务（用于交互）
+            receive_task = asyncio.create_task(receive_input())
 
-        # 取消输入接收任务
-        receive_task.cancel()
-        try:
-            await receive_task
-        except asyncio.CancelledError:
-            pass
+            # 使用 attach 方法恢复输出
+            async for output in executor.attach(script_id):
+                await safe_send(output)
+
+            # 取消输入接收任务
+            receive_task.cancel()
+            try:
+                await receive_task
+            except asyncio.CancelledError:
+                pass
+        else:
+            # 首次执行模式
+            if not code:
+                await safe_send({
+                    "type": "error",
+                    "content": "脚本代码为空"
+                })
+                return
+
+            # 启动输入接收任务
+            receive_task = asyncio.create_task(receive_input())
+
+            # 使用 ScriptExecutor 执行脚本，传入 stdin_queue
+            async for output in executor.execute(script_id, code, timeout=1800, stdin_queue=stdin_queue):
+                await safe_send(output)
+
+            # 取消输入接收任务
+            receive_task.cancel()
+            try:
+                await receive_task
+            except asyncio.CancelledError:
+                pass
 
     except WebSocketDisconnect:
         print(f"客户端断开连接: {script_id}")
