@@ -64,41 +64,6 @@ npm run build
 - `css/` - 样式文件
 - `plugins/` - 主题插件
 
-## 项目结构
-
-```
-scriptbook/
-├── src/
-│   ├── backend/           # 后端 (Python/FastAPI)
-│   │   ├── main.py        # FastAPI 应用入口
-│   │   ├── cli.py         # 命令行接口
-│   │   ├── core/          # 核心功能模块
-│   │   │   ├── file_scanner.py
-│   │   │   ├── markdown_parser.py
-│   │   │   ├── plugin_manager.py
-│   │   │   └── script_executor.py
-│   │   ├── routers/       # API 路由
-│   │   │   ├── markdown.py
-│   │   │   ├── plugins.py
-│   │   │   └── scripts.py
-│   │   ├── models/        # 数据模型
-│   │   │   └── schemas.py
-│   │   └── plugins/       # 主题插件
-│   │
-│   ├── frontend/          # 前端 (Vue 3/Vite)
-│   │   ├── index.html
-│   │   ├── js/
-│   │   ├── css/
-│   │   └── plugins/
-│   │
-│   └── tests/             # Python 单元测试
-│       └── test_*.py
-│
-├── dist/                  # Vite 构建产物（项目根目录）
-├── examples/              # 示例文档
-└── test/                  # Playwright 测试
-```
-
 ## 开发规范
 
 ### Git 工作流
@@ -146,7 +111,7 @@ git push -u origin feature/xxx
 pytest src/backend/tests/ -v
 
 # Playwright E2E 测试
-npm run test
+pkill -f "scriptbook"; scriptbook examples/ &; npm run test; pkill -f "scriptbook"
 ```
 
 ### 测试文件
