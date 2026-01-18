@@ -21,6 +21,18 @@ async function testLongTextWrap() {
   try {
     const page = await context.newPage()
     await page.goto(SERVER_URL, { waitUntil: 'networkidle' })
+
+    // 清理之前测试可能留下的弹窗
+    console.log('清理之前测试可能留下的弹窗...')
+    const existingModals = await page.locator('.terminal-modal-overlay').count()
+    if (existingModals > 0) {
+      console.log(`  发现 ${existingModals} 个残留弹窗`)
+      try {
+        await page.locator('.terminal-modal .terminal-close-btn').click({ force: true }).catch(() => {})
+        await page.waitForTimeout(300)
+      } catch (e) {}
+    }
+
     await page.waitForSelector('.script-block', { timeout: 10000 })
 
     // 获取第一个脚本块

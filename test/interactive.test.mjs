@@ -186,6 +186,50 @@ async function testAllScripts() {
       await page.locator('.terminal-close-btn').click()
       await page.waitForTimeout(500)
       console.log('✓ 弹窗已关闭')
+
+      // 停止脚本（避免后台继续运行影响后续测试）
+      await page.evaluate(() => {
+        // 获取所有运行中的脚本并停止
+        const scriptBlocks = document.querySelectorAll('.script-block')
+        scriptBlocks.forEach(block => {
+          const scriptId = block.getAttribute('data-script-id')
+          const status = block.querySelector('.result-btn')?.getAttribute('data-status')
+          if (status === 'running' && scriptId && window.stopScript) {
+            window.stopScript(scriptId)
+          }
+        })
+      })
+      await page.waitForTimeout(500)
+    }
+
+    // 额外等待确保所有脚本都已停止
+    console.log('等待脚本完全停止...')
+    await page.waitForTimeout(1000)
+
+    // 确保所有弹窗都已关闭
+    console.log('检查并关闭所有弹窗...')
+    const openModals = await page.locator('.terminal-modal-overlay').count()
+    if (openModals > 0) {
+      console.log(`  发现 ${openModals} 个未关闭的弹窗，尝试关闭...`)
+      // 关闭所有打开的弹窗
+      const closeBtns = await page.locator('.terminal-modal .terminal-close-btn').all()
+      for (const btn of closeBtns) {
+        try {
+          await btn.click()
+          await page.waitForTimeout(200)
+        } catch (e) {
+          // 忽略关闭错误
+        }
+      }
+      await page.waitForTimeout(500)
+    }
+
+    // 验证弹窗已关闭
+    const remainingModals = await page.locator('.terminal-modal-overlay').count()
+    if (remainingModals > 0) {
+      console.log(`  ⚠️  仍有 ${remainingModals} 个弹窗未关闭（可能是动画延迟）`)
+    } else {
+      console.log('  ✓ 所有弹窗已关闭')
     }
 
     console.log('\n✅ 所有脚本测试通过！')

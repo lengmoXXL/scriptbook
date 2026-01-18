@@ -84,6 +84,18 @@ async function testRefreshPersistence() {
     await page.reload({ waitUntil: 'networkidle' })
     console.log('  ✓ 页面已刷新')
 
+    // 确保弹窗已关闭
+    const modalsAfterRefresh = await page.locator('.terminal-modal-overlay').count()
+    if (modalsAfterRefresh > 0) {
+      console.log('  发现未关闭的弹窗，尝试关闭...')
+      try {
+        await page.locator('.terminal-modal .terminal-close-btn').click()
+        await page.waitForTimeout(500)
+      } catch (e) {
+        // 忽略关闭错误
+      }
+    }
+
     // 等待页面加载完成
     await page.waitForSelector('.script-block', { timeout: 10000 })
     await page.waitForTimeout(1000)

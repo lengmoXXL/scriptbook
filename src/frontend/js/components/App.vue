@@ -26,17 +26,19 @@
       <p>Scriptbook &copy; 2025</p>
     </footer>
 
-    <!-- 终端弹窗 -->
+    <!-- 终端弹窗列表 -->
     <TerminalModal
-      :visible="modalVisible"
-      :title="modalTitle"
-      :script-id="modalScriptId"
-      :code="modalCode"
+      v-for="[scriptId, terminal] in activeTerminals"
+      :key="scriptId"
+      :visible="terminal.visible"
+      :title="terminal.title"
+      :script-id="scriptId"
+      :code="terminal.code"
       :terminal-theme="currentTerminalTheme"
       :modal-theme="currentModalTheme"
-      @close="closeModal"
-      @send-input="onSendInput"
-      ref="terminalModalRef"
+      :ref="el => setTerminalRef(scriptId, el)"
+      @close="closeModal(scriptId)"
+      @send-input="onSendInput(scriptId, $event)"
     />
   </div>
 </template>
@@ -45,8 +47,6 @@
 import { ref, onMounted, nextTick } from 'vue'
 import NavBar from './NavBar.vue'
 import TerminalModal from './TerminalModal.vue'
-// 预加载 xterm.js 模块
-import { Terminal } from '@xterm/xterm'
 
 export default {
   name: 'App',
@@ -56,29 +56,39 @@ export default {
     const pluginList = ref([])
     const currentFile = ref(null)
     const currentTheme = ref('theme-light')
-    const currentTerminalTheme = ref(null) // 当前主题的终端配置
-    const currentModalTheme = ref(null) // 当前主题的弹窗配置
+    const currentTerminalTheme = ref(null)
+    const currentModalTheme = ref(null)
     const contentHtml = ref('<p>请从上方选择Markdown文件...</p>')
     const loading = ref(false)
     const error = ref(null)
     const contentRef = ref(null)
-    const terminalModalRef = ref(null)
 
-    // 弹窗状态
-    const modalVisible = ref(false)
-    const modalTitle = ref('')
-    const modalScriptId = ref('')
-    const modalCode = ref('')
-    const modalWs = ref(null) // WebSocket 连接
-
-    // 脚本状态管理: scriptId -> { status, exitCode, timestamp, outputBuffer }
-    // status: 'idle' | 'running' | 'completed' | 'failed'
+    // 脚本状态管理: scriptId -> { status, exitCode, timestamp }
     const scriptStates = ref({})
+
     // 终端输出缓存: scriptId -> [{content, type}, ...]
     const scriptOutputBuffers = ref({})
 
+    // 活跃终端: scriptId -> { visible, title, code, ws }
+    const activeTerminals = ref(new Map())
+    const terminalRefs = ref(new Map())
+
     // 暴露到 window 供测试使用
     window.scriptOutputBuffers = scriptOutputBuffers.value
+
+    // 设置终端组件引用
+    const setTerminalRef = (scriptId, el) => {
+      if (el) {
+        terminalRefs.value.set(scriptId, el)
+      } else {
+        terminalRefs.value.delete(scriptId)
+      }
+    }
+
+    // 获取终端组件实例
+    const getTerminalRef = (scriptId) => {
+      return terminalRefs.value.get(scriptId)
+    }
 
     // 更新脚本状态
     const updateScriptState = (scriptId, status, exitCode = null) => {
@@ -96,7 +106,6 @@ export default {
         if (resultBtn) {
           resultBtn.setAttribute('data-status', status)
           resultBtn.textContent = getStatusText(scriptId, status)
-          // 根据状态启用/禁用按钮
           resultBtn.disabled = status === 'idle'
         }
       }
@@ -104,10 +113,8 @@ export default {
 
     // 获取状态文本
     const getStatusText = (scriptId, status) => {
-      const state = scriptStates.value[scriptId]
       switch (status) {
         case 'idle':
-          return 'terminal'
         case 'running':
           return 'terminal'
         case 'completed':
@@ -128,7 +135,6 @@ export default {
           if (btn) {
             btn.setAttribute('data-status', state.status)
             btn.textContent = getStatusText(scriptId, state.status)
-            // 根据状态启用/禁用按钮
             btn.disabled = state.status === 'idle'
           }
         }
@@ -177,9 +183,7 @@ export default {
         contentHtml.value = data.html
         currentFile.value = filename
 
-        // 等待 DOM 更新
         await nextTick()
-        // 初始化脚本状态显示
         initScriptStates()
       } catch (err) {
         error.value = `加载文件失败: ${err.message}`
@@ -198,7 +202,6 @@ export default {
         link.remove()
       })
 
-      // 从插件列表获取插件配置（包括 terminalTheme）
       const plugin = pluginList.value.find(p => p.name === themeName)
 
       if (plugin) {
@@ -207,38 +210,47 @@ export default {
         link.href = `/static/plugins/${themeName}/style.css`
         link.setAttribute('data-theme', themeName)
         document.head.appendChild(link)
-        // 保存终端主题配置
         currentTerminalTheme.value = plugin.terminalTheme || null
-        // 保存弹窗主题配置
         currentModalTheme.value = plugin.modalTheme || null
       }
 
-      // 等待 DOM 更新
       await nextTick()
     }
 
-    // 暴露到 window 供测试使用（必须在函数定义之后）
-    window.selectFile = selectFile
-    window.switchTheme = switchTheme
-    window.pluginList = pluginList.value
-
-    // 关闭弹窗
-    const closeModal = () => {
-      // 只清除引用，不关闭 WebSocket（让脚本继续运行）
-      modalVisible.value = false
-      modalScriptId.value = ''
-      modalTitle.value = ''
-      modalCode.value = ''
-      modalWs.value = null
+    // 打开终端
+    const openTerminal = (scriptId, title, code) => {
+      const terminal = activeTerminals.value.get(scriptId) || {
+        visible: false,
+        title: '',
+        code: '',
+        ws: null
+      }
+      terminal.visible = true
+      terminal.title = title
+      terminal.code = code
+      activeTerminals.value.set(scriptId, terminal)
     }
 
-    // 发送输入（键盘输入直接发送）
-    const onSendInput = (value) => {
-      if (!modalWs.value || modalWs.value.readyState !== 1) return
-      modalWs.value.send(JSON.stringify({ type: 'input', content: value }))
+    // 关闭终端
+    const closeModal = (scriptId) => {
+      const terminal = activeTerminals.value.get(scriptId)
+      if (terminal) {
+        if (terminal.ws) {
+          terminal.ws.close()
+        }
+        activeTerminals.value.delete(scriptId)
+      }
+      terminalRefs.value.delete(scriptId)
     }
 
-    // 执行脚本（开始执行，不自动打开终端）
+    // 发送输入
+    const onSendInput = (scriptId, value) => {
+      const terminal = activeTerminals.value.get(scriptId)
+      if (!terminal?.ws || terminal.ws.readyState !== 1) return
+      terminal.ws.send(JSON.stringify({ type: 'input', content: value }))
+    }
+
+    // 执行脚本
     window.executeScript = async (scriptId) => {
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
       if (!block) {
@@ -251,39 +263,36 @@ export default {
       const title = titleEl ? titleEl.textContent : scriptId
       const code = codeEl ? codeEl.textContent : ''
 
-      // 清理旧缓冲区，避免重复累积
+      // 清理旧缓冲区
       scriptOutputBuffers.value[scriptId] = []
 
-      // 更新状态为执行中
+      // 更新状态
       updateScriptState(scriptId, 'running')
 
-      // 设置弹窗状态（不自动打开）
-      modalTitle.value = title
-      modalScriptId.value = scriptId
-      modalCode.value = code
+      // 打开终端
+      openTerminal(scriptId, title, code)
 
       // 建立 WebSocket
       const wsUrl = `ws://${window.location.host}/api/scripts/${scriptId}/execute`
       console.log('连接 WebSocket:', wsUrl)
 
       const ws = new WebSocket(wsUrl)
-      modalWs.value = ws
-      window.appConnections = window.appConnections || new Map()
-      window.appConnections.set(scriptId, ws)
+
+      // 更新终端的 WebSocket 引用
+      const terminal = activeTerminals.value.get(scriptId)
+      if (terminal) {
+        terminal.ws = ws
+      }
 
       ws.onopen = () => {
         console.log('WebSocket 已打开:', scriptId)
-        // 自动打开终端弹窗
-        modalVisible.value = true
+
         // 等待弹窗渲染后初始化终端
         nextTick(() => {
           setTimeout(() => {
-            const modal = terminalModalRef.value
+            const modal = getTerminalRef(scriptId)
             if (modal) {
               modal.writeToTerminal(`=== 开始执行: ${scriptId} ===\r\n`, 'stdout')
-              // 保存 modal 引用，用于后续消息处理
-              window.currentModal = modal
-              // 发送代码（确保终端已准备好）
               ws.send(JSON.stringify({ code }))
               console.log('代码已发送')
             }
@@ -291,7 +300,6 @@ export default {
         })
       }
 
-      // 使用 addEventListener 添加消息处理器
       ws.addEventListener('message', (event) => {
         const data = JSON.parse(event.data)
         const { type, content } = data
@@ -302,8 +310,8 @@ export default {
         }
         scriptOutputBuffers.value[scriptId].push({ content, type })
 
-        // 如果终端已打开，实时写入
-        const modal = window.currentModal
+        // 写入终端
+        const modal = getTerminalRef(scriptId)
         if (modal) {
           modal.writeToTerminal(content, type)
         }
@@ -326,7 +334,7 @@ export default {
       }
     }
 
-    // 显示终端弹窗（点击按钮时获取状态并显示）
+    // 显示终端
     window.showTerminal = async (scriptId) => {
       const block = document.querySelector(`[data-script-id="${scriptId}"]`)
       if (!block) {
@@ -339,81 +347,51 @@ export default {
       const title = titleEl ? titleEl.textContent : scriptId
       const code = codeEl ? codeEl.textContent : ''
 
-      // 设置弹窗状态
-      modalTitle.value = title
-      modalScriptId.value = scriptId
-      modalCode.value = code
-      modalVisible.value = true
+      // 打开终端
+      openTerminal(scriptId, title, code)
 
-      // 等待弹窗渲染后初始化终端
       await nextTick()
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      // 获取 TerminalModal 组件实例
-      const modal = terminalModalRef.value
+      const modal = getTerminalRef(scriptId)
       if (!modal) {
         console.error('找不到 TerminalModal 组件')
         return
       }
 
-      // 优先使用本地缓存的输出，避免重复
+      // 优先使用本地缓存
       const localBuffer = scriptOutputBuffers.value[scriptId]
       if (localBuffer && localBuffer.length > 0) {
-        // 使用本地缓存
-        modal.replayOutput(localBuffer)
-        // 同时更新状态（如果已有状态则不覆盖）
-        const currentState = scriptStates.value[scriptId]
-        if (currentState) {
-          // 已有状态，使用现有状态
-        } else {
-          // 从后端获取状态
-          try {
-            const statusResponse = await fetch(`/api/scripts/${scriptId}/status`)
-            if (statusResponse.ok) {
-              const statusData = await statusResponse.json()
-              updateScriptState(scriptId, statusData.status, statusData.exit_code)
-            }
-          } catch (err) {
-            console.error('获取脚本状态失败:', err)
-          }
-        }
+        await modal.replayOutput(localBuffer)
       } else {
-        // 没有本地缓存，从后端获取
+        // 从后端获取
         try {
           const statusResponse = await fetch(`/api/scripts/${scriptId}/status`)
-          if (!statusResponse.ok) {
-            throw new Error('获取状态失败')
-          }
+          if (!statusResponse.ok) throw new Error('获取状态失败')
 
           const statusData = await statusResponse.json()
           const { status, exit_code, cached_output } = statusData
 
-          // 更新状态
           updateScriptState(scriptId, status, exit_code)
 
-          // 保存输出缓存
           if (cached_output && cached_output.length > 0) {
             scriptOutputBuffers.value[scriptId] = cached_output
-            // 回放输出
-            modal.replayOutput(cached_output)
+            await modal.replayOutput(cached_output)
           } else {
-            modal.replayOutput([])
+            await modal.replayOutput([])
           }
         } catch (err) {
           console.error('获取脚本状态失败:', err)
-          modal.replayOutput([])
+          await modal.replayOutput([])
         }
       }
 
-      // 如果已有 WebSocket 连接，订阅新消息
-      const existingWs = window.appConnections?.get(scriptId)
-      if (existingWs) {
-        modalWs.value = existingWs
-        existingWs.onmessage = (event) => {
+      // 订阅现有 WebSocket 消息
+      const terminal = activeTerminals.value.get(scriptId)
+      if (terminal?.ws) {
+        terminal.ws.onmessage = (event) => {
           const data = JSON.parse(event.data)
-          const { type, content } = data
-          // 只写入终端，不添加到缓冲区
-          modal.writeToTerminal(content, type)
+          modal.writeToTerminal(data.content, data.type)
         }
       }
     }
@@ -422,69 +400,68 @@ export default {
     window.stopScript = (scriptId) => {
       console.log('停止脚本:', scriptId)
 
-      if (window.appConnections && window.appConnections.has(scriptId)) {
-        const ws = window.appConnections.get(scriptId)
-        ws.close()
-        window.appConnections.delete(scriptId)
+      const terminal = activeTerminals.value.get(scriptId)
+      if (terminal?.ws) {
+        terminal.ws.close()
       }
 
-      // 更新状态为失败
       updateScriptState(scriptId, 'failed')
-
-      closeModal()
+      closeModal(scriptId)
     }
 
     // 恢复正在运行的脚本
     const restoreRunningScripts = async () => {
       try {
-        // 从后端获取所有脚本
         const response = await fetch('/api/scripts')
         if (!response.ok) return
 
         const allScripts = await response.json()
-
-        if (!allScripts || allScripts.length === 0) {
-          return
-        }
+        if (!allScripts || allScripts.length === 0) return
 
         console.log('恢复脚本状态:', allScripts)
 
-        // 处理所有脚本（运行中、已完成、失败）
         for (const script of allScripts) {
           const { script_id, status } = script
 
           try {
-            // 获取脚本状态和缓存的输出
             const statusResponse = await fetch(`/api/scripts/${script_id}/status`)
             if (!statusResponse.ok) continue
 
             const statusData = await statusResponse.json()
             const { status: actualStatus, cached_output } = statusData
 
-            // 恢复脚本状态
             updateScriptState(script_id, actualStatus, statusData.exit_code)
 
-            // 恢复输出缓存
             if (cached_output && cached_output.length > 0) {
               scriptOutputBuffers.value[script_id] = cached_output
             }
 
-            // 如果脚本正在运行，重新建立 WebSocket 连接
+            // 如果正在运行，重新建立 WebSocket
             if (actualStatus === 'running') {
-              // 获取脚本代码
               const block = document.querySelector(`[data-script-id="${script_id}"]`)
               if (!block) continue
 
               const codeEl = block.querySelector('.script-code')
               const code = codeEl ? codeEl.textContent : ''
 
-              // 建立 WebSocket 连接
               const wsUrl = `ws://${window.location.host}/api/scripts/${script_id}/execute`
               const ws = new WebSocket(wsUrl)
 
+              // 获取脚本标题
+              const titleEl = block.querySelector('.script-title')
+              const title = titleEl ? titleEl.textContent : script_id
+
+              // 打开终端
+              openTerminal(script_id, title, code)
+
+              // 设置 WebSocket
+              const terminal = activeTerminals.value.get(script_id)
+              if (terminal) {
+                terminal.ws = ws
+              }
+
               ws.onopen = () => {
                 console.log('重新连接到正在运行的脚本:', script_id)
-                // 发送代码以连接到正在运行的脚本
                 ws.send(JSON.stringify({ code }))
               }
 
@@ -492,19 +469,16 @@ export default {
                 const data = JSON.parse(event.data)
                 const { type, content } = data
 
-                // 缓存输出
                 if (!scriptOutputBuffers.value[script_id]) {
                   scriptOutputBuffers.value[script_id] = []
                 }
                 scriptOutputBuffers.value[script_id].push({ content, type })
 
-                // 如果终端已打开，实时写入
-                const modal = window.currentModal
-                if (modal && modalScriptId.value === script_id) {
+                const modal = getTerminalRef(script_id)
+                if (modal) {
                   modal.writeToTerminal(content, type)
                 }
 
-                // 脚本结束
                 if (type === 'exit') {
                   updateScriptState(script_id, 'completed', data.exitCode || 0)
                 } else if (type === 'error') {
@@ -520,10 +494,6 @@ export default {
               ws.onclose = () => {
                 console.log('WebSocket 已关闭:', script_id)
               }
-
-              // 保存 WebSocket 连接
-              window.appConnections = window.appConnections || new Map()
-              window.appConnections.set(script_id, ws)
             }
           } catch (err) {
             console.error(`恢复脚本 ${script_id} 失败:`, err)
@@ -538,11 +508,9 @@ export default {
       await loadFileList()
       await loadPluginList()
 
-      // 恢复主题
       const savedTheme = localStorage.getItem('scriptbook_theme') || 'theme-github'
       switchTheme(savedTheme)
 
-      // 恢复或选择文件
       const savedFile = localStorage.getItem('scriptbook_currentFile')
       if (savedFile && fileList.value.some(f => f.name === savedFile)) {
         await selectFile(savedFile)
@@ -550,9 +518,14 @@ export default {
         await selectFile(fileList.value[0].name)
       }
 
-      // 恢复正在运行的脚本
       await restoreRunningScripts()
     })
+
+    // 暴露方法到 window
+    window.selectFile = selectFile
+    window.switchTheme = switchTheme
+    window.pluginList = pluginList.value
+    window.activeTerminals = activeTerminals
 
     return {
       fileList,
@@ -565,11 +538,8 @@ export default {
       loading,
       error,
       contentRef,
-      terminalModalRef,
-      modalVisible,
-      modalTitle,
-      modalScriptId,
-      modalCode,
+      activeTerminals,
+      setTerminalRef,
       selectFile,
       switchTheme,
       closeModal,

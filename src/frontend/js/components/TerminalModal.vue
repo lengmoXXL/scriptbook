@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="visible" class="terminal-modal-overlay" @click.self="close">
-        <div class="terminal-modal">
+        <div class="terminal-modal" ref="modalRef">
           <div class="terminal-modal-header">
             <span class="terminal-title">{{ title }}</span>
             <div class="terminal-actions">
@@ -60,7 +60,9 @@ export default {
   emits: ['close', 'send-input'],
   setup(props, { emit }) {
     const terminalContainer = ref(null)
+    const modalRef = ref(null)  // 弹窗元素的 ref
     const term = ref(null)
+    const terminalReady = ref(false)  // 终端是否已准备好
     const pendingReplay = ref(null)  // 待回放的输出数据
     let resizeObserver = null
 
@@ -76,20 +78,20 @@ export default {
       }
     }
 
-    // 应用主题颜色到弹窗 - 通过查询 DOM 获取弹窗元素
+    // 应用主题颜色到弹窗
     const applyThemeColors = () => {
-      // 使用 querySelector 获取弹窗元素（因为 Teleport 到 body，ref 可能不工作）
-      const modal = document.querySelector('.terminal-modal')
-      if (!modal) return
+      // 使用 ref 获取弹窗元素
+      const modalEl = modalRef.value
+      if (!modalEl) return
 
       const colors = getThemeColors()
-      modal.style.setProperty('--modal-bg', colors.bg)
-      modal.style.setProperty('--modal-header-bg', colors.headerBg)
-      modal.style.setProperty('--modal-border', colors.border)
-      modal.style.setProperty('--modal-text', colors.text)
-      modal.style.setProperty('--modal-text-secondary', colors.textSecondary)
-      modal.style.backgroundColor = colors.bg
-      modal.style.borderColor = colors.border
+      modalEl.style.setProperty('--modal-bg', colors.bg)
+      modalEl.style.setProperty('--modal-header-bg', colors.headerBg)
+      modalEl.style.setProperty('--modal-border', colors.border)
+      modalEl.style.setProperty('--modal-text', colors.text)
+      modalEl.style.setProperty('--modal-text-secondary', colors.textSecondary)
+      modalEl.style.backgroundColor = colors.bg
+      modalEl.style.borderColor = colors.border
     }
 
     // 初始化终端
@@ -121,10 +123,9 @@ export default {
       container.style.height = `${terminalHeight}px`
 
       // 设置弹窗大小
-      const modal = document.querySelector('.terminal-modal')
-      if (modal) {
-        modal.style.width = `${terminalWidth + 32}px`
-        modal.style.height = 'auto'
+      if (modalRef.value) {
+        modalRef.value.style.width = `${terminalWidth + 32}px`
+        modalRef.value.style.height = 'auto'
       }
 
       // 创建终端
@@ -158,6 +159,9 @@ export default {
       container.setAttribute('data-terminal-id', testId)
       term.value.write('\x1b[2m终端已准备...\x1b[0m\r\n')
       console.log('[initTerminal] 初始化完成')
+
+      // 标记终端已准备好
+      terminalReady.value = true
 
       // 应用当前主题颜色到弹窗
       applyThemeColors()
@@ -203,8 +207,17 @@ export default {
     }
 
     // 回放缓存的输出
-    const replayOutput = (outputBuffer) => {
+    const replayOutput = async (outputBuffer) => {
       if (!term.value || !Array.isArray(outputBuffer)) return
+
+      // 等待终端准备好
+      let retries = 0
+      while (!terminalReady.value && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+        retries++
+      }
+
+      if (!term.value) return
 
       // 应用当前主题颜色到弹窗
       applyThemeColors()
@@ -225,8 +238,8 @@ export default {
       term.value.reset()
 
       // 写入所有缓存的输出
-      for (const { content, type } of outputBuffer) {
-        writeToTerminal(content, type)
+      for (const item of outputBuffer) {
+        writeToTerminal(item.content, item.type)
       }
     }
 
@@ -268,18 +281,33 @@ export default {
       }
     }
 
-    watch(() => props.visible, (visible) => {
+    watch(() => props.visible, async (visible) => {
       if (visible) {
-        nextTick(() => initTerminal())
+        // 等待 Vue 完成 DOM 更新
+        await nextTick()
+
+        // 如果容器还没准备好，等待一下
+        let attempts = 0
+        while (!terminalContainer.value && attempts < 20) {
+          await new Promise(r => setTimeout(r, 5))
+          attempts++
+        }
+
+        // 只在终端未初始化时初始化
+        if (!term.value && terminalContainer.value) {
+          initTerminal()
+        }
       }
-      // 注意：不自动销毁终端，保持输出历史
     })
 
     // 监听弹窗打开事件，确保主题颜色正确应用
     watch(() => props.visible, (visible) => {
       if (visible) {
         nextTick(() => {
-          applyThemeColors()
+          // 确保 modalRef 已设置
+          if (modalRef.value) {
+            applyThemeColors()
+          }
         })
       }
     })
@@ -297,6 +325,11 @@ export default {
         const bg = props.terminalTheme.background || '#1e1e1e'
         terminalContainer.value.style.setProperty('--terminal-bg', bg)
       }
+
+      // 如果弹窗已经打开（在挂载前就打开了），立即初始化终端
+      if (props.visible && terminalContainer.value && !term.value) {
+        initTerminal()
+      }
     })
 
     onUnmounted(() => {
@@ -305,6 +338,7 @@ export default {
 
     return {
       terminalContainer,
+      modalRef,
       writeToTerminal,
       replayOutput,
       close,
