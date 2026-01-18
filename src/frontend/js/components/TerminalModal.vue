@@ -434,8 +434,8 @@ export default {
 
 .terminal-container {
   flex: 1;
-  min-height: 300px;
-  min-width: 600px;
+  height: 420px;  /* 35 行 * 15px 行高 + padding */
+  width: 960px;   /* 120 列 * 8px 字符宽 */
   overflow: hidden;
 }
 
