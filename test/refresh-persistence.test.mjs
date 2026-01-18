@@ -62,11 +62,23 @@ async function testRefreshPersistence() {
     const scriptId = await firstBlock.getAttribute('data-script-id')
     console.log(`  脚本 ID: ${scriptId}`)
 
-    // 获取终端内容（刷新前的输出）
+    // 使用 xterm.js API 获取终端内容（刷新前的输出）
     const terminalContentBeforeRefresh = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return ''
-      return xtermEl.textContent || ''
+      const container = document.querySelector('.terminal-modal .terminal-container')
+      if (!container) return ''
+
+      const terminalId = container.getAttribute('data-terminal-id')
+      if (!terminalId) return ''
+
+      const term = window[terminalId]
+      if (!term || !term.buffer || !term.buffer.active) return ''
+
+      const buffer = term.buffer.active
+      let text = ''
+      for (let i = 0; i < buffer.length; i++) {
+        text += buffer.getLine(i)?.translateToString(true) || ''
+      }
+      return text
     })
     console.log(`  刷新前终端内容长度: ${terminalContentBeforeRefresh.length} 字符`)
     console.log(`  刷新前终端内容: ${terminalContentBeforeRefresh.substring(0, 100)}...`)
@@ -137,11 +149,23 @@ async function testRefreshPersistence() {
     // 等待终端内容加载
     await page.waitForTimeout(1000)
 
-    // 获取刷新后的终端内容
+    // 使用 xterm.js API 获取刷新后的终端内容
     const terminalContentAfterRefresh = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return ''
-      return xtermEl.textContent || ''
+      const container = document.querySelector('.terminal-modal .terminal-container')
+      if (!container) return ''
+
+      const terminalId = container.getAttribute('data-terminal-id')
+      if (!terminalId) return ''
+
+      const term = window[terminalId]
+      if (!term || !term.buffer || !term.buffer.active) return ''
+
+      const buffer = term.buffer.active
+      let text = ''
+      for (let i = 0; i < buffer.length; i++) {
+        text += buffer.getLine(i)?.translateToString(true) || ''
+      }
+      return text
     })
     console.log(`  刷新后终端内容长度: ${terminalContentAfterRefresh.length} 字符`)
     console.log(`  刷新后终端内容: ${terminalContentAfterRefresh.substring(0, 100)}...`)
@@ -164,9 +188,21 @@ async function testRefreshPersistence() {
     // 等待一段时间，检查是否有新的输出（说明 WebSocket 连接已恢复）
     const terminalContentAfterWait = await page.evaluate(async () => {
       await new Promise(resolve => setTimeout(resolve, 3000))
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return ''
-      return xtermEl.textContent || ''
+      const container = document.querySelector('.terminal-modal .terminal-container')
+      if (!container) return ''
+
+      const terminalId = container.getAttribute('data-terminal-id')
+      if (!terminalId) return ''
+
+      const term = window[terminalId]
+      if (!term || !term.buffer || !term.buffer.active) return ''
+
+      const buffer = term.buffer.active
+      let text = ''
+      for (let i = 0; i < buffer.length; i++) {
+        text += buffer.getLine(i)?.translateToString(true) || ''
+      }
+      return text
     })
 
     // 如果脚本仍在运行，应该有新的输出

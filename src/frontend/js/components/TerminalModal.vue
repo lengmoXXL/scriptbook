@@ -28,6 +28,7 @@
 <script>
 import { ref, watch, nextTick, onUnmounted, onMounted } from 'vue'
 import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
 
 export default {
   name: 'TerminalModal',
@@ -64,6 +65,7 @@ export default {
     const term = ref(null)
     const terminalReady = ref(false)  // 终端是否已准备好
     const pendingReplay = ref(null)  // 待回放的输出数据
+    const fitAddon = ref(null)  // FitAddon 实例
     let resizeObserver = null
 
     // 从插件配置获取弹窗颜色
@@ -107,28 +109,13 @@ export default {
         term.value = null
       }
 
-      // 固定的终端尺寸
-      const cols = 120  // 终端列数
-      const rows = 35
-      // xterm.js 默认字体大小13px时，实测行高约为15px
-      const charWidth = 9   // 字符宽度（像素）
-      const charHeight = 15 // 行高（像素），基于xterm.js实际渲染测量
+      // 创建 FitAddon 实例
+      const fitAddonInstance = new FitAddon()
+      fitAddon.value = fitAddonInstance
 
-      // 根据终端尺寸动态设置容器和弹窗大小
-      const terminalWidth = cols * charWidth
-      const terminalHeight = rows * charHeight
-
-      // 设置容器大小
-      container.style.width = `${terminalWidth}px`
-      container.style.height = `${terminalHeight}px`
-
-      // 设置弹窗大小
-      if (modalRef.value) {
-        modalRef.value.style.width = `${terminalWidth + 32}px`
-        modalRef.value.style.height = 'auto'
-      }
-
-      // 创建终端
+      // 创建终端（指定初始尺寸，fit() 会覆盖）
+      const cols = 80
+      const rows = 24
       term.value = new Terminal({
         cursorBlink: false,
         cursorStyle: 'block',
@@ -149,16 +136,24 @@ export default {
         wraparoundLinesEnabled: true
       })
 
-      console.log('[initTerminal] 终端实例创建完成, 调用 open()')
+      // 加载 FitAddon
+      term.value.loadAddon(fitAddonInstance)
+
+      // 打开终端
       term.value.open(container)
-      console.log('[initTerminal] open() 完成')
+
+      // 使用 FitAddon 自动调整大小到容器
+      try {
+        fitAddonInstance.fit()
+      } catch (e) {
+        console.warn('[initTerminal] fit 失败，使用初始尺寸', e)
+      }
 
       // 暴露 terminal 实例到 window 以便测试 (使用唯一ID)
       const testId = `terminal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       window[testId] = term.value
       container.setAttribute('data-terminal-id', testId)
       term.value.write('\x1b[2m终端已准备...\x1b[0m\r\n')
-      console.log('[initTerminal] 初始化完成')
 
       // 标记终端已准备好
       terminalReady.value = true
@@ -186,9 +181,15 @@ export default {
         emit('send-input', data)
       })
 
-      // 设置 ResizeObserver（保持固定尺寸，不调整）
+      // 设置 ResizeObserver（容器大小变化时自动调整终端）
       resizeObserver = new ResizeObserver(() => {
-        // 终端尺寸固定，不根据容器大小调整
+        if (fitAddon.value) {
+          try {
+            fitAddon.value.fit()
+          } catch (e) {
+            // 忽略调整大小错误
+          }
+        }
       })
       resizeObserver.observe(container)
     }
@@ -366,10 +367,7 @@ export default {
   transform: translate(-50%, -50%);
   border-radius: 8px;
   width: auto;
-  min-width: 600px;
-  max-width: 1400px;
   height: auto;
-  max-height: none;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -437,7 +435,7 @@ export default {
 .terminal-container {
   flex: 1;
   min-height: 300px;
-  max-height: none;
+  min-width: 600px;
   overflow: hidden;
 }
 

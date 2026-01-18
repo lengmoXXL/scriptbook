@@ -85,22 +85,33 @@ async function testRunButtonTerminalContent() {
 
     // 等待终端有内容
     await page.waitForFunction(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (!xtermEl) return false
-      const text = xtermEl.textContent || ''
-      return text.length > 10
+      const container = document.querySelector('.terminal-modal .terminal-container')
+      if (!container) return false
+      const terminalId = container.getAttribute('data-terminal-id')
+      const term = window[terminalId]
+      if (!term || !term.buffer || !term.buffer.active) return false
+      const buffer = term.buffer.active
+      return buffer.length > 0
     }, { timeout: 10000 })
     console.log('✓ 终端已显示内容')
 
-    // 获取终端内容（使用 DOM 获取，因为 xterm.js DOM 渲染模式不提供标准 buffer API）
+    // 使用 xterm.js API 获取终端内容
     const terminalContent = await page.evaluate(() => {
-      const xtermEl = document.querySelector('.terminal-modal .xterm')
-      if (xtermEl) {
-        // xterm.js DOM 渲染模式下，获取文本内容
-        // 注意：xterm.js 会将内容渲染为 DOM 元素，textContent 包含所有文本
-        return xtermEl.textContent || ''
+      const container = document.querySelector('.terminal-modal .terminal-container')
+      if (!container) return ''
+
+      const terminalId = container.getAttribute('data-terminal-id')
+      if (!terminalId) return ''
+
+      const term = window[terminalId]
+      if (!term || !term.buffer || !term.buffer.active) return ''
+
+      const buffer = term.buffer.active
+      let text = ''
+      for (let i = 0; i < buffer.length; i++) {
+        text += buffer.getLine(i)?.translateToString(true) || ''
       }
-      return ''
+      return text
     })
 
     console.log('\n--- 终端内容 ---')
