@@ -1,0 +1,9 @@
+# nodejs
+dist
+node_modules
+test-results
+
+# python
+.venv
+__pycache__
+*.pyc

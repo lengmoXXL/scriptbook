@@ -4,38 +4,35 @@
 import re
 from pathlib import Path
 
-def extract_toc(filepath):
-    """从文件提取标题生成 TOC"""
-    toc_lines = []
+TITLE_RE = re.compile(r'^(#{2,4})\s+(.+)$', re.MULTILINE)
+TOC_START_RE = re.compile(r'^-\s+\[')
+H2_RE = re.compile(r'\n##\s+\S')
 
+def process_file(filepath):
+    """处理单个文件"""
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # 查找所有标题 (## 开头)
-    for line in content.split('\n'):
-        match = re.match(r'^(#{2,4})\s+(.+)$', line)
-        if match:
-            level = len(match.group(1))
-            title = match.group(2).strip()
-            anchor = title.lower().replace(' ', '-')
-            indent = '  ' * (level - 2)
-            toc_lines.append(f"{indent}- [{title}](#{anchor})")
+    # 提取所有标题
+    titles = []
+    for match in TITLE_RE.finditer(content):
+        level = len(match.group(1))
+        title = match.group(2).strip()
+        anchor = title.lower().replace(' ', '-')
+        indent = '  ' * (level - 2)
+        titles.append(f"{indent}- [{title}](#{anchor})")
 
-    return '\n'.join(toc_lines)
+    if not titles:
+        return
 
-def add_toc_to_file(filepath):
-    """为文件添加 TOC"""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
+    toc = '\n'.join(titles)
 
-    toc = extract_toc(filepath)
-
-    # 删除已有的 TOC（从开头的列表到第一个标题）
+    # 删除已有 TOC
     lines = content.split('\n')
     new_lines = []
     in_toc = False
     for line in lines:
-        if line.startswith('- ['):
+        if TOC_START_RE.match(line):
             in_toc = True
             continue
         if in_toc and line.startswith('- '):
@@ -47,19 +44,22 @@ def add_toc_to_file(filepath):
 
     new_content = '\n'.join(new_lines)
 
-    # 在第一个 H2 标题前插入 TOC
-    new_content = re.sub(r'(\n##\s+\S)', f'\n{toc}\n\\1', new_content, count=1)
+    # 插入新 TOC
+    match = H2_RE.search(new_content)
+    if match:
+        pos = match.start()
+        new_content = new_content[:pos] + f'\n{toc}\n' + new_content[pos:]
 
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(new_content)
     print(f"更新: {filepath}")
 
 def main():
-    md_files = Path('.').rglob('*.md')
-    for md in md_files:
-        if '.git' in str(md):
+    for md in Path('.').rglob('*.md'):
+        path = str(md)
+        if '.git' in path or 'node_modules' in path:
             continue
-        add_toc_to_file(md)
+        process_file(md)
 
 if __name__ == '__main__':
     main()
