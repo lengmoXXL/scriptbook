@@ -4,10 +4,9 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 
-// WebSocket URL
+// Backend WebSocket endpoint for terminal connections
 const WS_URL = 'ws://localhost:8080/ws/tty'
 
-// Refs
 const terminalContainer = ref(null)
 const term = ref(null)
 const fitAddon = ref(null)
@@ -17,7 +16,6 @@ const isConnected = ref(false)
 const reconnectAttempts = ref(0)
 const MAX_RECONNECT_ATTEMPTS = 5
 
-// Initialize terminal
 function initTerminal() {
   term.value = new Terminal({
     cursorBlink: true,
@@ -33,45 +31,45 @@ function initTerminal() {
   fitAddon.value = new FitAddon()
   term.value.loadAddon(fitAddon.value)
 
-  // Attach terminal to container
-  if (terminalContainer.value) {
-    term.value.open(terminalContainer.value)
-    fitAddon.value.fit()
-    // Expose terminal instance for testing
-    window.terminalInstance = term.value
-
-    // Focus terminal when container is clicked
-    terminalContainer.value.addEventListener('click', () => {
-      if (term.value) {
-        term.value.focus()
-      }
-    })
-
-    // Handle terminal input
-    term.value.onData((data) => {
-      if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-        // Send as TermSocket format: ['stdin', data]
-        socket.value.send(JSON.stringify(['stdin', data]))
-      }
-    })
-
-    // Handle terminal resize
-    term.value.onResize((size) => {
-      if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-        // Send as TermSocket format: ['set_size', rows, cols]
-        socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
-      }
-    })
+  // Critical dependency check: terminal requires a DOM container to render
+  if (!terminalContainer.value) {
+    console.error('Terminal container not found, component may not be mounted correctly')
+    throw new Error('Terminal container missing: terminalContainer ref is null')
   }
+
+  term.value.open(terminalContainer.value)
+  fitAddon.value.fit()
+  // Allow Playwright tests to access terminal instance for assertions
+  window.terminalInstance = term.value
+
+  // User experience: clicking anywhere in terminal area should focus the cursor
+  terminalContainer.value.addEventListener('click', () => {
+    if (term.value) {
+      term.value.focus()
+    }
+  })
+
+  // TermSocket protocol requires ['stdin', data] format for server-side input processing
+  term.value.onData((data) => {
+    if (socket.value && socket.value.readyState === WebSocket.OPEN) {
+      socket.value.send(JSON.stringify(['stdin', data]))
+    }
+  })
+
+  // Server needs terminal dimensions for proper PTY allocation and line wrapping
+  term.value.onResize((size) => {
+    if (socket.value && socket.value.readyState === WebSocket.OPEN) {
+      socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
+    }
+  })
 }
 
-// Connect to WebSocket
 function connectWebSocket() {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
     return
   }
 
-  // Build WebSocket URL with term_name in path if available
+  // Include session ID in URL for terminal persistence across page reloads
   let url = WS_URL
   if (sessionId.value) {
     url += `/${sessionId.value}`
@@ -84,7 +82,7 @@ function connectWebSocket() {
     isConnected.value = true
     reconnectAttempts.value = 0
 
-    // Send initial resize with current terminal dimensions
+    // Initialize server-side PTY with current terminal dimensions for proper display
     if (term.value) {
       const dimensions = term.value.dimensions
       if (dimensions) {
@@ -98,22 +96,22 @@ function connectWebSocket() {
       const data = JSON.parse(event.data)
 
       if (data.type === 'output' && term.value) {
-        // Write output to terminal
+        // Server sends formatted output objects for structured data
         term.value.write(data.data)
       } else if (Array.isArray(data) && data[0] === 'setup') {
-        // Setup message received, terminal ready
+        // Server confirms terminal is ready for input after PTY initialization
         console.log('Terminal ready')
       } else if (Array.isArray(data) && (data[0] === 'stdout' || data[0] === 'stderr') && term.value) {
-        // TermSocket format: ['stdout', data] or ['stderr', data]
+        // TermSocket protocol uses ['stdout', data] or ['stderr', data] for stream separation
         term.value.write(data[1])
       } else {
-        // Assume raw terminal output
+        // Fallback for raw terminal output from legacy or simplified servers
         if (term.value) {
           term.value.write(event.data)
         }
       }
     } catch (error) {
-      // Not JSON, treat as raw terminal output
+      // Handle non-JSON responses (e.g., raw terminal data from simple servers)
       if (term.value) {
         term.value.write(event.data)
       }
@@ -129,7 +127,7 @@ function connectWebSocket() {
     console.log('WebSocket closed:', event.code, event.reason)
     isConnected.value = false
 
-    // Attempt reconnection if not closed normally
+    // Maintain user experience by automatically recovering from transient network failures
     if (event.code !== 1000 && reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
       reconnectAttempts.value++
       console.log(`Reconnecting... attempt ${reconnectAttempts.value}`)
@@ -138,10 +136,10 @@ function connectWebSocket() {
   }
 }
 
-// Send command to execute a script
+// Utility function for programmatic command execution (unused in current implementation)
 function sendScript(script) {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-    // Add newline to execute the command
+    // Commands require newline to be executed in Unix-like terminals
     const command = script.endsWith('\n') ? script : script + '\n'
     socket.value.send(JSON.stringify({
       type: 'input',
@@ -150,12 +148,11 @@ function sendScript(script) {
   }
 }
 
-// Handle window resize
 function handleResize() {
   if (fitAddon.value) {
     fitAddon.value.fit()
 
-    // Send resize to server
+    // Keep server-side PTY dimensions synchronized with visual terminal size
     if (socket.value && socket.value.readyState === WebSocket.OPEN && term.value) {
       const dimensions = term.value.dimensions
       if (dimensions) {
@@ -165,15 +162,14 @@ function handleResize() {
   }
 }
 
-// Lifecycle hooks
 onMounted(() => {
   initTerminal()
   connectWebSocket()
 
-  // Add resize listener
+  // Ensure terminal adapts to browser window size changes
   window.addEventListener('resize', handleResize)
 
-  // Fit terminal after a short delay
+  // Wait for DOM layout to stabilize before fitting terminal to container
   nextTick(() => {
     if (fitAddon.value) {
       fitAddon.value.fit()
@@ -182,7 +178,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // Clean up
+  // Prevent memory leaks by closing connections and disposing resources
   if (socket.value) {
     socket.value.close(1000, 'Component unmounted')
   }
