@@ -44,30 +44,25 @@ function initTerminal() {
 
   // User experience: clicking anywhere in terminal area should focus the cursor
   terminalContainer.value.addEventListener('click', () => {
-    if (term.value) {
-      term.value.focus()
-    }
+    if (!term.value) return
+    term.value.focus()
   })
 
   // TermSocket protocol requires ['stdin', data] format for server-side input processing
   term.value.onData((data) => {
-    if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-      socket.value.send(JSON.stringify(['stdin', data]))
-    }
+    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return
+    socket.value.send(JSON.stringify(['stdin', data]))
   })
 
   // Server needs terminal dimensions for proper PTY allocation and line wrapping
   term.value.onResize((size) => {
-    if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-      socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
-    }
+    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return
+    socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
   })
 }
 
 function connectWebSocket() {
-  if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-    return
-  }
+  if (socket.value && socket.value.readyState === WebSocket.OPEN) return
 
   // Include session ID in URL for terminal persistence across page reloads
   let url = WS_URL
@@ -83,38 +78,42 @@ function connectWebSocket() {
     reconnectAttempts.value = 0
 
     // Initialize server-side PTY with current terminal dimensions for proper display
-    if (term.value) {
-      const dimensions = term.value.dimensions
-      if (dimensions) {
-        socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
-      }
-    }
+    if (!term.value) return
+    const dimensions = term.value.dimensions
+    if (!dimensions) return
+    socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
   }
 
   socket.value.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
 
-      if (data.type === 'output' && term.value) {
-        // Server sends formatted output objects for structured data
-        term.value.write(data.data)
-      } else if (Array.isArray(data) && data[0] === 'setup') {
+      // TermSocket protocol expects JSON arrays with at least one element
+      if (!Array.isArray(data) || data.length === 0) {
+        console.error('Unexpected message format, expected non-empty array:', data)
+        return
+      }
+
+      const messageType = data[0]
+
+      if (messageType === 'setup') {
         // Server confirms terminal is ready for input after PTY initialization
         console.log('Terminal ready')
-      } else if (Array.isArray(data) && (data[0] === 'stdout' || data[0] === 'stderr') && term.value) {
-        // TermSocket protocol uses ['stdout', data] or ['stderr', data] for stream separation
+        return
+      }
+
+      if (!term.value) {
+        console.warn('Terminal not ready, dropping message:', data)
+        return
+      }
+
+      if (messageType === 'stdout' || messageType === 'stderr') {
         term.value.write(data[1])
       } else {
-        // Fallback for raw terminal output from legacy or simplified servers
-        if (term.value) {
-          term.value.write(event.data)
-        }
+        console.warn('Unknown message type:', messageType, data)
       }
     } catch (error) {
-      // Handle non-JSON responses (e.g., raw terminal data from simple servers)
-      if (term.value) {
-        term.value.write(event.data)
-      }
+      console.warn('Invalid raw data:', event.data.slice(0, 100))
     }
   }
 
@@ -136,30 +135,16 @@ function connectWebSocket() {
   }
 }
 
-// Utility function for programmatic command execution (unused in current implementation)
-function sendScript(script) {
-  if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-    // Commands require newline to be executed in Unix-like terminals
-    const command = script.endsWith('\n') ? script : script + '\n'
-    socket.value.send(JSON.stringify({
-      type: 'input',
-      data: command
-    }))
-  }
-}
-
 function handleResize() {
-  if (fitAddon.value) {
-    fitAddon.value.fit()
+  if (!fitAddon.value) return
+  fitAddon.value.fit()
 
-    // Keep server-side PTY dimensions synchronized with visual terminal size
-    if (socket.value && socket.value.readyState === WebSocket.OPEN && term.value) {
-      const dimensions = term.value.dimensions
-      if (dimensions) {
-        socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
-      }
-    }
-  }
+  // Keep server-side PTY dimensions synchronized with visual terminal size
+  if (!term.value || !socket.value || socket.value.readyState !== WebSocket.OPEN) return
+
+  const dimensions = term.value.dimensions
+  if (!dimensions) return
+  socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
 }
 
 onMounted(() => {
@@ -171,9 +156,8 @@ onMounted(() => {
 
   // Wait for DOM layout to stabilize before fitting terminal to container
   nextTick(() => {
-    if (fitAddon.value) {
-      fitAddon.value.fit()
-    }
+    if (!fitAddon.value) return
+    fitAddon.value.fit()
   })
 })
 
