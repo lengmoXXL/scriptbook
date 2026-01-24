@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
+import 'xterm/css/xterm.css'
 
 // WebSocket URL
 const WS_URL = 'ws://localhost:8080/ws/tty'
@@ -36,6 +37,15 @@ function initTerminal() {
   if (terminalContainer.value) {
     term.value.open(terminalContainer.value)
     fitAddon.value.fit()
+    // Expose terminal instance for testing
+    window.terminalInstance = term.value
+
+    // Focus terminal when container is clicked
+    terminalContainer.value.addEventListener('click', () => {
+      if (term.value) {
+        term.value.focus()
+      }
+    })
 
     // Handle terminal input
     term.value.onData((data) => {
@@ -93,6 +103,9 @@ function connectWebSocket() {
       } else if (Array.isArray(data) && data[0] === 'setup') {
         // Setup message received, terminal ready
         console.log('Terminal ready')
+      } else if (Array.isArray(data) && (data[0] === 'stdout' || data[0] === 'stderr') && term.value) {
+        // TermSocket format: ['stdout', data] or ['stderr', data]
+        term.value.write(data[1])
       } else {
         // Assume raw terminal output
         if (term.value) {
@@ -210,82 +223,18 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #1e1e1e;
-  border-radius: 4px;
-  overflow: hidden;
 }
 
 .terminal-header {
-  background-color: #252525;
-  color: #f0f0f0;
   padding: 8px 16px;
-  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #333;
-}
-
-.status {
-  font-weight: bold;
-}
-
-.status.connected {
-  color: #4caf50;
-}
-
-.status.disconnected {
-  color: #f44336;
-}
-
-.session-id {
-  font-family: monospace;
-  color: #888;
-  margin-left: 16px;
-}
-
-.reconnect-info {
-  color: #ff9800;
-  margin-left: 16px;
-}
-
-.reconnect-btn {
-  background-color: #333;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 3px;
-  padding: 4px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.reconnect-btn:hover:not(:disabled) {
-  background-color: #444;
-}
-
-.reconnect-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .terminal-container {
   flex: 1;
-  padding: 8px;
-  overflow: hidden;
-}
-
-/* xterm.js overrides */
-:deep(.xterm) {
-  height: 100%;
-  width: 100%;
-}
-
-:deep(.xterm-viewport) {
-  overflow-y: auto;
-}
-
-:deep(.xterm-screen) {
-  width: 100% !important;
+  text-align: left;
 }
 </style>
+
