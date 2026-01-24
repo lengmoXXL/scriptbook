@@ -7,12 +7,20 @@ export default defineConfig({
     headless: true,
     baseUrl: 'http://localhost:5173',
   },
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  webServer: [
+    {
+      command: '.venv/bin/python src/backend/main.py',
+      url: 'http://localhost:8080/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+    {
+      command: 'npm run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120000,
+    },
+  ],
   projects: [
     {
       name: 'chromium',
