@@ -1,10 +1,12 @@
 # nodejs
-dist
+static
 node_modules
 test-results
 
 # python
+dist
 .venv
 __pycache__
 .pytest_cache
 *.pyc
+*.egg-info/

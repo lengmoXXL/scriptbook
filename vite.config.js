@@ -5,4 +5,8 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   root: 'src/frontend',
   plugins: [vue()],
+  build: {
+    outDir: '../backend/static',
+    emptyOutDir: true,
+  },
 })

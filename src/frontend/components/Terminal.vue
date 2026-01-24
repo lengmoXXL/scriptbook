@@ -149,6 +149,31 @@ function handleResize() {
   socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
 }
 
+function sendCommand(command) {
+  // Send command to terminal via WebSocket
+  if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
+    console.warn('Cannot send command: WebSocket not connected')
+    return false
+  }
+
+  // Send each line separately with a small delay to simulate typing
+  const lines = command.split('\n')
+  lines.forEach((line, index) => {
+    if (line.trim()) {
+      // Add newline except for the last line if it's empty
+      const data = index < lines.length - 1 || command.endsWith('\n') ? line + '\n' : line
+      socket.value.send(JSON.stringify(['stdin', data]))
+    }
+  })
+
+  return true
+}
+
+// Expose sendCommand method to parent components
+defineExpose({
+  sendCommand
+})
+
 onMounted(() => {
   initTerminal()
   connectWebSocket()

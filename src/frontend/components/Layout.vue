@@ -11,6 +11,9 @@ const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
 
+// Refs
+const terminalRef = ref(null)
+
 // When file is selected from FileList
 async function onFileSelect(filename) {
     if (currentFile.value === filename) {
@@ -29,6 +32,14 @@ async function onFileSelect(filename) {
         console.error('Error loading file:', err)
     } finally {
         loading.value = false
+    }
+}
+
+function handleExecuteCommand(command) {
+    if (terminalRef.value && terminalRef.value.sendCommand) {
+        terminalRef.value.sendCommand(command)
+    } else {
+        console.warn('Terminal ref not available or sendCommand method not found')
     }
 }
 
@@ -53,10 +64,11 @@ async function onFileSelect(filename) {
                             :content="currentContent"
                             :loading="loading"
                             :error="error"
+                            @executeCommand="handleExecuteCommand"
                         />
                     </div>
                     <div class="terminal-section">
-                        <Terminal />
+                        <Terminal ref="terminalRef" />
                     </div>
                 </div>
             </div>

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scriptbook"
+version = "2.0.0"
+description = "ScriptBook - Interactive terminal and document browser with web interface"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "tornado>=6.4",
+    "terminado>=0.18",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+scriptbook = "backend.main:main"
+
+[tool.setuptools]
+# Find Python packages
+packages.find = { where = ["src"], include = ["backend*"] }
+
+# Include non-package files (root level documents, configs, etc.)
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.txt", "*.json", "*.js", "*.css", "*.html"]
+"src.backend" = ["*.py", "*.pyi"]
+"backend" = ["static/*", "static/**/*"]
+
+# Exclude test files from package data
+# exclude-package-data = { "*" = ["test/*", "test/**/*"] }
+
+

@@ -9,7 +9,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: '.venv/bin/python src/backend/main.py',
+      command: '.venv/bin/python src/backend/main.py ./examples',
       url: 'http://localhost:8080/health',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
