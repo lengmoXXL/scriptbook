@@ -127,6 +127,7 @@ function connectWebSocket() {
     isConnected.value = false
 
     // Maintain user experience by automatically recovering from transient network failures
+    // 1000 = Normal Closure (正常关闭), 非正常关闭才需要重连
     if (event.code !== 1000 && reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
       reconnectAttempts.value++
       console.log(`Reconnecting... attempt ${reconnectAttempts.value}`)
