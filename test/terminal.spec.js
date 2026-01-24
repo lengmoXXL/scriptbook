@@ -4,13 +4,14 @@ test('终端页面加载', async ({ page }) => {
   await page.goto('http://localhost:5173');
   // 等待Vue应用加载
   await page.waitForTimeout(2000);
-  // 检查.terminal元素是否存在
+  // 检查.terminal元素是否存在（现在终端是布局的一部分，无需切换）
   await expect(page.locator('.terminal').first()).toBeVisible({ timeout: 10000 });
 });
 
 test('应该正确执行 echo 命令并验证输出', async ({ page }) => {
   await page.goto('http://localhost:5173');
   await page.waitForTimeout(2000);
+  // 检查.terminal元素是否存在（现在终端是布局的一部分，无需切换）
   await expect(page.locator('.terminal').first()).toBeVisible({ timeout: 10000 });
 
   // 等待终端连接成功

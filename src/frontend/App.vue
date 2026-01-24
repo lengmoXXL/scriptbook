@@ -1,10 +1,10 @@
 <script setup>
-import Terminal from './components/Terminal.vue'
+import Layout from './components/Layout.vue'
 </script>
 
 <template>
   <div class="app">
-    <Terminal />
+    <Layout />
   </div>
 </template>
 

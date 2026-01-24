@@ -15,6 +15,7 @@ const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
 const isConnected = ref(false)
 const reconnectAttempts = ref(0)
 const MAX_RECONNECT_ATTEMPTS = 5
+const resizeObserver = ref(null)
 
 function initTerminal() {
   term.value = new Terminal({
@@ -155,6 +156,14 @@ onMounted(() => {
   // Ensure terminal adapts to browser window size changes
   window.addEventListener('resize', handleResize)
 
+  // Monitor container size changes for split layout resizing
+  resizeObserver.value = new ResizeObserver(() => {
+    if (fitAddon.value) {
+      fitAddon.value.fit()
+    }
+  })
+  resizeObserver.value.observe(terminalContainer.value)
+
   // Wait for DOM layout to stabilize before fitting terminal to container
   nextTick(() => {
     if (!fitAddon.value) return
@@ -170,6 +179,11 @@ onUnmounted(() => {
 
   if (term.value) {
     term.value.dispose()
+  }
+
+  // Clean up ResizeObserver
+  if (resizeObserver.value && terminalContainer.value) {
+    resizeObserver.value.unobserve(terminalContainer.value)
   }
 
   window.removeEventListener('resize', handleResize)
@@ -215,6 +229,7 @@ onUnmounted(() => {
 
 .terminal-container {
   flex: 1;
+  min-height: 0;
   text-align: left;
 }
 </style>

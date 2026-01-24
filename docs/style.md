@@ -3,7 +3,7 @@
 - [文档里减少标题的使用](#文档里减少标题的使用)
 - [文档尽可能简洁](#文档尽可能简洁)
 - [代码应 fail fast](#代码应-fail-fast)
-- [注释应描述为什么而不是做什么](#注释应描述为什么而不是做什么)
+- [注释规范](#注释规范)
 
 ## 文档里减少标题的使用
 
@@ -31,57 +31,26 @@ term.value.open(terminalContainer.value)
 // ... 其他初始化代码
 ```
 
-## 注释应描述为什么而不是做什么
+## 注释规范
 
-**错误示例** (描述做什么)
+注释不要描述做什么，如果代码足够自解释，需要把多余的注释删除，否则可以描述为什么这么做
+
 ```javascript
-// Handle terminal input
-term.value.onData((data) => {
-  // Send as TermSocket format: ['stdin', data]
-  socket.value.send(JSON.stringify(['stdin', data]))
-})
-
+// bad
 // Handle terminal resize
 term.value.onResize((size) => {
   // Send as TermSocket format: ['set_size', rows, cols]
   socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
 })
-```
 
-**正确示例** (描述为什么)
-```javascript
-// TermSocket requires data to be formatted as ['stdin', data] for server processing
-term.value.onData((data) => {
-  socket.value.send(JSON.stringify(['stdin', data]))
-})
-
+// good
 // Server needs to know terminal dimensions for proper PTY allocation
 term.value.onResize((size) => {
   socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
 })
-```
 
-**冗余注释示例** (描述做什么)
-```javascript
-// Initialize counter variable
-let count = 0
-
-// Function to increment counter
-function increment() {
-  count += 1
-}
-
-// Call increment function
-increment()
-```
-
-**精简后示例** (代码自解释)
-```javascript
-let count = 0
-
-function increment() {
-  count += 1
-}
-
-increment()
+// good
+term.value.onResize((size) => {
+  socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
+})
 ```

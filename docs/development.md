@@ -15,7 +15,7 @@ source .venv/bin/activate  # Linux/Mac
 
 2. 安装后端依赖
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-test.txt
 ```
 
 3. 安装前端依赖
@@ -33,7 +33,7 @@ npx playwright install
 启动后端：
 ```bash
 cd src/backend
-python main.py
+python main.py --docs-dir /path/to/markdown
 ```
 
 启动前端：
@@ -49,6 +49,7 @@ npm run dev
 
 运行所有测试：
 ```bash
+pytest ./test/python
 npm test
 ```
 

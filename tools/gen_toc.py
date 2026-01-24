@@ -57,7 +57,7 @@ def process_file(filepath):
 def main():
     for md in Path('.').rglob('*.md'):
         path = str(md)
-        if '.git' in path or 'node_modules' in path:
+        if '.git' in path or 'node_modules' in path or 'examples' in path:
             continue
         process_file(md)
 
