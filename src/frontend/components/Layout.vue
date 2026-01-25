@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
@@ -10,6 +10,10 @@ const currentFile = ref(null)
 const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
+
+// Resize state
+const terminalHeight = ref(40) // percentage
+const sidebarWidth = ref(250) // pixel
 
 // Refs
 const terminalRef = ref(null)
@@ -43,13 +47,65 @@ function handleExecuteCommand(command) {
     }
 }
 
+// Terminal height resize
+function startTerminalResize(event) {
+    const startY = event.clientY
+    const startHeight = (terminalHeight.value / 100) * document.querySelector('.content').clientHeight
+
+    function onMouseMove(e) {
+        const contentHeight = document.querySelector('.content').clientHeight
+        const deltaY = startY - e.clientY
+        let newTerminalHeight = ((startHeight + deltaY) / contentHeight) * 100
+        newTerminalHeight = Math.max(10, Math.min(80, newTerminalHeight))
+        terminalHeight.value = newTerminalHeight
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+}
+
+// Sidebar width resize
+function startSidebarResize(event) {
+    const startX = event.clientX
+    const startWidth = sidebarWidth.value
+
+    function onMouseMove(e) {
+        const deltaX = e.clientX - startX
+        let newWidth = startWidth + deltaX
+        newWidth = Math.max(150, Math.min(500, newWidth))
+        sidebarWidth.value = newWidth
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+}
+
 </script>
 
 <template>
     <div class="layout">
-        <div class="sidebar">
+        <div class="sidebar" :style="{ width: sidebarWidth + 'px' }">
             <FileList @select="onFileSelect" />
         </div>
+        <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
             <div class="header">
                 <div class="file-info" v-if="currentFile">
@@ -59,7 +115,7 @@ function handleExecuteCommand(command) {
             </div>
             <div class="content">
                 <div class="split-layout">
-                    <div class="markdown-section">
+                    <div class="markdown-section" :style="{ flex: `1 - ${terminalHeight / 100}` }">
                         <MarkdownViewer
                             :content="currentContent"
                             :loading="loading"
@@ -67,7 +123,8 @@ function handleExecuteCommand(command) {
                             @executeCommand="handleExecuteCommand"
                         />
                     </div>
-                    <div class="terminal-section">
+                    <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
+                    <div class="terminal-section" :style="{ flex: `0 0 ${terminalHeight}%` }">
                         <Terminal ref="terminalRef" />
                     </div>
                 </div>
@@ -89,12 +146,22 @@ function handleExecuteCommand(command) {
 }
 
 .sidebar {
-    width: 300px;
-    min-width: 250px;
-    max-width: 400px;
+    width: 250px;
     height: 100%;
-    border-right: 1px solid #444;
     background-color: #1e1e1e;
+}
+
+.sidebar-resizer {
+    width: 4px;
+    height: 100%;
+    background-color: #2a2a2a;
+    border-left: 1px solid #444;
+    cursor: col-resize;
+    transition: background-color 0.2s;
+}
+
+.sidebar-resizer:hover {
+    background-color: #555;
 }
 
 .main {
@@ -147,16 +214,24 @@ function handleExecuteCommand(command) {
 }
 
 .markdown-section {
-    flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
+.terminal-resizer {
+    height: 8px;
+    background-color: #333;
+    cursor: row-resize;
+    transition: background-color 0.2s;
+}
+
+.terminal-resizer:hover {
+    background-color: #666;
+}
+
 .terminal-section {
-    flex: 0 0 40%;
     overflow: hidden;
     position: relative;
-    border-top: 1px solid #444;
 }
 </style>
