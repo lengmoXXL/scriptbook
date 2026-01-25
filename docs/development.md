@@ -32,8 +32,7 @@ npx playwright install
 
 启动后端：
 ```bash
-cd src/backend
-python main.py --docs-dir /path/to/markdown
+python src/backend/main.py ./examples
 ```
 
 启动前端：
