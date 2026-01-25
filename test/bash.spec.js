@@ -58,8 +58,8 @@ test.describe('Bash代码块执行测试', () => {
     // 等待文件加载
     await page.waitForTimeout(2000);
 
-    // 等待终端连接
-    await expect(page.locator('.status.connected')).toBeVisible({ timeout: 10000 });
+    // 等待终端连接成功 (reconnect-overlay 消失表示已连接)
+    await expect(page.locator('.reconnect-overlay')).not.toBeVisible({ timeout: 10000 });
 
     // 等待执行按钮出现
     const executeButtons = page.locator('.execute-bash-btn');

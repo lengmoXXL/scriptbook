@@ -12,10 +12,10 @@ const term = ref(null)
 const fitAddon = ref(null)
 const socket = ref(null)
 const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
-const isConnected = ref(false)
 const reconnectAttempts = ref(0)
-const MAX_RECONNECT_ATTEMPTS = 5
 const resizeObserver = ref(null)
+
+const isConnected = ref(false)
 
 function initTerminal() {
   term.value = new Terminal({
@@ -32,7 +32,6 @@ function initTerminal() {
   fitAddon.value = new FitAddon()
   term.value.loadAddon(fitAddon.value)
 
-  // Critical dependency check: terminal requires a DOM container to render
   if (!terminalContainer.value) {
     console.error('Terminal container not found, component may not be mounted correctly')
     throw new Error('Terminal container missing: terminalContainer ref is null')
@@ -40,10 +39,8 @@ function initTerminal() {
 
   term.value.open(terminalContainer.value)
   fitAddon.value.fit()
-  // Allow Playwright tests to access terminal instance for assertions
   window.terminalInstance = term.value
 
-  // User experience: clicking anywhere in terminal area should focus the cursor
   terminalContainer.value.addEventListener('click', () => {
     if (!term.value) return
     term.value.focus()
@@ -63,17 +60,15 @@ function initTerminal() {
 }
 
 function connectWebSocket() {
-  if (socket.value && socket.value.readyState === WebSocket.OPEN) return
-
   // Include session ID in URL for terminal persistence across page reloads
   let url = WS_URL
   if (sessionId.value) {
     url += `/${sessionId.value}`
   }
 
-  socket.value = new WebSocket(url)
+  const newSocket = new WebSocket(url)
 
-  socket.value.onopen = () => {
+  newSocket.onopen = () => {
     console.log('WebSocket connected')
     isConnected.value = true
     reconnectAttempts.value = 0
@@ -82,10 +77,10 @@ function connectWebSocket() {
     if (!term.value) return
     const dimensions = term.value.dimensions
     if (!dimensions) return
-    socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
+    newSocket.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
   }
 
-  socket.value.onmessage = (event) => {
+  newSocket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
 
@@ -118,23 +113,16 @@ function connectWebSocket() {
     }
   }
 
-  socket.value.onerror = (error) => {
+  newSocket.onerror = (error) => {
     console.error('WebSocket error:', error)
-    isConnected.value = false
   }
 
-  socket.value.onclose = (event) => {
+  newSocket.onclose = (event) => {
     console.log('WebSocket closed:', event.code, event.reason)
     isConnected.value = false
-
-    // Maintain user experience by automatically recovering from transient network failures
-    // 1000 = Normal Closure (正常关闭), 非正常关闭才需要重连
-    if (event.code !== 1000 && reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
-      reconnectAttempts.value++
-      console.log(`Reconnecting... attempt ${reconnectAttempts.value}`)
-      setTimeout(connectWebSocket, 2000 * reconnectAttempts.value)
-    }
   }
+
+  socket.value = newSocket
 }
 
 function handleResize() {
@@ -217,21 +205,11 @@ onUnmounted(() => {
 
 <template>
   <div class="terminal">
-    <div class="terminal-header" v-if="isConnected">
-      <span class="status connected">● Connected</span>
-      <span class="session-id" v-if="sessionId">Session: {{ sessionId.slice(0, 8) }}...</span>
-      <button class="reconnect-btn" @click="connectWebSocket" :disabled="isConnected">
-        {{ isConnected ? 'Connected' : 'Reconnect' }}
-      </button>
-    </div>
-    <div class="terminal-header" v-else>
-      <span class="status disconnected">● Disconnected</span>
-      <span class="reconnect-info" v-if="reconnectAttempts > 0">
-        Reconnecting... ({{ reconnectAttempts }}/{{ MAX_RECONNECT_ATTEMPTS }})
-      </span>
-      <button class="reconnect-btn" @click="connectWebSocket">
-        Reconnect
-      </button>
+    <div v-if="!isConnected" class="reconnect-overlay" @click="connectWebSocket">
+      <div class="reconnect-content">
+        <span class="reconnect-icon">↻</span>
+        <span class="reconnect-text">Reconnect</span>
+      </div>
     </div>
     <div ref="terminalContainer" class="terminal-container"></div>
   </div>
@@ -241,21 +219,44 @@ onUnmounted(() => {
 .terminal {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.terminal-header {
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  position: relative;
 }
 
 .terminal-container {
-  flex: 1;
-  min-height: 0;
+  width: 100%;
+  height: 100%;
   text-align: left;
+}
+
+.reconnect-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 30, 30, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.reconnect-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #f0f0f0;
+}
+
+.reconnect-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.reconnect-text {
+  font-size: 16px;
 }
 </style>
 

@@ -14,8 +14,8 @@ test('应该正确执行 echo 命令并验证输出', async ({ page }) => {
   // 检查.terminal元素是否存在（现在终端是布局的一部分，无需切换）
   await expect(page.locator('.terminal').first()).toBeVisible({ timeout: 10000 });
 
-  // 等待终端连接成功
-  await expect(page.locator('.status.connected')).toBeVisible({ timeout: 10000 });
+  // 等待终端连接成功 (reconnect-overlay 消失表示已连接)
+  await expect(page.locator('.reconnect-overlay')).not.toBeVisible({ timeout: 10000 });
 
   // 等待终端完全初始化
   await page.waitForTimeout(500);
