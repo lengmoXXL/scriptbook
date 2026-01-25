@@ -115,7 +115,7 @@ function startSidebarResize(event) {
             </div>
             <div class="content">
                 <div class="split-layout">
-                    <div class="markdown-section" :style="{ flex: `1 - ${terminalHeight / 100}` }">
+                    <div class="markdown-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
                         <MarkdownViewer
                             :content="currentContent"
                             :loading="loading"
@@ -220,7 +220,7 @@ function startSidebarResize(event) {
 }
 
 .terminal-resizer {
-    height: 8px;
+    height: 4px;
     background-color: #333;
     cursor: row-resize;
     transition: background-color 0.2s;
