@@ -2,7 +2,10 @@
  * File API client for interacting with backend file service.
  */
 
-const API_BASE = 'http://localhost:8080/api'
+// Use localhost:8080 in dev mode, or current host in production
+const API_BASE = import.meta.env.DEV
+  ? 'http://localhost:8080/api'
+  : `http://${window.location.host}/api`
 
 /**
  * Fetch list of markdown files in the docs directory.

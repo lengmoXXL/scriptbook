@@ -5,7 +5,9 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 
 // Backend WebSocket endpoint for terminal connections
-const WS_URL = 'ws://localhost:8080/ws/tty'
+const WS_URL = import.meta.env.DEV
+  ? 'ws://localhost:8080/ws/tty'
+  : `ws://${window.location.host}/ws/tty`
 
 const terminalContainer = ref(null)
 const term = ref(null)
