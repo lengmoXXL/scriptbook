@@ -315,9 +315,11 @@ echo "输出完成"
 `read`命令等待用户输入：
 
 ```bash
+bash -c '
 echo "请输入你的名字："
 read name
 echo "你好, $name!"
+'
 ```
 
 ## 2. 交互式程序测试
@@ -325,8 +327,10 @@ echo "你好, $name!"
 使用`cat`等待输入（Ctrl+D结束）：
 
 ```bash
+bash -c '
 echo "输入一些文本，按Ctrl+D结束："
 cat
+'
 ```
 
 ## 3. 多行输入测试
@@ -334,6 +338,7 @@ cat
 使用`while read`循环：
 
 ```bash
+bash -c '
 echo "输入多行文本，输入'end'结束："
 while read line; do
     if [ "$line" = "end" ]; then
@@ -341,6 +346,7 @@ while read line; do
     fi
     echo "你输入了: $line"
 done
+'
 ```
 
 ## 4. 密码输入测试
@@ -348,9 +354,11 @@ done
 使用`-s`选项隐藏输入：
 
 ```bash
+bash -c '
 echo "请输入密码："
 read -s password
 echo "密码已接收（不显示）"
+'
 ```
 
 ---
