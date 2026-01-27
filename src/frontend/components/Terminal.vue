@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { Terminal } from 'xterm'
-import { FitAddon } from 'xterm-addon-fit'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import 'xterm/css/xterm.css'
 
 // Backend WebSocket endpoint for terminal connections
@@ -12,6 +13,7 @@ const WS_URL = import.meta.env.DEV
 const terminalContainer = ref(null)
 const term = ref(null)
 const fitAddon = ref(null)
+const webLinksAddon = ref(null)
 const socket = ref(null)
 const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
 const reconnectAttempts = ref(0)
@@ -33,6 +35,9 @@ function initTerminal() {
 
   fitAddon.value = new FitAddon()
   term.value.loadAddon(fitAddon.value)
+
+  webLinksAddon.value = new WebLinksAddon()
+  term.value.loadAddon(webLinksAddon.value)
 
   if (!terminalContainer.value) {
     console.error('Terminal container not found, component may not be mounted correctly')
