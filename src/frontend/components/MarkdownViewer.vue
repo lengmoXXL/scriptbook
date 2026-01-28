@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onUpdated, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { renderMarkdown } from '../utils/markdown.js'
 
 const props = defineProps({
@@ -31,60 +31,30 @@ const renderedHtml = computed(() => {
     return renderMarkdown(props.content)
 })
 
-function addExecuteButtons() {
-    if (!markdownContentRef.value) return
-
-    // Find all shell-related code blocks (marked adds language classes via highlight.js)
-    const codeBlocks = markdownContentRef.value.querySelectorAll('pre code.language-bash, pre code.language-sh, pre code.language-shell, pre code.language-zsh')
-
-    codeBlocks.forEach((codeBlock, index) => {
-        const preElement = codeBlock.closest('pre')
-
-        // Check if button already added
-        if (preElement.querySelector('.execute-bash-btn')) {
-            return
+function handleExecuteButtonClick(e) {
+    if (e.target.classList.contains('execute-bash-btn')) {
+        e.preventDefault()
+        const command = e.target.dataset.command
+        if (command) {
+            emit('executeCommand', command)
         }
-
-        // Skip empty or whitespace-only code blocks
-        const commandText = codeBlock.textContent
-        if (!commandText || !commandText.trim()) {
-            return
-        }
-
-        // Create execute button
-        const button = document.createElement('button')
-        button.className = 'execute-bash-btn'
-        button.textContent = '▶ Execute'
-        button.dataset.command = commandText
-        button.dataset.index = index
-
-        button.addEventListener('click', (e) => {
-            e.preventDefault()
-            const buttonElement = e.currentTarget
-            const command = buttonElement.dataset.command
-            if (command) {
-                emit('executeCommand', command)
-            }
-        })
-
-        // Add button before the pre element
-        const container = document.createElement('div')
-        container.className = 'bash-code-container'
-        container.appendChild(button)
-
-        // Wrap the pre element or insert button before it
-        preElement.parentNode.insertBefore(container, preElement)
-        container.appendChild(preElement)
-    })
+    }
 }
 
-onUpdated(() => {
+// Set up event delegation for execute buttons
+onMounted(() => {
+    // Wait for initial render to attach event listener
     nextTick(() => {
-        // 使用 requestAnimationFrame 优化 DOM 操作
-        requestAnimationFrame(() => {
-            addExecuteButtons()
-        })
+        if (markdownContentRef.value) {
+            markdownContentRef.value.addEventListener('click', handleExecuteButtonClick)
+        }
     })
+})
+
+onUnmounted(() => {
+    if (markdownContentRef.value) {
+        markdownContentRef.value.removeEventListener('click', handleExecuteButtonClick)
+    }
 })
 </script>
 
