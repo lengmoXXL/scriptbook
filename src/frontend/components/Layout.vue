@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
+import SandboxChat from './SandboxChat.vue'
 import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
 
@@ -10,9 +11,10 @@ const currentFile = ref(null)
 const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
+const currentView = ref('sandbox') // 'markdown' or 'sandbox'
 
 // Resize state
-const terminalHeight = ref(40) // percentage
+const terminalHeight = ref(15) // percentage
 const sidebarWidth = ref(250) // pixel
 
 // Refs
@@ -56,7 +58,7 @@ function startTerminalResize(event) {
         const contentHeight = document.querySelector('.content').clientHeight
         const deltaY = startY - e.clientY
         let newTerminalHeight = ((startHeight + deltaY) / contentHeight) * 100
-        newTerminalHeight = Math.max(10, Math.min(80, newTerminalHeight))
+        newTerminalHeight = Math.max(5, Math.min(80, newTerminalHeight))
         terminalHeight.value = newTerminalHeight
     }
 
@@ -108,19 +110,43 @@ function startSidebarResize(event) {
         <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
             <div class="header">
-                <div class="file-info" v-if="currentFile">
-                    <span class="filename">{{ currentFile }}</span>
-                    <span v-if="loading" class="loading-indicator">Loading...</span>
+                <div class="header-left">
+                    <div class="view-toggle">
+                        <button
+                            @click="currentView = 'markdown'"
+                            :class="{ active: currentView === 'markdown' }"
+                            class="toggle-button"
+                        >
+                            Markdown
+                        </button>
+                        <button
+                            @click="currentView = 'sandbox'"
+                            :class="{ active: currentView === 'sandbox' }"
+                            class="toggle-button"
+                        >
+                            Sandbox Chat
+                        </button>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="file-info" v-if="currentFile && currentView === 'markdown'">
+                        <span class="filename">{{ currentFile }}</span>
+                        <span v-if="loading" class="loading-indicator">Loading...</span>
+                    </div>
                 </div>
             </div>
             <div class="content">
                 <div class="split-layout">
                     <div class="markdown-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
                         <MarkdownViewer
+                            v-if="currentView === 'markdown'"
                             :content="currentContent"
                             :loading="loading"
                             :error="error"
                             @executeCommand="handleExecuteCommand"
+                        />
+                        <SandboxChat
+                            v-else-if="currentView === 'sandbox'"
                         />
                     </div>
                     <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
@@ -233,5 +259,49 @@ function startSidebarResize(event) {
 .terminal-section {
     overflow: hidden;
     position: relative;
+}
+
+/* Header layout */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left,
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 8px;
+}
+
+.toggle-button {
+    background-color: #333;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toggle-button:hover {
+    background-color: #3a3a3a;
+    color: #fff;
+}
+
+.toggle-button.active {
+    background-color: #00a67d;
+    color: white;
+    border-color: #00a67d;
+}
+
+.toggle-button.active:hover {
+    background-color: #008f6b;
 }
 </style>

@@ -13,6 +13,7 @@ import tornado.web
 from terminado.management import NamedTermManager
 from terminado.websocket import TermSocket
 from backend.handlers.file_handler import FileHandler
+from backend.handlers.sandbox_handler import SandboxHandler
 
 
 # Configure logging
@@ -75,6 +76,9 @@ def make_app(docs_dir, static_dir):
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
+        (r'/api/sandbox', SandboxHandler, {'action': 'create'}),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler, {'action': 'command'}),
     ]
 
     handlers.append((r'/(.*)', SPAStaticFileHandler, {
@@ -105,6 +109,12 @@ def parse_args():
 def main():
     """Start the server."""
     args = parse_args()
+
+    # Enable autoreload in development mode
+    if os.environ.get('DEV_MODE', 'false').lower() == 'true':
+        import tornado.autoreload
+        tornado.autoreload.start()
+        logger.info("Autoreload enabled - server will restart when Python files change")
 
     # Convert to absolute path
     content = os.path.abspath(args.content)

@@ -11,6 +11,7 @@
 | release(2.0.1) | 前端 Terminal 组件，支持发送命令给后端执行，支持交互，页面刷新不影响脚本执行，支持现代化的终端体验 | 基于 xterm.js + tornado + terminado 实现 |
 | release(2.0.1) | 后端命令支持传一个目录参数，前端提供组件展示目录下 markdown 文件 |  |
 | release(2.0.1) | 前端特殊处理 markdown 文件里的 bash 代码块，渲染按钮点击可拷贝代码到终端执行 |  |
+| | 后端基于 opensandbox 新增 sandbox 管理 api，前端新增对话框执行 sandbox 命令 | |
 
 ## 快速开始
 

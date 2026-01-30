@@ -1,6 +1,8 @@
 # 开发文档
 
 - [开发环境准备](#开发环境准备)
+- [服务启动](#服务启动)
+- [测试运行](#测试运行)
 
 ## 开发环境准备
 
@@ -28,11 +30,16 @@ npm install
 npx playwright install
 ```
 
-**启动服务**
+## 服务启动
 
-启动后端：
+启动后端（普通模式）：
 ```bash
-python src/backend/main.py ./examples
+python src/backend/main.py ./docs
+```
+
+启动后端（开发热重载模式）：
+```bash
+DEV_MODE=true python src/backend/main.py ./docs
 ```
 
 启动前端：
@@ -44,11 +51,16 @@ npm run dev
 - 前端：http://localhost:5173
 - 后端健康检查：http://localhost:8080/health
 
-**测试运行**
+## 测试运行
 
-运行所有测试：
+运行单元测试：
 ```bash
 pytest ./test/python
+```
+
+运行集成测试：
+
+```bash
 npm test
 ```
 
@@ -56,9 +68,4 @@ npm test
 ```bash
 npx playwright test test/terminal.spec.js
 npx playwright test test/api.spec.js
-```
-
-查看测试报告：
-```bash
-npx playwright show-report
 ```
