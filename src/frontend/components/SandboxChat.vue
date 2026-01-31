@@ -70,9 +70,9 @@ async function refreshSandbox() {
 }
 
 // Send command to sandbox
-async function sendCommand(command = null) {
-    const cmd = command || inputCommand.value.trim()
-    if (!cmd || loading.value) return
+async function sendCommand() {
+    const cmd = inputCommand.value.trim()
+    if (!cmd || loading.value || !sandboxId.value) return
 
     // Add user message
     addMessage('user', cmd)
@@ -102,6 +102,15 @@ async function sendCommand(command = null) {
             }
         })
     }
+}
+
+// Handle send button click event
+function onSendClick(event) {
+    // Prevent event from being passed as command parameter
+    if (event && event.preventDefault) {
+        event.preventDefault()
+    }
+    sendCommand()
 }
 
 // Add message to chat
@@ -139,7 +148,7 @@ onMounted(() => {
             <div v-if="loading" class="loading-indicator">Processing...</div>
             <div v-if="error" class="error-message">
             {{ error }}
-            <button @click="initSandbox" class="retry-button">Retry</button>
+            <button @click="refreshSandbox" class="retry-button">Retry</button>
         </div>
         </div>
 
@@ -166,7 +175,7 @@ onMounted(() => {
                 rows="3"
             ></textarea>
             <button
-                @click="sendCommand"
+                @click="onSendClick"
                 :disabled="!inputCommand.trim() || loading || !sandboxId"
                 class="send-button"
             >

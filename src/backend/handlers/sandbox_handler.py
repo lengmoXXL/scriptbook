@@ -168,7 +168,7 @@ class SandboxHandler(tornado.web.RequestHandler):
         self.set_header("Access-Control-Allow-Headers", "x-requested-with, content-type")
         self.set_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
 
-    def options(self, *args):
+    def options(self, sandbox_id: Optional[str] = None):
         """Handle OPTIONS request for CORS preflight."""
         self.set_status(204)
         self.finish()
