@@ -76,7 +76,7 @@ def make_app(docs_dir, static_dir):
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
-        (r'/api/sandbox', SandboxHandler, {'action': 'create'}),
+        (r'/api/sandbox', SandboxHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler, {'action': 'command'}),
     ]

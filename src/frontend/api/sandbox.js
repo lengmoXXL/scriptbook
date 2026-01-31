@@ -23,14 +23,19 @@ export async function listSandboxes() {
 
 /**
  * Create a new sandbox.
+ * @param {Object} [config] - Optional configuration
+ * @param {string} [config.image] - Docker image to use
+ * @param {string[]} [config.init_commands] - Initialization commands
+ * @param {Object} [config.env] - Environment variables
  * @returns {Promise<{id: string, status: string}>} Newly created sandbox information
  */
-export async function createSandbox() {
+export async function createSandbox(config = null) {
     const response = await fetch(`${API_BASE}/sandbox`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
+        body: config ? JSON.stringify(config) : undefined,
     })
 
     if (!response.ok) {

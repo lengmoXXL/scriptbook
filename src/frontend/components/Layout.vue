@@ -11,7 +11,7 @@ const currentFile = ref(null)
 const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
-const currentView = ref('sandbox') // 'markdown' or 'sandbox'
+const currentView = ref('markdown') // 'markdown' or 'sandbox'
 
 // Resize state
 const terminalHeight = ref(15) // percentage
@@ -29,6 +29,13 @@ async function onFileSelect(filename) {
     currentFile.value = filename
     loading.value = true
     error.value = ''
+
+    // Determine view type based on file extension
+    if (filename.toLowerCase().endsWith('.sandbox')) {
+        currentView.value = 'sandbox'
+    } else {
+        currentView.value = 'markdown'
+    }
 
     try {
         const content = await getFileContent(filename)
@@ -111,25 +118,7 @@ function startSidebarResize(event) {
         <div class="main">
             <div class="header">
                 <div class="header-left">
-                    <div class="view-toggle">
-                        <button
-                            @click="currentView = 'markdown'"
-                            :class="{ active: currentView === 'markdown' }"
-                            class="toggle-button"
-                        >
-                            Markdown
-                        </button>
-                        <button
-                            @click="currentView = 'sandbox'"
-                            :class="{ active: currentView === 'sandbox' }"
-                            class="toggle-button"
-                        >
-                            Sandbox Chat
-                        </button>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <div class="file-info" v-if="currentFile && currentView === 'markdown'">
+                    <div class="file-info" v-if="currentFile">
                         <span class="filename">{{ currentFile }}</span>
                         <span v-if="loading" class="loading-indicator">Loading...</span>
                     </div>
@@ -147,6 +136,7 @@ function startSidebarResize(event) {
                         />
                         <SandboxChat
                             v-else-if="currentView === 'sandbox'"
+                            :config="currentFile"
                         />
                     </div>
                     <div class="terminal-resizer" @mousedown="startTerminalResize"></div>

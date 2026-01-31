@@ -1,23 +1,48 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { createSandbox, executeCommand, getSandboxInfo } from '../api/sandbox.js'
+import { getFileContent } from '../api/files.js'
+import { parse } from 'smol-toml'
 
-const STORAGE_KEY = 'scriptbook-sandbox-id'
+const props = defineProps({
+    config: {
+        type: String,
+        required: true
+    }
+})
 
-// State
+const getStorageKey = (suffix) => {
+    return `scriptbook-sandbox-${props.config.replace(/[^\w]/g, '-')}-${suffix}`
+}
+
 const messages = ref([])
 const inputCommand = ref('')
 const loading = ref(false)
 const sandboxId = ref(null)
 const error = ref('')
+const configData = ref(null)
 
-// Refs
 const messagesContainerRef = ref(null)
 const inputRef = ref(null)
 
-// Try to connect to an existing sandbox
+async function loadConfig() {
+    if (!props.config) {
+        throw new Error('Config file path is required')
+    }
+
+    const content = await getFileContent(props.config)
+    const parsed = parse(content)
+    const sandboxConfig = parsed.sandbox || {}
+
+    configData.value = {
+        image: sandboxConfig.image,
+        init_commands: sandboxConfig.init_commands,
+        env: sandboxConfig.env || {}
+    }
+}
+
 async function tryConnectStoredSandbox() {
-    const storedId = localStorage.getItem(STORAGE_KEY)
+    const storedId = localStorage.getItem(getStorageKey('id'))
     if (!storedId) {
         return null
     }
@@ -30,24 +55,33 @@ async function tryConnectStoredSandbox() {
     }
 }
 
-// Refresh or initialize sandbox
+async function recreateSandbox() {
+    sandboxId.value = null
+    messages.value = []
+    localStorage.removeItem(getStorageKey('id'))
+    localStorage.removeItem(getStorageKey('messages'))
+    await refreshSandbox()
+}
+
 async function refreshSandbox() {
     loading.value = true
     error.value = ''
 
     try {
-        // Try to use stored ID first
         const storedId = await tryConnectStoredSandbox()
         if (storedId) {
             sandboxId.value = storedId
-            addMessage('system', `Reconnected to sandbox: ${storedId}`)
             return true
         }
 
-        // Create new sandbox if stored ID is invalid or doesn't exist
-        const response = await createSandbox()
+        if (!configData.value) {
+            throw new Error('Sandbox config not loaded')
+        }
+
+        const { image, init_commands, env } = configData.value
+        const response = await createSandbox({ image, init_commands, env })
         sandboxId.value = response.id
-        localStorage.setItem(STORAGE_KEY, response.id)
+        localStorage.setItem(getStorageKey('id'), response.id)
         addMessage('system', `Connected to sandbox: ${response.id}`)
         return true
     } catch (err) {
@@ -57,7 +91,6 @@ async function refreshSandbox() {
         return false
     } finally {
         loading.value = false
-        // Scroll to bottom and focus input after refresh
         nextTick(() => {
             if (messagesContainerRef.value) {
                 messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
@@ -69,30 +102,20 @@ async function refreshSandbox() {
     }
 }
 
-// Send command to sandbox
 async function sendCommand() {
     const cmd = inputCommand.value.trim()
     if (!cmd || loading.value || !sandboxId.value) return
 
-    // Add user message
     addMessage('user', cmd)
     inputCommand.value = ''
-
-    // Send to sandbox
     loading.value = true
     try {
         const result = await executeCommand(sandboxId.value, cmd)
         addMessage('sandbox', result.output || result.error || 'Command executed')
     } catch (err) {
-        // If command fails, refresh sandbox instead of retrying command
-        sandboxId.value = null
-        localStorage.removeItem(STORAGE_KEY)
-        addMessage('system', 'Sandbox expired, refreshing...')
-        await refreshSandbox()
-        return
+        addMessage('error', `Command failed: ${err.message}`)
     } finally {
         loading.value = false
-        // Scroll to bottom and focus input after command execution
         nextTick(() => {
             if (messagesContainerRef.value) {
                 messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
@@ -104,27 +127,25 @@ async function sendCommand() {
     }
 }
 
-// Handle send button click event
-function onSendClick(event) {
-    // Prevent event from being passed as command parameter
+function handleSendClick() {
     if (event && event.preventDefault) {
         event.preventDefault()
     }
     sendCommand()
 }
 
-// Add message to chat
 function addMessage(type, content) {
     const timestamp = new Date().toLocaleTimeString()
-    messages.value.push({
+    const message = {
         id: Date.now() + Math.random(),
         type,
         content,
         timestamp
-    })
+    }
+    messages.value.push(message)
+    localStorage.setItem(getStorageKey('messages'), JSON.stringify(messages.value))
 }
 
-// Handle Enter key
 function handleKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
@@ -132,9 +153,25 @@ function handleKeydown(e) {
     }
 }
 
-// Initialize on mount
-onMounted(() => {
+onMounted(async () => {
+    const savedMessages = localStorage.getItem(getStorageKey('messages'))
+    if (savedMessages) {
+        messages.value = JSON.parse(savedMessages)
+    }
+
+    try {
+        await loadConfig()
+    } catch (err) {
+        error.value = 'Failed to load config file'
+        addMessage('error', `Config error: ${err.message}`)
+        return
+    }
+
     refreshSandbox()
+})
+
+onUnmounted(() => {
+    messages.value = []
 })
 </script>
 
@@ -144,6 +181,7 @@ onMounted(() => {
             <h3>Sandbox Chat</h3>
             <div v-if="sandboxId" class="sandbox-info">
                 <span class="sandbox-id">ID: {{ sandboxId }}</span>
+                <button @click="recreateSandbox" class="recreate-button">Recreate</button>
             </div>
             <div v-if="loading" class="loading-indicator">Processing...</div>
             <div v-if="error" class="error-message">
@@ -175,7 +213,7 @@ onMounted(() => {
                 rows="3"
             ></textarea>
             <button
-                @click="onSendClick"
+                @click="handleSendClick"
                 :disabled="!inputCommand.trim() || loading || !sandboxId"
                 class="send-button"
             >
@@ -376,5 +414,20 @@ onMounted(() => {
 
 .retry-button:hover {
     background-color: #2a4365;
+}
+
+.recreate-button {
+    margin-left: 12px;
+    background-color: #5c3d00;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.recreate-button:hover {
+    background-color: #7a4f00;
 }
 </style>

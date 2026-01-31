@@ -67,17 +67,18 @@ class SandboxManager:
         """Get sandbox image specification."""
         return SandboxImageSpec(image="sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interpreter:v1.0.1")
 
-    async def create_sandbox(self) -> dict:
+    async def create_sandbox(self, image: Optional[str] = None, init_commands: Optional[list] = None, env: Optional[dict] = None) -> dict:
         """Create a new sandbox."""
-        logger.info("Creating new sandbox...")
-        image = self._get_image()
+        logger.info(f"create_sandbox: image={image}, init_commands={init_commands}, env={env}")
+        image_uri = image or "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interpreter:v1.0.1"
 
         sandbox = await Sandbox.create(
-            image=image,
+            image=SandboxImageSpec(image=image_uri),
             resource={"cpu": "1", "memory": "512Mi"},
             entrypoint=["tail", "-f", "/dev/null"],
             connection_config=self._connection_config,
-            skip_health_check=False
+            skip_health_check=False,
+            env=env
         )
 
         sandbox_id = sandbox.id
@@ -85,6 +86,15 @@ class SandboxManager:
 
         info = await sandbox.get_info()
         logger.info(f"Created sandbox: {sandbox_id}, status: {info.status.state}")
+
+        # Execute init commands if provided
+        if init_commands:
+            for cmd in init_commands:
+                logger.info(f"Executing init command in sandbox {sandbox_id}: {cmd}")
+                try:
+                    await sandbox.commands.run(cmd)
+                except Exception as e:
+                    logger.error(f"Error executing init command: {e}")
 
         return {
             'id': sandbox_id,
@@ -191,7 +201,19 @@ class SandboxHandler(tornado.web.RequestHandler):
         """Handle POST requests."""
         if sandbox_id is None:
             # Create new sandbox
-            result = await self.sandbox_manager.create_sandbox()
+            try:
+                body = json.loads(self.request.body)
+                image = body.get('image')
+                init_commands = body.get('init_commands')
+                env = body.get('env')
+            except json.JSONDecodeError as e:
+                raise tornado.web.HTTPError(400, f"Invalid JSON in request body: {e}")
+
+            result = await self.sandbox_manager.create_sandbox(
+                image=image,
+                init_commands=init_commands,
+                env=env
+            )
             self.write(json.dumps(result))
             self.set_header("Content-Type", "application/json")
         else:
