@@ -14,6 +14,7 @@ from terminado.management import NamedTermManager
 from terminado.websocket import TermSocket
 from backend.handlers.file_handler import FileHandler
 from backend.handlers.sandbox_handler import SandboxHandler
+from backend.handlers.sandbox_ws_handler import SandboxWebSocketHandler
 
 
 # Configure logging
@@ -72,6 +73,7 @@ def make_app(docs_dir, static_dir):
     term_manager = NamedTermManager(shell_command=['bash'])
 
     handlers = [
+        (r'/ws/sandbox/(?P<sandbox_id>[^/]+)', SandboxWebSocketHandler),
         (r'/ws/(.*)', TerminalWebSocketHandler, {'term_manager': term_manager}),
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),

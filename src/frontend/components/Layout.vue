@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import SandboxChat from './SandboxChat.vue'

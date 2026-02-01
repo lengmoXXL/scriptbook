@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted, nextTick, onUnmounted } from 'vue'
-import { createSandbox, executeCommand, getSandboxInfo } from '../api/sandbox.js'
+import { createSandbox, getSandboxInfo } from '../api/sandbox.js'
 import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
+
+const WS_BASE = import.meta.env.DEV
+  ? 'ws://localhost:8080/ws'
+  : `ws://${window.location.host}/ws`
 
 const props = defineProps({
     config: {
@@ -21,9 +25,11 @@ const loading = ref(false)
 const sandboxId = ref(null)
 const error = ref('')
 const configData = ref(null)
+const wsConnected = ref(false)
 
 const messagesContainerRef = ref(null)
 const inputRef = ref(null)
+let ws = null
 
 async function loadConfig() {
     if (!props.config) {
@@ -37,7 +43,7 @@ async function loadConfig() {
     configData.value = {
         image: sandboxConfig.image,
         init_commands: sandboxConfig.init_commands,
-        env: sandboxConfig.env || {}
+        env: parsed.env || {}
     }
 }
 
@@ -55,11 +61,65 @@ async function tryConnectStoredSandbox() {
     }
 }
 
+function connectWebSocket() {
+    if (ws) {
+        ws.close()
+    }
+    wsConnected.value = false
+
+    ws = new WebSocket(`${WS_BASE}/sandbox/${sandboxId.value}`)
+
+    ws.onopen = () => {
+        wsConnected.value = true
+        loading.value = false
+        console.log('WebSocket connected')
+    }
+
+    ws.onerror = (err) => {
+        error.value = `WebSocket connection failed: ${err.message || 'Connection error'}`
+        loading.value = false
+    }
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+
+        switch (data.type) {
+        case 'connected':
+            wsConnected.value = true
+            loading.value = false
+            break
+        case 'stdout':
+        case 'stderr':
+        case 'result':
+            addMessage('sandbox', data.content)
+            nextTick(scrollToBottom)
+            break
+        case 'error':
+            addMessage('error', data.error)
+            nextTick(scrollToBottom)
+            break
+        case 'done':
+            loading.value = false
+            nextTick(() => {
+                scrollToBottom()
+                if (inputRef.value) {
+                    inputRef.value.focus()
+                }
+            })
+            break
+        }
+    }
+}
+
 async function recreateSandbox() {
     sandboxId.value = null
     messages.value = []
     localStorage.removeItem(getStorageKey('id'))
     localStorage.removeItem(getStorageKey('messages'))
+    if (ws) {
+        ws.close()
+        ws = null
+    }
     await refreshSandbox()
 }
 
@@ -71,6 +131,7 @@ async function refreshSandbox() {
         const storedId = await tryConnectStoredSandbox()
         if (storedId) {
             sandboxId.value = storedId
+            connectWebSocket()
             return true
         }
 
@@ -83,54 +144,34 @@ async function refreshSandbox() {
         sandboxId.value = response.id
         localStorage.setItem(getStorageKey('id'), response.id)
         addMessage('system', `Connected to sandbox: ${response.id}`)
+        connectWebSocket()
         return true
     } catch (err) {
         error.value = err.message || 'Failed to initialize sandbox'
         console.error('Error initializing sandbox:', err)
         addMessage('error', error.value)
-        return false
-    } finally {
         loading.value = false
-        nextTick(() => {
-            if (messagesContainerRef.value) {
-                messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
-            }
-            if (inputRef.value) {
-                inputRef.value.focus()
-            }
-        })
+        return false
     }
 }
 
-async function sendCommand() {
+function sendCommand() {
     const cmd = inputCommand.value.trim()
-    if (!cmd || loading.value || !sandboxId.value) return
+    if (!cmd || loading.value || !sandboxId.value || !wsConnected.value) return
 
     addMessage('user', cmd)
     inputCommand.value = ''
     loading.value = true
-    try {
-        const result = await executeCommand(sandboxId.value, cmd)
-        addMessage('sandbox', result.output || result.error || 'Command executed')
-    } catch (err) {
-        addMessage('error', `Command failed: ${err.message}`)
-    } finally {
-        loading.value = false
-        nextTick(() => {
-            if (messagesContainerRef.value) {
-                messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
-            }
-            if (inputRef.value) {
-                inputRef.value.focus()
-            }
-        })
+    ws.send(JSON.stringify({ command: cmd }))
+}
+
+function scrollToBottom() {
+    if (messagesContainerRef.value) {
+        messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
     }
 }
 
 function handleSendClick() {
-    if (event && event.preventDefault) {
-        event.preventDefault()
-    }
     sendCommand()
 }
 
@@ -171,6 +212,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+    if (ws) {
+        ws.close()
+    }
     messages.value = []
 })
 </script>
@@ -184,6 +228,7 @@ onUnmounted(() => {
                 <button @click="recreateSandbox" class="recreate-button">Recreate</button>
             </div>
             <div v-if="loading" class="loading-indicator">Processing...</div>
+            <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
             <div v-if="error" class="error-message">
             {{ error }}
             <button @click="refreshSandbox" class="retry-button">Retry</button>
@@ -209,12 +254,12 @@ onUnmounted(() => {
                 v-model="inputCommand"
                 placeholder="Enter command (e.g., ls, pwd, echo 'hello')..."
                 @keydown="handleKeydown"
-                :disabled="loading || !sandboxId"
+                :disabled="loading || !wsConnected"
                 rows="3"
             ></textarea>
             <button
                 @click="handleSendClick"
-                :disabled="!inputCommand.trim() || loading || !sandboxId"
+                :disabled="!inputCommand.trim() || loading || !wsConnected"
                 class="send-button"
             >
                 Send

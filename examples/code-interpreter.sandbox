@@ -6,7 +6,7 @@ image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interp
 init_commands = ["npm install -g @anthropic-ai/claude-code@latest"]
 
 [env]
-ANTHROPIC_AUTH_TOKEN = "sk-cp-c8LK8EgeulZh7fS0ggEnnYxX3bxkqcutYsjyqS2HzJ4GDxY3RqOZfDUjGg1hWZVHGsjrIEqB4uA1UujNrtjNoKOocioM3wnomseRz4rzMQhaTqFrsaagLXk"
+ANTHROPIC_AUTH_TOKEN = ""
 ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
 ANTHROPIC_MODEL = "MiniMax-M2.1"
 IS_SANDBOX = "1"

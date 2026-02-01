@@ -20,7 +20,12 @@ async function loadFiles() {
     try {
         files.value = await listFiles()
         if (files.value.length > 0) {
-            if (!selectedFile.value) {
+            // Check URL for file to select
+            const path = window.location.pathname
+            const filename = path.startsWith('/') ? path.slice(1) : path
+            if (filename && files.value.includes(filename)) {
+                selectFile(filename)
+            } else if (!selectedFile.value) {
                 selectFile(files.value[0])
             }
         }

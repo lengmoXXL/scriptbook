@@ -6,7 +6,7 @@ const API_BASE = `${BACKEND_URL}/api`;
 test.describe('Sandbox API 测试', () => {
   test.describe('POST /api/sandbox - 创建 Sandbox', () => {
     test('应该返回 sandbox ID 和状态', async ({ request }) => {
-      const response = await request.post(`${API_BASE}/sandbox`);
+      const response = await request.post(`${API_BASE}/sandbox`, { data: {} });
       expect(response.ok()).toBe(true);
 
       const body = await response.json();
@@ -20,20 +20,20 @@ test.describe('Sandbox API 测试', () => {
 
     test('每次调用应该创建新的 sandbox', async ({ request }) => {
       // 第一次调用创建 sandbox
-      const response1 = await request.post(`${API_BASE}/sandbox`);
+      const response1 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       expect(response1.ok()).toBe(true);
       const body1 = await response1.json();
       const sandboxId1 = body1.id;
 
       // 第二次调用应该创建新的 sandbox
-      const response2 = await request.post(`${API_BASE}/sandbox`);
+      const response2 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       expect(response2.ok()).toBe(true);
       const body2 = await response2.json();
       expect(body2.id).not.toBe(sandboxId1);
     });
 
     test('应该返回正确的 Content-Type', async ({ request }) => {
-      const response = await request.post(`${API_BASE}/sandbox`);
+      const response = await request.post(`${API_BASE}/sandbox`, { data: {} });
       expect(response.ok()).toBe(true);
       expect(response.headers()['content-type']).toContain('application/json');
     });
@@ -42,9 +42,9 @@ test.describe('Sandbox API 测试', () => {
   test.describe('GET /api/sandbox - 列出所有 Sandbox', () => {
     test('应该返回 sandbox 列表', async ({ request }) => {
       // 先创建几个 sandbox
-      const create1 = await request.post(`${API_BASE}/sandbox`);
+      const create1 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sb1 = await create1.json();
-      const create2 = await request.post(`${API_BASE}/sandbox`);
+      const create2 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sb2 = await create2.json();
 
       // 列出所有 sandbox
@@ -64,7 +64,7 @@ test.describe('Sandbox API 测试', () => {
   test.describe('POST /api/sandbox/{sandboxId}/command - 执行命令', () => {
     test('应该成功执行 ls 命令', async ({ request }) => {
       // 先获取 sandbox
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -80,7 +80,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该成功执行 pwd 命令', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -94,7 +94,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该成功执行 echo 命令', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const testString = 'test_' + Date.now();
@@ -109,7 +109,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该成功执行多行命令', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -126,7 +126,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该成功执行环境变量相关命令', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -140,7 +140,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该处理不存在的命令', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -153,7 +153,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('缺少 command 应该返回错误', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.post(`${API_BASE}/sandbox/${sandbox.id}/command`, {
@@ -166,7 +166,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('无效 JSON 应该返回错误', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       // 发送真正的无效 JSON（不是有效的 Python dict 表示）
@@ -184,7 +184,7 @@ test.describe('Sandbox API 测试', () => {
 
   test.describe('GET /api/sandbox/{sandboxId} - 获取 Sandbox 信息', () => {
     test('应该返回 sandbox 详细信息', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.get(`${API_BASE}/sandbox/${sandbox.id}`);
@@ -197,7 +197,7 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('应该返回正确的 Content-Type', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.get(`${API_BASE}/sandbox/${sandbox.id}`);
@@ -216,7 +216,7 @@ test.describe('Sandbox API 测试', () => {
 
   test.describe('DELETE /api/sandbox/{sandboxId} - 销毁 Sandbox', () => {
     test('应该成功销毁 sandbox', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       const response = await request.delete(`${API_BASE}/sandbox/${sandbox.id}`);
@@ -229,14 +229,14 @@ test.describe('Sandbox API 测试', () => {
 
     test('销毁后应该能够创建新的 sandbox', async ({ request }) => {
       // 创建第一个 sandbox
-      const createResp1 = await request.post(`${API_BASE}/sandbox`);
+      const createResp1 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox1 = await createResp1.json();
 
       // 销毁
       await request.delete(`${API_BASE}/sandbox/${sandbox1.id}`);
 
       // 创建新的 sandbox（应该得到新的 ID）
-      const createResp2 = await request.post(`${API_BASE}/sandbox`);
+      const createResp2 = await request.post(`${API_BASE}/sandbox`, { data: {} });
       expect(createResp2.ok()).toBe(true);
       const sandbox2 = await createResp2.json();
 
@@ -256,17 +256,18 @@ test.describe('Sandbox API 测试', () => {
     });
 
     test('无效路径应该返回错误', async ({ request }) => {
-      // 请求一个不存在的 sandbox
-      const response = await request.post(`${API_BASE}/sandbox/nonexistent_123456789/command`, {
-        data: { command: 'ls' }
-      });
+      // 请求一个不存在的 sandbox，直接测试 404 响应
+      const response = await request.get(`${API_BASE}/sandbox/nonexistent_123456789`);
       expect(response.status()).toBe(404);
+
+      const body = await response.json();
+      expect(body).toHaveProperty('error');
     });
   });
 
   test.describe('并发操作', () => {
     test('多个并发命令执行应该互不干扰', async ({ request }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`);
+      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
       const sandbox = await createResp.json();
 
       // 并发执行多个命令
