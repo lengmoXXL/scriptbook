@@ -1,235 +1,66 @@
 <script setup>
-import { onMounted, onUnmounted, onBeforeUnmount, ref, nextTick } from 'vue'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { WebLinksAddon } from '@xterm/addon-web-links'
-import '@xterm/xterm/css/xterm.css'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useTerminal } from '../composables/useTerminal.js'
+import { useTerminalWebSocket } from '../composables/useTerminalWebSocket.js'
 
-// Backend WebSocket endpoint for terminal connections
 const WS_URL = import.meta.env.DEV
   ? 'ws://localhost:8080/ws/tty'
   : `ws://${window.location.host}/ws/tty`
 
 const terminalContainer = ref(null)
-const term = ref(null)
-const fitAddon = ref(null)
-const socket = ref(null)
 const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
-const reconnectAttempts = ref(0)
-const resizeObserver = ref(null)
 
-const isConnected = ref(false)
-
-function initTerminal() {
-  term.value = new Terminal({
-    cursorBlink: true,
-    theme: {
-      background: '#1e1e1e',
-      foreground: '#f0f0f0',
-      cursor: '#00ff00'
-    },
-    fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace'
-  })
-
-  fitAddon.value = new FitAddon()
-  term.value.loadAddon(fitAddon.value)
-  term.value.loadAddon(new WebLinksAddon())
-
-  if (!terminalContainer.value) {
-    console.error('Terminal container not found, component may not be mounted correctly')
-    throw new Error('Terminal container missing: terminalContainer ref is null')
-  }
-
-  term.value.open(terminalContainer.value)
-  fitAddon.value.fit()
-  window.terminalInstance = term.value
-
-  terminalContainer.value.addEventListener('click', () => {
-    if (!term.value) return
-    term.value.focus()
-  })
-
-  // TermSocket protocol requires ['stdin', data] format for server-side input processing
-  term.value.onData((data) => {
-    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return
-    socket.value.send(JSON.stringify(['stdin', data]))
-  })
-
-  // Server needs terminal dimensions for proper PTY allocation and line wrapping
-  term.value.onResize((size) => {
-    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return
-    socket.value.send(JSON.stringify(['set_size', size.rows, size.cols]))
-  })
-}
-
-function connectWebSocket() {
-  // Include session ID in URL for terminal persistence across page reloads
-  let url = WS_URL
-  if (sessionId.value) {
-    url += `/${sessionId.value}`
-  }
-
-  const newSocket = new WebSocket(url)
-
-  newSocket.onopen = () => {
-    console.log('WebSocket connected')
-    isConnected.value = true
-    reconnectAttempts.value = 0
-
-    // Initialize server-side PTY with current terminal dimensions for proper display
-    if (!term.value) return
-    const dimensions = term.value.dimensions
-    if (!dimensions) return
-    newSocket.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
-  }
-
-  newSocket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-
-      // TermSocket protocol expects JSON arrays with at least one element
-      if (!Array.isArray(data) || data.length === 0) {
-        console.error('Unexpected message format, expected non-empty array:', data)
-        return
-      }
-
-      const messageType = data[0]
-
-      if (messageType === 'setup') {
-        // Server confirms terminal is ready for input after PTY initialization
-        console.log('Terminal ready')
-        return
-      }
-
-      if (!term.value) {
-        console.warn('Terminal not ready, dropping message:', data)
-        return
-      }
-
-      if (messageType === 'stdout' || messageType === 'stderr') {
-        term.value.write(data[1])
-      } else {
-        console.warn('Unknown message type:', messageType, data)
-      }
-    } catch (error) {
-      console.warn('Invalid raw data:', event.data.slice(0, 100))
+const { isConnected, connect: connectWs, send: sendStdin, setSize: setTerminalSize } = useTerminalWebSocket({
+  wsUrl: WS_URL,
+  sessionId,
+  onData: (content) => terminal.write(content),
+  onSetup: () => console.log('Terminal ready'),
+  onConnected: () => {
+    if (terminal.isReady && terminal.dimensions) {
+      setTerminalSize(terminal.dimensions.rows, terminal.dimensions.cols)
     }
-  }
+  },
+  onDisconnected: () => console.log('WebSocket disconnected'),
+  onError: (error) => console.error('WebSocket error:', error)
+})
 
-  newSocket.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
-
-  newSocket.onclose = (event) => {
-    console.log('WebSocket closed:', event.code, event.reason)
-    isConnected.value = false
-  }
-
-  socket.value = newSocket
-}
-
-function handleResize() {
-  if (!fitAddon.value) return
-  fitAddon.value.fit()
-
-  // Keep server-side PTY dimensions synchronized with visual terminal size
-  if (!term.value || !socket.value || socket.value.readyState !== WebSocket.OPEN) return
-
-  const dimensions = term.value.dimensions
-  if (!dimensions) return
-  socket.value.send(JSON.stringify(['set_size', dimensions.rows, dimensions.cols]))
-}
+const terminal = useTerminal({
+  containerRef: terminalContainer,
+  onInput: (data) => sendStdin(data),
+  onResize: (rows, cols) => setTerminalSize(rows, cols)
+})
 
 function sendCommand(command) {
-  // Send command to terminal via WebSocket
-  if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
-    console.warn('Cannot send command: WebSocket not connected')
+  if (!sendStdin) {
+    console.warn('Cannot send command: WebSocket not ready')
     return false
   }
 
-  // Send each line separately with a small delay to simulate typing
   const lines = command.split('\n')
   lines.forEach((line, index) => {
     if (line.trim()) {
-      // Add newline except for the last line if it's empty
       const data = index < lines.length - 1 || command.endsWith('\n') ? line + '\n' : line
-      socket.value.send(JSON.stringify(['stdin', data]))
+      sendStdin(data)
     }
   })
 
   return true
 }
 
-// Expose sendCommand method to parent components
-defineExpose({
-  sendCommand
-})
+defineExpose({ sendCommand })
 
 onMounted(() => {
-  initTerminal()
-  connectWebSocket()
-
-  // Ensure terminal adapts to browser window size changes
-  window.addEventListener('resize', handleResize)
-
-  // Monitor container size changes for split layout resizing
-  resizeObserver.value = new ResizeObserver(() => {
-    if (fitAddon.value) {
-      fitAddon.value.fit()
-    }
-  })
-  resizeObserver.value.observe(terminalContainer.value)
-
-  // Wait for DOM layout to stabilize before fitting terminal to container
-  nextTick(() => {
-    if (!fitAddon.value) return
-    fitAddon.value.fit()
-  })
+  connectWs()
 })
 
 onBeforeUnmount(() => {
-  // Clear global reference to prevent potential memory leaks
-  if (window.terminalInstance === term.value) {
-    window.terminalInstance = null
-  }
-
-  // Dispose terminal while container still exists
-  // Must be done here because terminalContainer.value becomes null in onUnmounted
-  if (term.value) {
-    try {
-      term.value.dispose()
-    } catch (e) {
-      // xterm.js AddonManager has a known bug where it throws "Could not dispose an addon that has not been loaded"
-      // This is a library issue, not a problem with our code. The terminal disposal still completes.
-      if (e.message?.includes('Could not dispose an addon that has not been loaded')) {
-        console.warn('[Terminal] xterm.js addon disposal warning (library bug, safe to ignore)')
-      } else {
-        console.error('[Terminal] Unexpected disposal error:', e)
-      }
-    }
-    term.value = null
-  }
-})
-
-onUnmounted(() => {
-  // Close WebSocket if still open
-  if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-    socket.value.close(1000, 'Component unmounted')
-  }
-
-  // Clean up ResizeObserver
-  if (resizeObserver.value) {
-    resizeObserver.value.disconnect()
-  }
-
-  window.removeEventListener('resize', handleResize)
+  terminal.dispose()
 })
 </script>
 
 <template>
   <div class="terminal">
-    <div v-if="!isConnected" class="reconnect-overlay" @click="connectWebSocket">
+    <div v-if="!isConnected" class="reconnect-overlay" @click="connectWs">
       <div class="reconnect-content">
         <span class="reconnect-icon">↻</span>
         <span class="reconnect-text">Reconnect</span>
