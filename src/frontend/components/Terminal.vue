@@ -1,9 +1,9 @@
 <script setup>
-import { onMounted, onUnmounted, ref, nextTick } from 'vue'
-import { Terminal } from 'xterm'
+import { onMounted, onUnmounted, onBeforeUnmount, ref, nextTick } from 'vue'
+import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
-import 'xterm/css/xterm.css'
+import '@xterm/xterm/css/xterm.css'
 
 // Backend WebSocket endpoint for terminal connections
 const WS_URL = import.meta.env.DEV
@@ -13,7 +13,6 @@ const WS_URL = import.meta.env.DEV
 const terminalContainer = ref(null)
 const term = ref(null)
 const fitAddon = ref(null)
-const webLinksAddon = ref(null)
 const socket = ref(null)
 const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
 const reconnectAttempts = ref(0)
@@ -35,9 +34,7 @@ function initTerminal() {
 
   fitAddon.value = new FitAddon()
   term.value.loadAddon(fitAddon.value)
-
-  webLinksAddon.value = new WebLinksAddon()
-  term.value.loadAddon(webLinksAddon.value)
+  term.value.loadAddon(new WebLinksAddon())
 
   if (!terminalContainer.value) {
     console.error('Terminal container not found, component may not be mounted correctly')
@@ -191,19 +188,39 @@ onMounted(() => {
   })
 })
 
+onBeforeUnmount(() => {
+  // Clear global reference to prevent potential memory leaks
+  if (window.terminalInstance === term.value) {
+    window.terminalInstance = null
+  }
+
+  // Dispose terminal while container still exists
+  // Must be done here because terminalContainer.value becomes null in onUnmounted
+  if (term.value) {
+    try {
+      term.value.dispose()
+    } catch (e) {
+      // xterm.js AddonManager has a known bug where it throws "Could not dispose an addon that has not been loaded"
+      // This is a library issue, not a problem with our code. The terminal disposal still completes.
+      if (e.message?.includes('Could not dispose an addon that has not been loaded')) {
+        console.warn('[Terminal] xterm.js addon disposal warning (library bug, safe to ignore)')
+      } else {
+        console.error('[Terminal] Unexpected disposal error:', e)
+      }
+    }
+    term.value = null
+  }
+})
+
 onUnmounted(() => {
-  // Prevent memory leaks by closing connections and disposing resources
-  if (socket.value) {
+  // Close WebSocket if still open
+  if (socket.value && socket.value.readyState === WebSocket.OPEN) {
     socket.value.close(1000, 'Component unmounted')
   }
 
-  if (term.value) {
-    term.value.dispose()
-  }
-
   // Clean up ResizeObserver
-  if (resizeObserver.value && terminalContainer.value) {
-    resizeObserver.value.unobserve(terminalContainer.value)
+  if (resizeObserver.value) {
+    resizeObserver.value.disconnect()
   }
 
   window.removeEventListener('resize', handleResize)

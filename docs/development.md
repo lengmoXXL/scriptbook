@@ -56,10 +56,11 @@ npm run dev
 ```
 
 访问地址：
-- 前端：http://localhost:5173
-- 后端健康检查：http://localhost:8080/health
+- 前端：http://localhost:7771
+- 后端：http://localhost:8080
+- OpenSandbox：http://127.0.0.1:8081
 
-注意：这里后端服务和前端服务均支持热加载，修改代码后无需重启服务
+注意：后端和前端服务均支持热加载，修改代码后无需重启服务
 
 ## 测试运行
 
@@ -115,11 +116,6 @@ DEV_MODE=true python src/backend/main.py ./docs
 npm run dev
 ```
 
-访问地址：
-- 前端：http://localhost:5173
-- 后端健康检查：http://localhost:8080/health
-
-注意：这里后端服务和前端服务均支持热加载，修改代码后无需重启服务
 
 ## 测试运行
 

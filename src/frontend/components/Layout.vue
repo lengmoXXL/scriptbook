@@ -126,20 +126,23 @@ function startSidebarResize(event) {
             </div>
             <div class="content">
                 <div class="split-layout">
-                    <div class="markdown-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
-                        <MarkdownViewer
-                            v-if="currentView === 'markdown'"
-                            :content="currentContent"
-                            :loading="loading"
-                            :error="error"
-                            @executeCommand="handleExecuteCommand"
-                        />
-                        <SandboxChat
-                            v-else-if="currentView === 'sandbox'"
-                            :config="currentFile"
-                        />
-                    </div>
-                    <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
+                    <template v-if="currentView === 'markdown'">
+                        <div class="markdown-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
+                            <MarkdownViewer
+                                :content="currentContent"
+                                :loading="loading"
+                                :error="error"
+                                @executeCommand="handleExecuteCommand"
+                            />
+                        </div>
+                        <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
+                    </template>
+                    <template v-else-if="currentView === 'sandbox'">
+                        <div class="sandbox-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
+                            <SandboxChat :config="currentFile" />
+                        </div>
+                        <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
+                    </template>
                     <div class="terminal-section" :style="{ flex: `0 0 ${terminalHeight}%` }">
                         <Terminal ref="terminalRef" />
                     </div>
@@ -233,6 +236,12 @@ function startSidebarResize(event) {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding: 20px;
+}
+
+.sandbox-section {
+    flex: 1;
+    overflow: hidden;
 }
 
 .terminal-resizer {

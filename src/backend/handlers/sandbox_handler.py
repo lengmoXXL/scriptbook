@@ -74,8 +74,7 @@ class SandboxManager:
 
         sandbox = await Sandbox.create(
             image=SandboxImageSpec(image=image_uri),
-            resource={"cpu": "1", "memory": "512Mi"},
-            entrypoint=["tail", "-f", "/dev/null"],
+            resource={"cpu": "2", "memory": "2048Mi"},
             connection_config=self._connection_config,
             skip_health_check=False,
             env=env

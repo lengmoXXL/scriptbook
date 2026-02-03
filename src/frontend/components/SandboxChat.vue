@@ -3,6 +3,8 @@ import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { createSandbox, getSandboxInfo } from '../api/sandbox.js'
 import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
+import Dialog from './Dialog.vue'
+import { useSandboxHandler } from '../composables/useSandboxChatHandlers.js'
 
 const WS_BASE = import.meta.env.DEV
   ? 'ws://localhost:8080/ws'
@@ -19,7 +21,6 @@ const getStorageKey = (suffix) => {
     return `scriptbook-sandbox-${props.config.replace(/[^\w]/g, '-')}-${suffix}`
 }
 
-const messages = ref([])
 const inputCommand = ref('')
 const loading = ref(false)
 const sandboxId = ref(null)
@@ -28,8 +29,10 @@ const configData = ref(null)
 const wsConnected = ref(false)
 
 const messagesContainerRef = ref(null)
+const dialogRef = ref(null)
 const inputRef = ref(null)
 let ws = null
+let handler = null
 
 async function loadConfig() {
     if (!props.config) {
@@ -43,8 +46,12 @@ async function loadConfig() {
     configData.value = {
         image: sandboxConfig.image,
         init_commands: sandboxConfig.init_commands,
-        env: parsed.env || {}
+        env: parsed.env || {},
+        input_channel: sandboxConfig.input_channel || null,
+        output_format: sandboxConfig.output_format || null
     }
+
+    handler = useSandboxHandler(configData)
 }
 
 async function tryConnectStoredSandbox() {
@@ -82,6 +89,7 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data)
+        console.log('[SandboxChat] Received message:', data.type, data)
 
         switch (data.type) {
         case 'connected':
@@ -91,13 +99,19 @@ function connectWebSocket() {
         case 'stdout':
         case 'stderr':
         case 'result':
-            addMessage('sandbox', data.content)
+        case 'error': {
+            const msg = handler.handleMessage(data)
+            console.log('[SandboxChat] Processed message:', msg)
+            if (msg && dialogRef.value) {
+                dialogRef.value.addMessage(msg)
+            }
+            if (handler.isDone(data)) {
+                loading.value = false
+                console.log('[SandboxChat] Done, loading = false')
+            }
             nextTick(scrollToBottom)
             break
-        case 'error':
-            addMessage('error', data.error)
-            nextTick(scrollToBottom)
-            break
+        }
         case 'done':
             loading.value = false
             nextTick(() => {
@@ -113,9 +127,11 @@ function connectWebSocket() {
 
 async function recreateSandbox() {
     sandboxId.value = null
-    messages.value = []
+    if (dialogRef.value) {
+        dialogRef.value.clearMessages()
+    }
+    handler.reset()
     localStorage.removeItem(getStorageKey('id'))
-    localStorage.removeItem(getStorageKey('messages'))
     if (ws) {
         ws.close()
         ws = null
@@ -143,13 +159,12 @@ async function refreshSandbox() {
         const response = await createSandbox({ image, init_commands, env })
         sandboxId.value = response.id
         localStorage.setItem(getStorageKey('id'), response.id)
-        addMessage('system', `Connected to sandbox: ${response.id}`)
+
         connectWebSocket()
         return true
     } catch (err) {
         error.value = err.message || 'Failed to initialize sandbox'
         console.error('Error initializing sandbox:', err)
-        addMessage('error', error.value)
         loading.value = false
         return false
     }
@@ -159,10 +174,24 @@ function sendCommand() {
     const cmd = inputCommand.value.trim()
     if (!cmd || loading.value || !sandboxId.value || !wsConnected.value) return
 
-    addMessage('user', cmd)
+    console.log('[SandboxChat] Sending command:', cmd)
+
+    if (dialogRef.value) {
+        dialogRef.value.addMessage({ type: 'user', content: cmd })
+    }
+
+    handler.reset()
     inputCommand.value = ''
     loading.value = true
-    ws.send(JSON.stringify({ command: cmd }))
+
+    const inputChannel = configData.value?.input_channel
+    let finalCmd = cmd
+    if (inputChannel) {
+        finalCmd = `echo "${cmd.replace(/"/g, '\\"')}" | nc -U ${inputChannel}`
+    }
+
+    console.log('[SandboxChat] Final command:', finalCmd)
+    ws.send(JSON.stringify({ command: finalCmd }))
 }
 
 function scrollToBottom() {
@@ -175,18 +204,6 @@ function handleSendClick() {
     sendCommand()
 }
 
-function addMessage(type, content) {
-    const timestamp = new Date().toLocaleTimeString()
-    const message = {
-        id: Date.now() + Math.random(),
-        type,
-        content,
-        timestamp
-    }
-    messages.value.push(message)
-    localStorage.setItem(getStorageKey('messages'), JSON.stringify(messages.value))
-}
-
 function handleKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
@@ -195,16 +212,10 @@ function handleKeydown(e) {
 }
 
 onMounted(async () => {
-    const savedMessages = localStorage.getItem(getStorageKey('messages'))
-    if (savedMessages) {
-        messages.value = JSON.parse(savedMessages)
-    }
-
     try {
         await loadConfig()
     } catch (err) {
         error.value = 'Failed to load config file'
-        addMessage('error', `Config error: ${err.message}`)
         return
     }
 
@@ -215,14 +226,13 @@ onUnmounted(() => {
     if (ws) {
         ws.close()
     }
-    messages.value = []
 })
 </script>
 
 <template>
     <div class="sandbox-chat">
         <div class="chat-header">
-            <h3>Sandbox Chat</h3>
+            <h3>Sandbox</h3>
             <div v-if="sandboxId" class="sandbox-info">
                 <span class="sandbox-id">ID: {{ sandboxId }}</span>
                 <button @click="recreateSandbox" class="recreate-button">Recreate</button>
@@ -230,29 +240,26 @@ onUnmounted(() => {
             <div v-if="loading" class="loading-indicator">Processing...</div>
             <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
             <div v-if="error" class="error-message">
-            {{ error }}
-            <button @click="refreshSandbox" class="retry-button">Retry</button>
-        </div>
+                {{ error }}
+                <button @click="refreshSandbox" class="retry-button">Retry</button>
+            </div>
         </div>
 
         <div ref="messagesContainerRef" class="messages-container">
-            <div v-for="message in messages" :key="message.id" :class="`message message-${message.type}`">
-                <div class="message-header">
-                    <span class="message-type">{{ message.type }}</span>
-                    <span class="message-timestamp">{{ message.timestamp }}</span>
-                </div>
-                <div class="message-content">
-                    <pre v-if="message.type === 'user' || message.type === 'sandbox'">{{ message.content }}</pre>
-                    <div v-else class="error-content">{{ message.content }}</div>
-                </div>
-            </div>
+            <template v-if="configData?.output_format === 'claude_stream_json'">
+                <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
+            </template>
+            <template v-else>
+                <!-- Default handler will use its own message display -->
+                <div class="default-message">Default output format not implemented yet</div>
+            </template>
         </div>
 
         <div class="input-container">
             <textarea
                 ref="inputRef"
                 v-model="inputCommand"
-                placeholder="Enter command (e.g., ls, pwd, echo 'hello')..."
+                :placeholder="handler?.inputPlaceholder || 'Enter command...'"
                 @keydown="handleKeydown"
                 :disabled="loading || !wsConnected"
                 rows="3"
@@ -322,73 +329,12 @@ onUnmounted(() => {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
 }
 
-.message {
-    border-radius: 8px;
-    padding: 12px 16px;
-    max-width: 80%;
-}
-
-.message-user {
-    align-self: flex-end;
-    background-color: #2c5282;
-    border: 1px solid #2c5282;
-}
-
-.message-sandbox {
-    align-self: flex-start;
-    background-color: #2a2a2a;
-    border: 1px solid #444;
-}
-
-.message-error {
-    align-self: center;
-    background-color: #742a2a;
-    border: 1px solid #742a2a;
-}
-
-.message-system {
-    align-self: center;
-    background-color: #2a554a;
-    border: 1px solid #2a554a;
-    font-size: 0.9em;
-}
-
-.message-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 0.8em;
-    opacity: 0.8;
-}
-
-.message-type {
-    text-transform: uppercase;
-    font-weight: bold;
-}
-
-.message-timestamp {
-    font-style: italic;
-}
-
-.message-content {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    white-space: pre-wrap;
-    word-break: break-word;
-    line-height: 1.4;
-}
-
-.message-content pre {
-    margin: 0;
-    white-space: pre-wrap;
-}
-
-.error-content {
-    color: #ffb4b4;
+.default-message {
+    color: #888;
+    text-align: center;
+    padding: 20px;
 }
 
 .input-container {
