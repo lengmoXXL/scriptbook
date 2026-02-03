@@ -35,9 +35,21 @@ function clearMessages() {
     localStorage.removeItem(props.storageKey)
 }
 
+function loadMessages() {
+    const saved = localStorage.getItem(props.storageKey)
+    if (saved) {
+        try {
+            messages.value = JSON.parse(saved)
+        } catch {
+            messages.value = []
+        }
+    }
+}
+
 defineExpose({
     addMessage,
-    clearMessages
+    clearMessages,
+    loadMessages
 })
 
 // ============================================================================
@@ -46,32 +58,34 @@ defineExpose({
 
 const conversationGroups = computed(() => {
     const groups = []
-    let currentGroup = null
+    const groupMap = new Map()
 
     for (const msg of messages.value) {
-        if (msg.type === 'user') {
-            if (currentGroup) {
-                groups.push(currentGroup)
-            }
-            currentGroup = {
-                userMessage: msg,
+        if (!msg.requestId) continue
+
+        if (!groupMap.has(msg.requestId)) {
+            const group = {
+                requestId: msg.requestId,
+                userMessage: null,
                 progressMessages: [],
                 resultMessage: null,
                 errorMessage: null
             }
-        } else if (currentGroup) {
-            if (msg.type === 'ResultMessage') {
-                currentGroup.resultMessage = msg
-            } else if (msg.type === 'Error') {
-                currentGroup.errorMessage = msg
-            } else if (msg.type !== 'SystemMessage') {
-                currentGroup.progressMessages.push(msg)
-            }
+            groupMap.set(msg.requestId, group)
+            groups.push(group)
         }
-    }
 
-    if (currentGroup) {
-        groups.push(currentGroup)
+        const group = groupMap.get(msg.requestId)
+
+        if (msg.type === 'user') {
+            group.userMessage = msg
+        } else if (msg.type === 'ResultMessage') {
+            group.resultMessage = msg
+        } else if (msg.type === 'Error') {
+            group.errorMessage = msg
+        } else if (msg.type !== 'SystemMessage') {
+            group.progressMessages.push(msg)
+        }
     }
 
     return groups
@@ -83,17 +97,6 @@ const conversationGroups = computed(() => {
 
 function saveMessages() {
     localStorage.setItem(props.storageKey, JSON.stringify(messages.value))
-}
-
-function loadMessages() {
-    const saved = localStorage.getItem(props.storageKey)
-    if (saved) {
-        try {
-            messages.value = JSON.parse(saved)
-        } catch {
-            messages.value = []
-        }
-    }
 }
 
 // ============================================================================
@@ -108,8 +111,8 @@ onMounted(() => {
 // Group Helpers
 // ============================================================================
 
-function getGroupId(userMessage) {
-    return userMessage.id
+function getGroupId(group) {
+    return group.requestId
 }
 
 function isExpanded(group) {
@@ -194,7 +197,7 @@ function getLatestProgress(progressMessages) {
 
 <template>
     <div class="message-group">
-        <div v-for="group in conversationGroups" :key="getGroupId(group.userMessage)" class="conversation-group">
+        <div v-for="group in conversationGroups" :key="getGroupId(group)" class="conversation-group">
             <!-- 用户消息 -->
             <div class="user-message">
                 <div class="user-message-content">{{ group.userMessage.content }}</div>

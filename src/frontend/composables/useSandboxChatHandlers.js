@@ -5,18 +5,36 @@
 
 /**
  * Default handler for standard sandbox output (stdout/stderr/result/done)
+ * Returns messages compatible with Dialog component
  */
 export function useDefaultHandler() {
+    let currentRequestId = null
+    let outputLines = []
+    let hasError = false
+    let errorMessage = ''
+
     function handleMessage(data) {
         switch (data.type) {
         case 'stdout':
         case 'stderr':
-        case 'result':
-            return { type: 'sandbox', content: data.content }
-        case 'error':
-            return { type: 'error', content: data.error }
-        case 'done':
+            outputLines.push(data.content)
             return null
+        case 'result':
+            outputLines.push(data.content)
+            return null
+        case 'error':
+            hasError = true
+            errorMessage = data.error
+            return null
+        case 'done':
+            if (hasError) {
+                const error = errorMessage
+                reset()
+                return { type: 'Error', error: error }
+            }
+            const result = outputLines.join('\n')
+            reset()
+            return { type: 'ResultMessage', result: result || '(no output)' }
         default:
             return null
         }
@@ -27,13 +45,20 @@ export function useDefaultHandler() {
     }
 
     function reset() {
-        // No-op: messages are managed by SandboxChat component
+        outputLines = []
+        hasError = false
+        errorMessage = ''
+    }
+
+    function setRequestId(requestId) {
+        currentRequestId = requestId
     }
 
     return {
         handleMessage,
         isDone,
         reset,
+        setRequestId,
         showUserMessage: true,
         inputPlaceholder: "Enter command (e.g., ls, pwd, echo hello)..."
     }
@@ -44,13 +69,15 @@ export function useDefaultHandler() {
  * Parses JSON lines from stdout and handles Claude daemon messages
  */
 export function useClaudeStreamHandler() {
+    let currentRequestId = null
+
     function handleMessage(data) {
         if (data.type !== 'stdout') return null
 
         try {
             return JSON.parse(data.content)
         } catch {
-            return { type: 'sandbox', content: data.content }
+            return { type: 'ProgressMessage', content: [{ type: 'text', text: data.content }] }
         }
     }
 
@@ -68,10 +95,15 @@ export function useClaudeStreamHandler() {
         // No-op: messages are managed by SandboxChat component
     }
 
+    function setRequestId(requestId) {
+        currentRequestId = requestId
+    }
+
     return {
         handleMessage,
         isDone,
         reset,
+        setRequestId,
         showUserMessage: false,
         inputPlaceholder: 'Ask Claude something...'
     }

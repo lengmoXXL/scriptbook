@@ -49,7 +49,7 @@ cd external/OpenSandbox/server && uv run python -m src.main
 
 启动后端：
 ```bash
-DEV_MODE=true python src/backend/main.py ./docs
+DEV_MODE=true python src/backend/main.py ./examples
 ```
 
 启动前端：

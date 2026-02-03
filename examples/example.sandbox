@@ -5,11 +5,10 @@ image = "scriptbook/claude:latest"
 # 初始化命令（在 sandbox 启动时执行）
 init_commands = ["nohup python3 /app/entrypoint.py > /tmp/claude_daemon.log 2>&1 & sleep 3 && while [ ! -S /tmp/claude.sock ]; do sleep 0.5; done"]
 
-input_channel = "/tmp/claude.sock"
-output_format = "claude_stream_json"
+# input_channel = "/tmp/claude.sock"
+# output_format = "claude_stream_json"
 
 [env]
-ANTHROPIC_AUTH_TOKEN = ""
-ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
-ANTHROPIC_MODEL = "MiniMax-M2.1"
-IS_SANDBOX = "1"
+# ANTHROPIC_AUTH_TOKEN = ""
+# ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
+# ANTHROPIC_MODEL = "MiniMax-M2.1"

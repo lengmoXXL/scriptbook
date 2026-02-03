@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted, watch } from 'vue'
 import { createSandbox, getSandboxInfo } from '../api/sandbox.js'
 import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
@@ -33,6 +33,7 @@ const dialogRef = ref(null)
 const inputRef = ref(null)
 let ws = null
 let handler = null
+let currentRequestId = null
 
 async function loadConfig() {
     if (!props.config) {
@@ -99,28 +100,26 @@ function connectWebSocket() {
         case 'stdout':
         case 'stderr':
         case 'result':
-        case 'error': {
+        case 'error':
+        case 'done': {
             const msg = handler.handleMessage(data)
             console.log('[SandboxChat] Processed message:', msg)
             if (msg && dialogRef.value) {
-                dialogRef.value.addMessage(msg)
+                dialogRef.value.addMessage({ ...msg, requestId: currentRequestId })
             }
             if (handler.isDone(data)) {
                 loading.value = false
+                currentRequestId = null
                 console.log('[SandboxChat] Done, loading = false')
             }
-            nextTick(scrollToBottom)
-            break
-        }
-        case 'done':
-            loading.value = false
             nextTick(() => {
                 scrollToBottom()
-                if (inputRef.value) {
+                if (inputRef.value && !loading.value) {
                     inputRef.value.focus()
                 }
             })
             break
+        }
         }
     }
 }
@@ -174,13 +173,16 @@ function sendCommand() {
     const cmd = inputCommand.value.trim()
     if (!cmd || loading.value || !sandboxId.value || !wsConnected.value) return
 
-    console.log('[SandboxChat] Sending command:', cmd)
+    // Generate unique request ID
+    currentRequestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+    console.log('[SandboxChat] Sending command:', cmd, 'requestId:', currentRequestId)
 
     if (dialogRef.value) {
-        dialogRef.value.addMessage({ type: 'user', content: cmd })
+        dialogRef.value.addMessage({ type: 'user', content: cmd, requestId: currentRequestId })
     }
 
-    handler.reset()
+    handler.setRequestId(currentRequestId)
     inputCommand.value = ''
     loading.value = true
 
@@ -227,6 +229,30 @@ onUnmounted(() => {
         ws.close()
     }
 })
+
+// Reload dialog messages when switching between different sandbox files
+watch(() => props.config, async () => {
+    // Clear current sandbox state
+    sandboxId.value = null
+    if (ws) {
+        ws.close()
+        ws = null
+    }
+    wsConnected.value = false
+    loading.value = false
+    error.value = ''
+
+    // Load new config and refresh sandbox
+    try {
+        await loadConfig()
+        if (dialogRef.value) {
+            dialogRef.value.loadMessages()
+        }
+        refreshSandbox()
+    } catch (err) {
+        error.value = 'Failed to load config file'
+    }
+})
 </script>
 
 <template>
@@ -246,13 +272,7 @@ onUnmounted(() => {
         </div>
 
         <div ref="messagesContainerRef" class="messages-container">
-            <template v-if="configData?.output_format === 'claude_stream_json'">
-                <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
-            </template>
-            <template v-else>
-                <!-- Default handler will use its own message display -->
-                <div class="default-message">Default output format not implemented yet</div>
-            </template>
+            <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
         </div>
 
         <div class="input-container">
@@ -328,12 +348,6 @@ onUnmounted(() => {
 .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
-}
-
-.default-message {
-    color: #888;
-    text-align: center;
     padding: 20px;
 }
 
