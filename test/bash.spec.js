@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = 'http://localhost:7771';
 
 test.describe('Bash代码块执行测试', () => {
   test('应该为bash代码块显示执行按钮', async ({ page }) => {

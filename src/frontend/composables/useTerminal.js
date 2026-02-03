@@ -47,6 +47,9 @@ export function useTerminal({
     term.value.open(containerRef.value)
     fitAddon.value.fit()
 
+    // Expose terminal instance for tests
+    window.terminalInstance = term.value
+
     isReady.value = true
     dimensions.value = term.value.dimensions
 

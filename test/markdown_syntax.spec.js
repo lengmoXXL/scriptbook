@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const BACKEND_URL = 'http://localhost:8080';
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = 'http://localhost:7771';
 
 test.describe('Markdown 渲染测试', () => {
   test.describe('后端文件 API', () => {

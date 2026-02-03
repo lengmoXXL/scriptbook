@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('终端页面加载', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto('http://localhost:7771');
   // 等待文件列表加载完成
   await expect(page.locator('.file-list')).toBeVisible({ timeout: 10000 });
   // 等待终端组件初始化
@@ -11,7 +11,7 @@ test('终端页面加载', async ({ page }) => {
 });
 
 test('应该正确执行 echo 命令并验证输出', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+  await page.goto('http://localhost:7771');
   // 等待应用完全加载
   await expect(page.locator('.file-list')).toBeVisible({ timeout: 10000 });
   await expect(page.locator('.terminal-container')).toBeVisible({ timeout: 10000 });

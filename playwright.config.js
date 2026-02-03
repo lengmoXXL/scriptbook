@@ -5,7 +5,7 @@ export default defineConfig({
   timeout: 30000,
   use: {
     headless: true,
-    baseUrl: 'http://localhost:5173',
+    baseUrl: 'http://localhost:7771',
   },
   webServer: [
     {
@@ -16,7 +16,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev',
-      url: 'http://localhost:5173',
+      url: 'http://localhost:7771',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
     },

@@ -13,3 +13,6 @@ __pycache__
 
 # private examples
 examples/private*
+
+# external deps
+external/
