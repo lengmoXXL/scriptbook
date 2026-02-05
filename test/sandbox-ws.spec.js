@@ -1,16 +1,30 @@
 import { test, expect } from '@playwright/test';
+import { cleanupSandboxes } from './helpers.js';
 
 const BACKEND_URL = 'http://localhost:8080';
 const WS_URL = 'ws://localhost:8080/ws/sandbox';
 const API_BASE = `${BACKEND_URL}/api`;
 
+// 共享的 sandbox ID
+let sharedSandboxId = null;
+
+test.beforeAll(async ({ request }) => {
+    // 创建共享的 sandbox
+    const response = await request.post(`${API_BASE}/sandbox`, { data: {} });
+    expect(response.ok()).toBe(true);
+    const body = await response.json();
+    sharedSandboxId = body.id;
+});
+
+test.afterAll(async ({ request }) => {
+    test.setTimeout(60000);
+    // 清理所有 sandbox（包括共享的）
+    await cleanupSandboxes(request);
+});
+
 test.describe('Sandbox WebSocket 测试', () => {
   test.describe('WebSocket 连接', () => {
-    test('应该成功建立 WebSocket 连接并收到 connected 消息', async ({ request, page }) => {
-      // 先创建 sandbox
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该成功建立 WebSocket 连接并收到 connected 消息', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -38,11 +52,11 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { connectedMsg };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.connectedMsg).toBeDefined();
       expect(result.connectedMsg.type).toBe('connected');
-      expect(result.connectedMsg.sandbox_id).toBe(sandbox.id);
+      expect(result.connectedMsg.sandbox_id).toBe(sharedSandboxId);
     });
 
     test('连接不存在的 sandbox 应该返回错误并关闭连接', async ({ page }) => {
@@ -98,10 +112,7 @@ test.describe('Sandbox WebSocket 测试', () => {
   });
 
   test.describe('命令执行 - 流式输出', () => {
-    test('应该成功执行简单命令并接收输出', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该成功执行简单命令并接收输出', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -136,7 +147,7 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { doneMsg, stdoutMsgs, messages };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.doneMsg.exit_code).toBe(0);
       expect(result.doneMsg.has_error).toBe(false);
@@ -145,10 +156,7 @@ test.describe('Sandbox WebSocket 测试', () => {
       expect(combinedOutput).toContain('hello world');
     });
 
-    test('应该接收多行输出', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该接收多行输出', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -180,7 +188,7 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { stdoutMsgs };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       const combinedOutput = result.stdoutMsgs.map(m => m.content).join('');
       expect(combinedOutput).toContain('line1');
@@ -188,10 +196,7 @@ test.describe('Sandbox WebSocket 测试', () => {
       expect(combinedOutput).toContain('line3');
     });
 
-    test('应该正确处理不存在的命令', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该正确处理不存在的命令', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -222,16 +227,13 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { doneMsg };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.doneMsg.exit_code).toBeGreaterThan(0);
       expect(result.doneMsg.has_error).toBe(true);
     });
 
-    test('应该实时接收多次输出的命令', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该实时接收多次输出的命令', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -282,7 +284,7 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { stdoutMsgs, doneMsg, timestamps, messageCount: messages.length };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       // 验证收到了3次输出
       expect(result.stdoutMsgs.length).toBe(3);
@@ -297,10 +299,7 @@ test.describe('Sandbox WebSocket 测试', () => {
   });
 
   test.describe('错误处理', () => {
-    test('缺少 command 字段应该返回错误', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('缺少 command 字段应该返回错误', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -332,16 +331,13 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { errorMsg };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.errorMsg).toBeDefined();
       expect(result.errorMsg.error).toContain('Command is required');
     });
 
-    test('无效 JSON 应该返回错误', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('无效 JSON 应该返回错误', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -373,7 +369,7 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { errorMsg };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.errorMsg).toBeDefined();
       expect(result.errorMsg.error).toContain('Invalid JSON message');
@@ -381,10 +377,7 @@ test.describe('Sandbox WebSocket 测试', () => {
   });
 
   test.describe('多命令执行', () => {
-    test('应该能够顺序执行多个命令', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('应该能够顺序执行多个命令', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -423,17 +416,14 @@ test.describe('Sandbox WebSocket 测试', () => {
 
         ws.close();
         return { doneCountBefore, doneCountAfter };
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       expect(result.doneCountAfter - result.doneCountBefore).toBe(3);
     });
   });
 
   test.describe('连接关闭', () => {
-    test('客户端应该能够主动关闭连接', async ({ request, page }) => {
-      const createResp = await request.post(`${API_BASE}/sandbox`, { data: {} });
-      const sandbox = await createResp.json();
-
+    test('客户端应该能够主动关闭连接', async ({ page }) => {
       const result = await page.evaluate(async ({ wsUrl, sandboxId }) => {
         const ws = new WebSocket(`${wsUrl}/${sandboxId}`);
 
@@ -456,7 +446,7 @@ test.describe('Sandbox WebSocket 测试', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         return messages.length;
-      }, { wsUrl: WS_URL, sandboxId: sandbox.id });
+      }, { wsUrl: WS_URL, sandboxId: sharedSandboxId });
 
       // 连接关闭后消息数量应该固定（只有 connected 消息）
       expect(result).toBeGreaterThan(0);

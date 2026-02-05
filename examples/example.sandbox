@@ -1,4 +1,7 @@
 [sandbox]
+# Provider type: local_docker or opensandbox (default: local_docker)
+provider = "opensandbox"
+
 # Docker 镜像
 image = "scriptbook/claude:latest"
 

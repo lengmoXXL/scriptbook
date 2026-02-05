@@ -78,9 +78,9 @@ def make_app(docs_dir, static_dir):
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler),
         (r'/api/sandbox', SandboxHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler, {'action': 'command'}),
     ]
 
     handlers.append((r'/(.*)', SPAStaticFileHandler, {
@@ -114,8 +114,8 @@ def main():
 
     # Enable autoreload in development mode
     if os.environ.get('DEV_MODE', 'false').lower() == 'true':
-        import tornado.autoreload
-        tornado.autoreload.start()
+        import tornado.autoreload as tornado_autoreload
+        tornado_autoreload.start()
         logger.info("Autoreload enabled - server will restart when Python files change")
 
     # Convert to absolute path
