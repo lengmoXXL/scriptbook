@@ -83,9 +83,11 @@ class SandboxHandler(tornado.web.RequestHandler):
 
             result = await self.manager.create_sandbox(
                 provider=body.get('provider'),
+                sandbox_id=body.get('sandbox_id'),
                 image=body.get('image'),
                 init_commands=body.get('init_commands'),
-                env=body.get('env')
+                env=body.get('env'),
+                expire_time=body.get('expire_time')
             )
             self.write(json.dumps(result))
             self.set_header("Content-Type", "application/json")

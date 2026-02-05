@@ -46,9 +46,11 @@ async function loadConfig() {
 
     configData.value = {
         provider: sandboxConfig.provider || null,
+        sandbox_id: sandboxConfig.sandbox_id || 'auto',
         image: sandboxConfig.image,
         init_commands: sandboxConfig.init_commands,
         env: parsed.env || {},
+        expire_time: sandboxConfig.expire_time || null,
         input_channel: sandboxConfig.input_channel || null,
         output_format: sandboxConfig.output_format || null
     }
@@ -155,8 +157,8 @@ async function refreshSandbox() {
             throw new Error('Sandbox config not loaded')
         }
 
-        const { provider, image, init_commands, env } = configData.value
-        const response = await createSandbox({ provider, image, init_commands, env })
+        const { provider, sandbox_id, image, init_commands, env, expire_time } = configData.value
+        const response = await createSandbox({ provider, sandbox_id, image, init_commands, env, expire_time })
         sandboxId.value = response.id
         localStorage.setItem(getStorageKey('id'), response.id)
 

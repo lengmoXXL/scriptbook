@@ -25,9 +25,11 @@ export async function listSandboxes() {
  * Create a new sandbox.
  * @param {Object} [config] - Optional configuration
  * @param {string} [config.provider] - Provider type (local_docker or opensandbox)
+ * @param {string} [config.sandbox_id] - Sandbox ID ("auto" for random, fixed ID for reuse)
  * @param {string} [config.image] - Docker image to use
  * @param {string[]} [config.init_commands] - Initialization commands
  * @param {Object} [config.env] - Environment variables
+ * @param {number} [config.expire_time] - Expire time in seconds (null=default, 0=never, >0=custom)
  * @returns {Promise<{id: string, status: string}>} Newly created sandbox information
  */
 export async function createSandbox(config = null) {

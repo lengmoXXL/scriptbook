@@ -1,6 +1,8 @@
 """OpenSandbox provider implementation."""
 
 import logging
+import time
+from datetime import timedelta
 from typing import Optional
 
 from opensandbox import Sandbox as OSSandbox
@@ -14,12 +16,23 @@ from backend.sandbox.base import SandboxProvider, Sandbox, CommandResult, Sandbo
 logger = logging.getLogger(__name__)
 
 
-class OpenSandboxSandbox(Sandbox):
-    """Handle to an OpenSandbox instance."""
+# Renew when 50% of timeout has passed
+RENEW_THRESHOLD = 0.5
 
-    def __init__(self, sandbox: OSSandbox, connection_config: ConnectionConfig):
+
+class OpenSandboxSandbox(Sandbox):
+    """Handle to an OpenSandbox instance with auto-renew capability."""
+
+    def __init__(
+        self,
+        sandbox: OSSandbox,
+        connection_config: ConnectionConfig,
+        timeout: timedelta,
+    ):
         self._sandbox = sandbox
         self._connection_config = connection_config
+        self._timeout = timeout
+        self._last_renew = time.time()
 
     @property
     def id(self) -> str:
@@ -33,7 +46,22 @@ class OpenSandboxSandbox(Sandbox):
     def sandbox(self) -> Sandbox:
         return self._sandbox
 
+    async def _maybe_renew(self) -> None:
+        """Renew sandbox if more than 50% of timeout has passed since last renew."""
+        if self._timeout.total_seconds() == 0:
+            return  # No expiration for 0 timeout (actually 24 hours)
+
+        elapsed = time.time() - self._last_renew
+        if elapsed > self._timeout.total_seconds() * RENEW_THRESHOLD:
+            try:
+                await self._sandbox.renew(self._timeout)
+                self._last_renew = time.time()
+                logger.info(f"Renewed sandbox {self._sandbox.id} (elapsed: {elapsed:.1f}s)")
+            except Exception as e:
+                logger.error(f"Failed to renew sandbox {self._sandbox.id}: {e}")
+
     async def execute_command(self, command: str) -> CommandResult:
+        await self._maybe_renew()
         result = await self._sandbox.commands.run(command)
         stdout = "\n".join([line.text for line in result.logs.stdout]) if result.logs.stdout else ""
         stderr = "\n".join([line.text for line in result.logs.stderr]) if result.logs.stderr else ""
@@ -41,6 +69,7 @@ class OpenSandboxSandbox(Sandbox):
         return CommandResult(output=stdout, error=stderr, exit_code=exit_code)
 
     async def execute_command_streaming(self, command: str, handlers: ExecutionHandlers) -> None:
+        await self._maybe_renew()
         await self._sandbox.commands.run(command, handlers=handlers)
 
     async def get_info(self) -> SandboxInfo:
@@ -54,7 +83,8 @@ class OpenSandboxProvider(SandboxProvider):
     def __init__(self, domain: str = "localhost:8081"):
         self._connection_config = ConnectionConfig(domain=domain)
         self._manager: Optional[OSSandboxManager] = None
-        self._sandboxes: dict[str, Sandbox] = {}
+        self._sandboxes: dict[str, OSSandbox] = {}
+        self._sandbox_timeouts: dict[str, timedelta] = {}
 
     async def _get_manager(self) -> OSSandboxManager:
         if self._manager is None:
@@ -68,15 +98,26 @@ class OpenSandboxProvider(SandboxProvider):
 
     async def create_sandbox(
         self,
-        image: Optional[str] = None,
-        init_commands: Optional[list[str]] = None,
-        env: Optional[dict[str, str]] = None
+        sandbox_id: str | None = None,
+        image: str | None = None,
+        init_commands: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        expire_time: int | None = None
     ) -> OpenSandboxSandbox:
+        # Determine timeout: expire_time=None -> default 10min, 0 -> 24 hours, >0 -> custom seconds
+        if expire_time is None:
+            timeout = timedelta(minutes=10)
+        elif expire_time <= 0:
+            timeout = timedelta(hours=24)
+        else:
+            timeout = timedelta(seconds=expire_time)
+
         image_uri = image or "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interpreter:v1.0.1"
 
         sandbox = await OSSandbox.create(
             image=SandboxImageSpec(image=image_uri),
             resource={"cpu": "2", "memory": "2048Mi"},
+            timeout=timeout,
             connection_config=self._connection_config,
             skip_health_check=False,
             env=env
@@ -84,9 +125,10 @@ class OpenSandboxProvider(SandboxProvider):
 
         sandbox_id = sandbox.id
         self._sandboxes[sandbox_id] = sandbox
+        self._sandbox_timeouts[sandbox_id] = timeout
 
         info = await sandbox.get_info()
-        logger.info(f"Created sandbox: {sandbox_id}, status: {info.status.state}")
+        logger.info(f"Created OpenSandbox: {sandbox_id}, status: {info.status.state}, timeout: {timeout.total_seconds()}s")
 
         if init_commands:
             for cmd in init_commands:
@@ -96,7 +138,7 @@ class OpenSandboxProvider(SandboxProvider):
                 except Exception as e:
                     logger.error(f"Error executing init command: {e}")
 
-        return OpenSandboxSandbox(sandbox, self._connection_config)
+        return OpenSandboxSandbox(sandbox, self._connection_config, timeout)
 
     async def list_sandboxes(self) -> list[SandboxInfo]:
         manager = await self._get_manager()
@@ -109,7 +151,9 @@ class OpenSandboxProvider(SandboxProvider):
             logger.info(f"Reconnecting to sandbox: {sandbox_id}")
             sandbox = await OSSandbox.connect(sandbox_id, self._connection_config)
             self._sandboxes[sandbox_id] = sandbox
-        return OpenSandboxSandbox(sandbox, self._connection_config)
+
+        timeout = self._sandbox_timeouts.get(sandbox_id, timedelta(minutes=10))
+        return OpenSandboxSandbox(sandbox, self._connection_config, timeout)
 
     async def kill_sandbox(self, sandbox_id: str) -> None:
         manager = await self._get_manager()
@@ -118,3 +162,4 @@ class OpenSandboxProvider(SandboxProvider):
             await manager.kill_sandbox(sandbox_id)
         finally:
             self._sandboxes.pop(sandbox_id, None)
+            self._sandbox_timeouts.pop(sandbox_id, None)

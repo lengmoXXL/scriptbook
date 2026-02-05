@@ -23,20 +23,26 @@ SANDBOX_LABEL_VALUE = "true"
 
 
 class LocalDockerSandbox(Sandbox):
-    """Handle to a local Docker container."""
+    """Handle to a local Docker container with auto activity tracking."""
 
     def __init__(
         self,
         sandbox_id: str,
         container_id: str,
         client: docker.DockerClient,
-        update_activity_callback: callable
+        timeout_seconds: int
     ):
         self._sandbox_id = sandbox_id
         self._container_id = container_id
         self._client = client
         self._container = client.containers.get(container_id)
-        self._update_activity = update_activity_callback
+        self._timeout_seconds = timeout_seconds
+        self._last_activity = time.time()
+
+    def _update_activity(self) -> None:
+        """Update the last activity time for this sandbox."""
+        if self._timeout_seconds > 0:
+            self._last_activity = time.time()
 
     @property
     def id(self) -> str:
@@ -140,8 +146,7 @@ class LocalDockerProvider(SandboxProvider):
 
     def __init__(self, config: SandboxConfig):
         self._client = docker.from_env()
-        self._sandboxes: dict[str, str] = {}  # sandbox_id -> container_id
-        self._last_activity: dict[str, float] = {}  # sandbox_id -> timestamp
+        self._sandboxes: dict[str, LocalDockerSandbox] = {}
         self._timeout_seconds = config.local_docker_timeout_minutes * 60
         self._cleanup_task: asyncio.Task | None = None
         self._config = config
@@ -169,21 +174,20 @@ class LocalDockerProvider(SandboxProvider):
     def _generate_sandbox_id(self) -> str:
         return str(uuid.uuid4())
 
-    def _update_activity(self, sandbox_id: str) -> None:
-        """Update the last activity time for a sandbox."""
-        self._last_activity[sandbox_id] = time.time()
-
     async def _cleanup_expired_sandboxes(self) -> None:
         """Background task to clean up expired sandboxes."""
-        logger.info(f"Starting sandbox cleanup task (timeout: {self._config.local_docker_timeout_minutes} minutes)")
+        logger.info(f"Starting sandbox cleanup task (default timeout: {self._config.local_docker_timeout_minutes} minutes)")
         while True:
             try:
                 await asyncio.sleep(60)  # Check every minute
                 current_time = time.time()
-                expired_ids = [
-                    sid for sid, last_active in self._last_activity.items()
-                    if current_time - last_active > self._timeout_seconds
-                ]
+                expired_ids = []
+
+                for sandbox_id, sandbox in list(self._sandboxes.items()):
+                    if sandbox._timeout_seconds > 0:
+                        elapsed = current_time - sandbox._last_activity
+                        if elapsed > sandbox._timeout_seconds:
+                            expired_ids.append(sandbox_id)
 
                 for sandbox_id in expired_ids:
                     logger.info(f"Cleaning up expired sandbox: {sandbox_id}")
@@ -201,12 +205,28 @@ class LocalDockerProvider(SandboxProvider):
 
     async def create_sandbox(
         self,
-        image: Optional[str] = None,
-        init_commands: Optional[list[str]] = None,
-        env: Optional[dict[str, str]] = None
+        sandbox_id: str | None = None,
+        image: str | None = None,
+        init_commands: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        expire_time: int | None = None
     ) -> LocalDockerSandbox:
-        # Start cleanup task on first sandbox creation
-        self._start_cleanup_task()
+        # Generate sandbox_id if None or "auto"
+        is_auto_id = sandbox_id is None or sandbox_id == "auto"
+        if is_auto_id:
+            sandbox_id = self._generate_sandbox_id()
+
+        # Determine timeout: expire_time=None -> default, 0 -> never expire, >0 -> custom seconds
+        if expire_time is None:
+            timeout_seconds = self._timeout_seconds
+        elif expire_time <= 0:
+            timeout_seconds = 0  # Never expire
+        else:
+            timeout_seconds = expire_time
+
+        # Start cleanup task only if sandbox can expire
+        if timeout_seconds > 0:
+            self._start_cleanup_task()
 
         image_uri = image or "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interpreter:v1.0.1"
 
@@ -217,35 +237,41 @@ class LocalDockerProvider(SandboxProvider):
             logger.info(f"Pulling image: {image_uri}")
             self._client.images.pull(image_uri)
 
-        # Generate sandbox_id first
-        sandbox_id = self._generate_sandbox_id()
-
-        # Create and start container
-        container = self._client.containers.run(
-            image_uri,
-            command=["sh", "-c", "tail -f /dev/null"],
-            detach=True,
-            stdin_open=True,
-            tty=True,
-            environment=env or {},
-            labels={
-                SANDBOX_LABEL_KEY: SANDBOX_LABEL_VALUE,
-                "sandbox_id": sandbox_id,
-            },
+        # Check if container with this sandbox_id already exists
+        existing_containers = self._client.containers.list(
+            all=True,
+            filters={"label": f"{SANDBOX_LABEL_KEY}={SANDBOX_LABEL_VALUE}"}
         )
 
-        self._sandboxes[sandbox_id] = container.id
-        self._update_activity(sandbox_id)
+        container = None
+        for c in existing_containers:
+            if c.labels.get("sandbox_id") == sandbox_id:
+                container = c
+                logger.info(f"Reusing existing container: {container.id} with sandbox_id: {sandbox_id}")
+                break
 
-        logger.info(f"Created container: {container.id} with sandbox_id: {sandbox_id}")
+        # Create new container if not exists
+        if container is None:
+            container = self._client.containers.run(
+                image_uri,
+                command=["sh", "-c", "tail -f /dev/null"],
+                detach=True,
+                stdin_open=True,
+                tty=True,
+                environment=env or {},
+                labels={
+                    SANDBOX_LABEL_KEY: SANDBOX_LABEL_VALUE,
+                    "sandbox_id": sandbox_id,
+                    "fixed_id": "false" if is_auto_id else "true",
+                },
+            )
+            logger.info(f"Created container: {container.id} with sandbox_id: {sandbox_id} (fixed={not is_auto_id})")
 
-        def update_callback():
-            self._update_activity(sandbox_id)
+        handle = LocalDockerSandbox(sandbox_id, container.id, self._client, timeout_seconds)
+        self._sandboxes[sandbox_id] = handle
 
-        handle = LocalDockerSandbox(sandbox_id, container.id, self._client, update_callback)
-
-        # Execute init commands
-        if init_commands:
+        # Execute init commands (only for newly created containers)
+        if init_commands and container.labels.get("fixed_id") != "true":
             for cmd in init_commands:
                 logger.info(f"Executing init command in sandbox {sandbox_id}: {cmd}")
                 try:
@@ -273,10 +299,10 @@ class LocalDockerProvider(SandboxProvider):
     async def get_sandbox(self, sandbox_id: str) -> LocalDockerSandbox:
         """Get sandbox by querying Docker directly."""
         # First try memory cache
-        container_id = self._sandboxes.get(sandbox_id)
+        handle = self._sandboxes.get(sandbox_id)
 
         # If not in cache, query Docker by label
-        if container_id is None:
+        if handle is None:
             try:
                 containers = self._client.containers.list(
                     all=False,  # Only running containers
@@ -285,39 +311,29 @@ class LocalDockerProvider(SandboxProvider):
                 if not containers:
                     raise ValueError(f"Sandbox not found: {sandbox_id}")
                 container_id = containers[0].id
-                self._sandboxes[sandbox_id] = container_id
+
+                # Get timeout from container label
+                timeout_seconds = self._timeout_seconds
+                for c in self._client.containers.list(all=True, filters={"label": f"sandbox_id={sandbox_id}"}):
+                    fixed_id = c.labels.get("fixed_id", "false")
+                    if fixed_id == "true":
+                        timeout_seconds = 0
+                        break
+
+                handle = LocalDockerSandbox(sandbox_id, container_id, self._client, timeout_seconds)
+                self._sandboxes[sandbox_id] = handle
             except Exception as e:
                 raise ValueError(f"Sandbox not found: {sandbox_id}: {e}")
 
-        # Verify container is actually running
-        try:
-            container = self._client.containers.get(container_id)
-            container.reload()
-            if container.status != "running":
-                # Remove from cache and raise error
-                self._sandboxes.pop(sandbox_id, None)
-                self._last_activity.pop(sandbox_id, None)
-                raise ValueError(f"Sandbox is not running (status: {container.status}): {sandbox_id}")
-        except docker.errors.NotFound:
-            # Container doesn't exist, remove from cache
-            self._sandboxes.pop(sandbox_id, None)
-            self._last_activity.pop(sandbox_id, None)
-            raise ValueError(f"Sandbox container not found: {sandbox_id}")
-        except Exception as e:
-            raise ValueError(f"Error accessing sandbox: {e}")
-
-        def update_callback():
-            self._update_activity(sandbox_id)
-
-        return LocalDockerSandbox(sandbox_id, container_id, self._client, update_callback)
+        return handle
 
     async def kill_sandbox(self, sandbox_id: str) -> None:
-        container_id = self._sandboxes.pop(sandbox_id, None)
-        self._last_activity.pop(sandbox_id, None)
-        if container_id is None:
+        handle = self._sandboxes.pop(sandbox_id, None)
+        if handle is None:
             logger.warning(f"Sandbox not found: {sandbox_id}")
             return
 
+        container_id = handle._container_id
         logger.info(f"Killing container: {container_id}")
         try:
             container = self._client.containers.get(container_id)

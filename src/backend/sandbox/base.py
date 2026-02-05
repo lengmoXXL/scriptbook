@@ -96,9 +96,11 @@ class SandboxProvider(Protocol):
     @abstractmethod
     async def create_sandbox(
         self,
-        image: str,
+        sandbox_id: str | None = None,
+        image: str | None = None,
         init_commands: list[str] | None = None,
-        env: dict[str, str] | None = None
+        env: dict[str, str] | None = None,
+        expire_time: int | None = None
     ) -> Sandbox: ...
 
     @abstractmethod

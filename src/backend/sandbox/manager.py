@@ -61,14 +61,16 @@ class SandboxManager:
     async def create_sandbox(
         self,
         provider: str = None,
+        sandbox_id: str = None,
         image: str = None,
         init_commands: list[str] = None,
-        env: dict[str, str] = None
+        env: dict[str, str] = None,
+        expire_time: int = None
     ) -> dict:
         """Create a new sandbox with specified provider."""
         provider = provider or self._config.default_provider
         provider_instance = self._get_provider(provider)
-        handle = await provider_instance.create_sandbox(image, init_commands, env)
+        handle = await provider_instance.create_sandbox(sandbox_id, image, init_commands, env, expire_time)
 
         # Register sandbox with its provider
         self._sandbox_provider_map[handle.id] = provider
