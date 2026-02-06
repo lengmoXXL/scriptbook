@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed } from 'vue'
 import { renderMarkdown } from '../utils/markdown.js'
 
 const props = defineProps({
@@ -17,10 +17,6 @@ const props = defineProps({
     }
 })
 
-const emit = defineEmits(['executeCommand'])
-
-const markdownContentRef = ref(null)
-
 const renderedHtml = computed(() => {
     if (props.error) {
         return `<div class="error-message">${props.error}</div>`
@@ -30,36 +26,11 @@ const renderedHtml = computed(() => {
     }
     return renderMarkdown(props.content)
 })
-
-function handleExecuteButtonClick(e) {
-    if (e.target.classList.contains('execute-bash-btn')) {
-        e.preventDefault()
-        const command = e.target.dataset.command
-        if (command) {
-            emit('executeCommand', command)
-        }
-    }
-}
-
-onMounted(() => {
-    nextTick(() => {
-        if (markdownContentRef.value) {
-            markdownContentRef.value.addEventListener('click', handleExecuteButtonClick)
-        }
-    })
-})
-
-onUnmounted(() => {
-    if (markdownContentRef.value) {
-        markdownContentRef.value.removeEventListener('click', handleExecuteButtonClick)
-    }
-})
 </script>
 
 <template>
     <div class="markdown-viewer">
         <div
-            ref="markdownContentRef"
             class="markdown-content"
             v-html="renderedHtml"
         ></div>
@@ -75,33 +46,4 @@ onUnmounted(() => {
 .markdown-content :deep() code {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
-
-.markdown-content :deep() .bash-code-container {
-    position: relative;
-}
-
-.markdown-content :deep() .execute-bash-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 10;
-    background-color: #00a67d;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 4px 12px;
-    font-size: 0.8em;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.markdown-content :deep() .execute-bash-btn:hover {
-    background-color: #008f6b;
-}
-
-.markdown-content :deep() .execute-bash-btn:active {
-    background-color: #007a5a;
-}
-
 </style>
