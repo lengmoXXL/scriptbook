@@ -1,6 +1,6 @@
 [sandbox]
 # Provider type: local_docker or opensandbox (default: local_docker)
-provider = "opensandbox"
+provider = "local_docker"
 
 # Sandbox ID（仅 local_docker 有效）
 # 设为 "auto" 由后端自动生成（默认）

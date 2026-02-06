@@ -20,6 +20,7 @@ class SandboxInfo:
     """Sandbox information."""
     id: str
     status: str
+    container_id: str | None = None
 
 
 class StdoutMessage:

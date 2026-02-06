@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted, watch } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted, watch, computed } from 'vue'
 import { createSandbox, getSandboxInfo } from '../api/sandbox.js'
 import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
 import Dialog from './Dialog.vue'
+import Terminal from './Terminal.vue'
 import { useSandboxHandler } from '../composables/useSandboxChatHandlers.js'
 
 const WS_BASE = import.meta.env.DEV
@@ -24,9 +25,14 @@ const getStorageKey = (suffix) => {
 const inputCommand = ref('')
 const loading = ref(false)
 const sandboxId = ref(null)
+const containerId = ref(null)
 const error = ref('')
 const configData = ref(null)
 const wsConnected = ref(false)
+const terminalVisible = ref(false)
+
+// Terminal resize state
+const terminalHeight = ref(200) // pixels
 
 const messagesContainerRef = ref(null)
 const dialogRef = ref(null)
@@ -129,6 +135,7 @@ function connectWebSocket() {
 
 async function recreateSandbox() {
     sandboxId.value = null
+    containerId.value = null
     if (dialogRef.value) {
         dialogRef.value.clearMessages()
     }
@@ -144,11 +151,14 @@ async function recreateSandbox() {
 async function refreshSandbox() {
     loading.value = true
     error.value = ''
+    containerId.value = null
 
     try {
         const storedId = await tryConnectStoredSandbox()
         if (storedId) {
             sandboxId.value = storedId
+            const info = await getSandboxInfo(storedId)
+            containerId.value = info.container_id
             connectWebSocket()
             return true
         }
@@ -160,6 +170,7 @@ async function refreshSandbox() {
         const { provider, sandbox_id, image, init_commands, env, expire_time } = configData.value
         const response = await createSandbox({ provider, sandbox_id, image, init_commands, env, expire_time })
         sandboxId.value = response.id
+        containerId.value = response.container_id
         localStorage.setItem(getStorageKey('id'), response.id)
 
         connectWebSocket()
@@ -216,6 +227,40 @@ function handleKeydown(e) {
     }
 }
 
+// Computed properties for terminal support
+const supportsTerminal = computed(() => {
+    return configData.value?.provider === 'local_docker'
+})
+
+const terminalTermName = computed(() => {
+    return containerId.value || ''
+})
+
+function toggleTerminal() {
+    terminalVisible.value = !terminalVisible.value
+}
+
+function startTerminalResize(event) {
+    event.preventDefault()
+    const startY = event.clientY
+    const startHeight = terminalHeight.value
+
+    function onMouseMove(e) {
+        const deltaY = e.clientY - startY
+        let newHeight = startHeight - deltaY
+        newHeight = Math.max(100, Math.min(600, newHeight))
+        terminalHeight.value = newHeight
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+}
+
 onMounted(async () => {
     try {
         await loadConfig()
@@ -259,12 +304,15 @@ watch(() => props.config, async () => {
 </script>
 
 <template>
-    <div class="sandbox-chat">
+    <div class="sandbox-chat" :class="{ 'with-terminal': terminalVisible }">
         <div class="chat-header">
             <h3>Sandbox</h3>
             <div v-if="sandboxId" class="sandbox-info">
                 <span class="sandbox-id">ID: {{ sandboxId }}</span>
                 <button @click="recreateSandbox" class="recreate-button">Recreate</button>
+                <button v-if="supportsTerminal" @click="toggleTerminal" class="terminal-button">
+                    {{ terminalVisible ? 'Hide Terminal' : 'Terminal' }}
+                </button>
             </div>
             <div v-if="loading" class="loading-indicator">Processing...</div>
             <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
@@ -274,8 +322,19 @@ watch(() => props.config, async () => {
             </div>
         </div>
 
-        <div ref="messagesContainerRef" class="messages-container">
-            <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
+        <div class="content-wrapper">
+            <div ref="messagesContainerRef" class="messages-container">
+                <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
+            </div>
+
+            <div v-if="terminalVisible && supportsTerminal && containerId" class="terminal-section">
+                <div class="terminal-resize-handle" @mousedown="startTerminalResize">
+                    <div class="resize-bar"></div>
+                </div>
+                <div class="terminal-panel" :style="{ height: terminalHeight + 'px' }">
+                    <Terminal :key="terminalTermName" :ws-url="`${WS_BASE}/${terminalTermName}`" />
+                </div>
+            </div>
         </div>
 
         <div class="input-container">
@@ -305,6 +364,50 @@ watch(() => props.config, async () => {
     height: 100%;
     background-color: #1e1e1e;
     color: #f0f0f0;
+}
+
+.content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.terminal-section {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #444;
+}
+
+.terminal-resize-handle {
+    height: 4px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #252525;
+}
+
+.terminal-resize-handle:hover {
+    background-color: #333;
+}
+
+.resize-bar {
+    width: 100%;
+    height: 2px;
+    background-color: #444;
+    border-radius: 1px;
+}
+
+.terminal-panel {
+    background-color: #1a1a1a;
+    overflow: hidden;
 }
 
 .chat-header {
@@ -437,5 +540,20 @@ watch(() => props.config, async () => {
 
 .recreate-button:hover {
     background-color: #7a4f00;
+}
+
+.terminal-button {
+    margin-left: 12px;
+    background-color: #2c5282;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.terminal-button:hover {
+    background-color: #2a4365;
 }
 </style>

@@ -3,16 +3,18 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useTerminal } from '../composables/useTerminal.js'
 import { useTerminalWebSocket } from '../composables/useTerminalWebSocket.js'
 
-const WS_URL = import.meta.env.DEV
-  ? 'ws://localhost:8080/ws/tty'
-  : `ws://${window.location.host}/ws/tty`
+const props = defineProps({
+  wsUrl: {
+    type: String,
+    required: true
+  }
+})
 
 const terminalContainer = ref(null)
-const sessionId = ref(localStorage.getItem('terminal_term_name') || '')
 
 const { isConnected, connect: connectWs, send: sendStdin, setSize: setTerminalSize } = useTerminalWebSocket({
-  wsUrl: WS_URL,
-  sessionId,
+  wsUrl: props.wsUrl,
+  sessionId: '',
   onData: (content) => terminal.write(content),
   onSetup: () => console.log('Terminal ready'),
   onConnected: () => {

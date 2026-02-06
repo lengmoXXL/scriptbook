@@ -10,7 +10,7 @@ import os
 
 import tornado.ioloop
 import tornado.web
-from terminado.management import NamedTermManager
+from terminado.management import NamedTermManager, PtyWithClients, MaxTerminalsReached
 from terminado.websocket import TermSocket
 from backend.handlers.file_handler import FileHandler
 from backend.handlers.sandbox_handler import SandboxHandler
@@ -22,10 +22,52 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class SandboxTermManager(NamedTermManager):
+    """TermManager that can connect to docker containers by container_id.
+
+    URL format:
+    - /ws/{container_id} -> connect to docker container
+    """
+
+    def get_terminal(self, term_name: str):
+        """Get or create a terminal by name.
+
+        term_name is treated as container_id for docker exec connection.
+        """
+        assert term_name is not None
+
+        # Return existing terminal if already created
+        if term_name in self.terminals:
+            return self.terminals[term_name]
+
+        # Check max terminals limit
+        if self.max_terminals and len(self.terminals) >= self.max_terminals:
+            raise MaxTerminalsReached(self.max_terminals)
+
+        # Use term_name as container_id directly
+        container_id = term_name
+
+        shell_cmd = ['docker', 'exec', '-it', container_id, 'bash']
+        logger.info(f"Terminal will connect to container: {container_id}")
+
+        # Create terminal
+        options = self.term_settings.copy()
+        options["shell_command"] = shell_cmd
+        env = self.make_term_env(**options)
+        cwd = options.get("cwd", None)
+
+        self.log.info("New terminal with specified name: %s", term_name)
+        term = PtyWithClients(shell_cmd, env, cwd)
+        term.term_name = term_name
+        self.terminals[term_name] = term
+        self.start_reading(term)
+        return term
+
+
 class TerminalWebSocketHandler(TermSocket):
     """WebSocket handler with session persistence support."""
 
-    def check_origin(self, origin):
+    def check_origin(self, _origin):
         return True
 
 
@@ -70,7 +112,7 @@ class SPAStaticFileHandler(CORSStaticFileHandler):
 
 def make_app(docs_dir, static_dir):
     """Create Tornado application."""
-    term_manager = NamedTermManager(shell_command=['bash'])
+    term_manager = SandboxTermManager(shell_command=['bash'])
 
     handlers = [
         (r'/ws/sandbox/(?P<sandbox_id>[^/]+)', SandboxWebSocketHandler),

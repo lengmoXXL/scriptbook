@@ -76,7 +76,7 @@ class SandboxManager:
         self._sandbox_provider_map[handle.id] = provider
 
         info = await handle.get_info()
-        return {'id': handle.id, 'status': info.status}
+        return {'id': handle.id, 'status': info.status, 'container_id': info.container_id}
 
     async def list_sandboxes(self) -> list[dict]:
         """List all sandboxes from all providers."""
@@ -100,7 +100,7 @@ class SandboxManager:
         provider = self._get_provider_for_sandbox(sandbox_id)
         handle = await provider.get_sandbox(sandbox_id)
         info = await handle.get_info()
-        return {'id': info.id, 'status': info.status}
+        return {'id': info.id, 'status': info.status, 'container_id': info.container_id}
 
     async def execute_command(self, sandbox_id: str, command: str) -> CommandResult:
         """Execute command in sandbox."""

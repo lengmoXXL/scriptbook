@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import SandboxChat from './SandboxChat.vue'
-import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
 
 // State
@@ -14,11 +13,7 @@ const error = ref('')
 const currentView = ref('markdown') // 'markdown' or 'sandbox'
 
 // Resize state
-const terminalHeight = ref(15) // percentage
 const sidebarWidth = ref(250) // pixel
-
-// Refs
-const terminalRef = ref(null)
 
 // When file is selected from FileList
 async function onFileSelect(filename) {
@@ -46,40 +41,6 @@ async function onFileSelect(filename) {
     } finally {
         loading.value = false
     }
-}
-
-function handleExecuteCommand(command) {
-    if (terminalRef.value && terminalRef.value.sendCommand) {
-        terminalRef.value.sendCommand(command)
-    } else {
-        console.warn('Terminal ref not available or sendCommand method not found')
-    }
-}
-
-// Terminal height resize
-function startTerminalResize(event) {
-    const startY = event.clientY
-    const startHeight = (terminalHeight.value / 100) * document.querySelector('.content').clientHeight
-
-    function onMouseMove(e) {
-        const contentHeight = document.querySelector('.content').clientHeight
-        const deltaY = startY - e.clientY
-        let newTerminalHeight = ((startHeight + deltaY) / contentHeight) * 100
-        newTerminalHeight = Math.max(5, Math.min(80, newTerminalHeight))
-        terminalHeight.value = newTerminalHeight
-    }
-
-    function onMouseUp() {
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-    }
-
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-    document.body.style.cursor = 'row-resize'
-    document.body.style.userSelect = 'none'
 }
 
 // Sidebar width resize
@@ -127,25 +88,19 @@ function startSidebarResize(event) {
             <div class="content">
                 <div class="split-layout">
                     <template v-if="currentView === 'markdown'">
-                        <div class="markdown-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
+                        <div class="markdown-section">
                             <MarkdownViewer
                                 :content="currentContent"
                                 :loading="loading"
                                 :error="error"
-                                @executeCommand="handleExecuteCommand"
                             />
                         </div>
-                        <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
                     </template>
                     <template v-else-if="currentView === 'sandbox'">
-                        <div class="sandbox-section" :style="{ flexBasis: `${100 - terminalHeight}%` }">
+                        <div class="sandbox-section-full">
                             <SandboxChat :config="currentFile" />
                         </div>
-                        <div class="terminal-resizer" @mousedown="startTerminalResize"></div>
                     </template>
-                    <div class="terminal-section" :style="{ flex: `0 0 ${terminalHeight}%` }">
-                        <Terminal ref="terminalRef" />
-                    </div>
                 </div>
             </div>
         </div>
@@ -233,31 +188,18 @@ function startSidebarResize(event) {
 }
 
 .markdown-section {
+    flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     padding: 20px;
 }
 
-.sandbox-section {
+.sandbox-section-full {
     flex: 1;
     overflow: hidden;
-}
-
-.terminal-resizer {
-    height: 4px;
-    background-color: #333;
-    cursor: row-resize;
-    transition: background-color 0.2s;
-}
-
-.terminal-resizer:hover {
-    background-color: #666;
-}
-
-.terminal-section {
-    overflow: hidden;
-    position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header layout */

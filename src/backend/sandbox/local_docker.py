@@ -138,7 +138,7 @@ class LocalDockerSandbox(Sandbox):
     async def get_info(self) -> SandboxInfo:
         self._update_activity()
         self._container.reload()
-        return SandboxInfo(id=self._sandbox_id, status=self._container.status)
+        return SandboxInfo(id=self._sandbox_id, status=self._container.status, container_id=self._container_id)
 
 
 class LocalDockerProvider(SandboxProvider):
