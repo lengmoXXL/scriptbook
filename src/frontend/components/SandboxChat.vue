@@ -92,6 +92,14 @@ function connectWebSocket() {
         console.log('WebSocket connected')
     }
 
+    ws.onclose = () => {
+        wsConnected.value = false
+        loading.value = false
+        if (sandboxId.value) {
+            error.value = 'Connection closed. The sandbox may have been recycled or terminated.'
+        }
+    }
+
     ws.onerror = (err) => {
         error.value = `WebSocket connection failed: ${err.message || 'Connection error'}`
         loading.value = false

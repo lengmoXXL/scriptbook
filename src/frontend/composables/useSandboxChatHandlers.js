@@ -10,8 +10,6 @@
 export function useDefaultHandler() {
     let currentRequestId = null
     let outputLines = []
-    let hasError = false
-    let errorMessage = ''
 
     function handleMessage(data) {
         switch (data.type) {
@@ -23,15 +21,10 @@ export function useDefaultHandler() {
             outputLines.push(data.content)
             return null
         case 'error':
-            hasError = true
-            errorMessage = data.error
-            return null
+            const error = data.error
+            reset()
+            return { type: 'Error', error: error }
         case 'done':
-            if (hasError) {
-                const error = errorMessage
-                reset()
-                return { type: 'Error', error: error }
-            }
             const result = outputLines.join('\n')
             reset()
             return { type: 'ResultMessage', result: result || '(no output)' }
@@ -46,8 +39,6 @@ export function useDefaultHandler() {
 
     function reset() {
         outputLines = []
-        hasError = false
-        errorMessage = ''
     }
 
     function setRequestId(requestId) {
@@ -72,6 +63,9 @@ export function useClaudeStreamHandler() {
     let currentRequestId = null
 
     function handleMessage(data) {
+        if (data.type === 'error') {
+            return { type: 'Error', error: data.error }
+        }
         if (data.type !== 'stdout') return null
 
         try {
@@ -82,6 +76,7 @@ export function useClaudeStreamHandler() {
     }
 
     function isDone(data) {
+        if (data.type === 'error') return true
         if (data.type !== 'stdout') return false
         try {
             const msg = JSON.parse(data.content)
