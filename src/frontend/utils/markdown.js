@@ -9,6 +9,7 @@ import taskLists from 'markdown-it-task-lists'
 import container from 'markdown-it-container'
 import footnote from 'markdown-it-footnote'
 import hljs from 'highlight.js'
+import bashExecutePlugin from './markdown-plugins/bash-execute.js'
 
 import 'highlight.js/styles/github-dark.css'
 
@@ -38,6 +39,7 @@ md.use(container, 'tip')     // ::: tip ... :::
 md.use(container, 'warning') // ::: warning ... :::
 md.use(container, 'danger')  // ::: danger ... :::
 md.use(footnote)             // Footnotes: [^1] and [^1]: footnote text
+md.use(bashExecutePlugin)    // Add execute buttons to shell code blocks
 
 export function renderMarkdown(markdown) {
     if (!markdown || markdown.trim() === '') {

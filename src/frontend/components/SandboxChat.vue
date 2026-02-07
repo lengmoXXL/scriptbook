@@ -50,6 +50,7 @@ const terminalHeight = ref(200) // pixels
 const messagesContainerRef = ref(null)
 const dialogRef = ref(null)
 const inputRef = ref(null)
+const terminalRef = ref(null)
 let ws = null
 let handler = null
 let currentRequestId = null
@@ -208,27 +209,23 @@ function sendCommand() {
     const cmd = inputCommand.value.trim()
     if (!cmd || loading.value || !sandboxId.value || !wsConnected.value) return
 
-    // Generate unique request ID
-    currentRequestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    executeCommand(cmd)
+}
 
-    console.log('[SandboxChat] Sending command:', cmd, 'requestId:', currentRequestId)
+function executeCommand(cmd) {
+    if (!cmd) return
 
-    if (dialogRef.value) {
-        dialogRef.value.addMessage({ type: 'user', content: cmd, requestId: currentRequestId })
+    // Auto-show terminal when executing from markdown
+    if (!terminalVisible.value && props.markdownContent) {
+        terminalVisible.value = true
     }
 
-    handler.setRequestId(currentRequestId)
-    inputCommand.value = ''
-    loading.value = true
-
-    const inputChannel = configData.value?.input_channel
-    let finalCmd = cmd
-    if (inputChannel) {
-        finalCmd = `echo "${cmd.replace(/"/g, '\\"')}" | nc -U ${inputChannel}`
-    }
-
-    console.log('[SandboxChat] Final command:', finalCmd)
-    ws.send(JSON.stringify({ command: finalCmd }))
+    // Send command to terminal
+    nextTick(() => {
+        if (terminalRef.value && terminalRef.value.sendCommand) {
+            terminalRef.value.sendCommand(cmd)
+        }
+    })
 }
 
 function scrollToBottom() {
@@ -349,6 +346,7 @@ watch(() => props.config, async () => {
                     :content="markdownContent"
                     :loading="markdownLoading"
                     :error="markdownError"
+                    :on-execute-command="executeCommand"
                 />
             </div>
             <div v-else ref="messagesContainerRef" class="messages-container">
@@ -360,7 +358,7 @@ watch(() => props.config, async () => {
                     <div class="resize-bar"></div>
                 </div>
                 <div class="terminal-panel" :style="{ height: terminalHeight + 'px' }">
-                    <Terminal :key="terminalTermName" :ws-url="`${WS_BASE}/${terminalTermName}`" />
+                    <Terminal ref="terminalRef" :key="terminalTermName" :ws-url="`${WS_BASE}/${terminalTermName}`" />
                 </div>
             </div>
         </div>
