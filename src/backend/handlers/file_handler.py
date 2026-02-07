@@ -107,24 +107,27 @@ class SandboxFileHandler(tornado.web.RequestHandler):
         Args:
             sandbox_id: Sandbox ID
             filename: Optional filename parameter from URL pattern
+        Query params:
+            doc_path: Optional path to use instead of default /workspace
         """
         try:
+            doc_path = self.get_query_argument("doc_path", default="/workspace")
             sandbox = await get_sandbox_manager().get_sandbox_handle(sandbox_id)
 
             if not filename:
-                files = await self._list_markdown_files(sandbox)
+                files = await self._list_markdown_files(sandbox, doc_path)
                 self.write(json.dumps(files))
                 self.set_header("Content-Type", "application/json")
             else:
-                content = await self._read_file_content(sandbox, filename)
+                content = await self._read_file_content(sandbox, doc_path, filename)
                 self.write(content)
                 self.set_header("Content-Type", "text/plain; charset=utf-8")
         except Exception as e:
             self._handle_error(e)
 
-    async def _list_markdown_files(self, sandbox):
+    async def _list_markdown_files(self, sandbox, doc_path: str):
         """List markdown files in sandbox workspace directory."""
-        result = await sandbox.execute_command("find /workspace -maxdepth 1 -name '*.md' -type f -exec basename {} \\; | sort")
+        result = await sandbox.execute_command(f"find {doc_path} -maxdepth 1 -name '*.md' -type f -exec basename {{}} \\; | sort")
         if result.exit_code != 0:
             return []
         files = []
@@ -133,11 +136,11 @@ class SandboxFileHandler(tornado.web.RequestHandler):
                 files.append(line)
         return files
 
-    async def _read_file_content(self, sandbox, filename: str):
+    async def _read_file_content(self, sandbox, doc_path: str, filename: str):
         """Read file content from sandbox workspace directory."""
         if '..' in filename or filename.startswith('/'):
             raise ValueError("Invalid filename")
-        result = await sandbox.execute_command(f"cat /workspace/{filename}")
+        result = await sandbox.execute_command(f"cat {doc_path}/{filename}")
         if result.exit_code != 0:
             raise FileNotFoundError(f"File not found: {filename}")
         return result.output

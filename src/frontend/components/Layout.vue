@@ -40,8 +40,9 @@ async function loadSandboxMarkdownFile(filename) {
         const parsed = parse(configContent)
         const sandboxConfig = parsed.sandbox || {}
         const sandboxId = sandboxConfig.sandbox_id || 'auto'
+        const docPath = sandboxConfig.doc_path || '/workspace'
 
-        const content = await getSandboxFileContent(sandboxId, mdFile)
+        const content = await getSandboxFileContent(sandboxId, mdFile, docPath)
         currentContent.value = content
     } catch (err) {
         error.value = err.message || 'Failed to load sandbox file'

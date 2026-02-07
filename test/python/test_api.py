@@ -266,3 +266,19 @@ def test_cors_options():
     """Test CORS preflight request."""
     response = requests.options(f'{API_BASE}/sandbox')
     assert response.status_code == 204
+
+
+def test_sandbox_files_with_doc_path():
+    """Test that doc_path query parameter is accepted by the API."""
+    # Create a sandbox for testing
+    create_resp = requests.post(f'{API_BASE}/sandbox', json={})
+    assert create_resp.status_code == 200
+    sandbox = create_resp.json()
+    sandbox_id = sandbox['id']
+
+    # Test that the API accepts doc_path parameter without error
+    response = requests.get(f'{API_BASE}/sandbox/{sandbox_id}/files?doc_path=/tmp')
+    assert response.status_code == 200
+    # Returns empty list for /tmp (no markdown files expected)
+    files = response.json()
+    assert isinstance(files, list)

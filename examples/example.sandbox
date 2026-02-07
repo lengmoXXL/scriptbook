@@ -15,6 +15,9 @@ sandbox_id = "auto"
 # Docker 镜像
 image = "scriptbook/claude:latest"
 
+# 文档路径（容器内读取 .md 文件的路径）
+doc_path = "/workspace"
+
 # 初始化命令（在 sandbox 启动时执行）
 init_commands = ["nohup python3 /app/entrypoint.py > /tmp/claude_daemon.log 2>&1 & sleep 3 && while [ ! -S /tmp/claude.sock ]; do sleep 0.5; done"]
 

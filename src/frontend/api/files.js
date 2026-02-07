@@ -10,11 +10,14 @@ const API_BASE = import.meta.env.DEV
 /**
  * Fetch list of markdown files in a sandbox workspace.
  * @param {string} sandboxId - Sandbox ID
+ * @param {string} docPath - Document path in container (default: /workspace)
  * @returns {Promise<string[]>} Array of filenames
  */
-export async function listSandboxFiles(sandboxId) {
+export async function listSandboxFiles(sandboxId, docPath = '/workspace') {
     try {
-        const response = await fetch(`${API_BASE}/sandbox/${sandboxId}/files`)
+        const url = new URL(`${API_BASE}/sandbox/${sandboxId}/files`)
+        url.searchParams.set('doc_path', docPath)
+        const response = await fetch(url)
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -35,12 +38,15 @@ export async function listSandboxFiles(sandboxId) {
  * Fetch content of a specific markdown file from a sandbox workspace.
  * @param {string} sandboxId - Sandbox ID
  * @param {string} filename - Name of the file to read
+ * @param {string} docPath - Document path in container (default: /workspace)
  * @returns {Promise<string>} File content as plain text
  */
-export async function getSandboxFileContent(sandboxId, filename) {
+export async function getSandboxFileContent(sandboxId, filename, docPath = '/workspace') {
     try {
         const encodedFilename = encodeURIComponent(filename)
-        const response = await fetch(`${API_BASE}/sandbox/${sandboxId}/files/${encodedFilename}`)
+        const url = new URL(`${API_BASE}/sandbox/${sandboxId}/files/${encodedFilename}`)
+        url.searchParams.set('doc_path', docPath)
+        const response = await fetch(url)
 
         if (!response.ok) {
             if (response.status === 404) {

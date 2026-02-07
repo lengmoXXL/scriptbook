@@ -12,6 +12,8 @@ const expandedSandboxes = ref(new Set())
 const sandboxFilesCache = ref(new Map())
 // Cache actual sandbox IDs for config files
 const sandboxIdCache = ref(new Map())
+// Cache doc_path for sandbox configs
+const sandboxDocPathCache = ref(new Map())
 // Track sandbox status: 'pending' | 'creating' | 'ready' | 'error'
 const sandboxStatusCache = ref(new Map())
 // Track sandbox errors
@@ -82,6 +84,10 @@ async function loadSandboxFiles(filename) {
         const parsed = parse(content)
         const sandboxConfig = parsed.sandbox || {}
 
+        // Cache doc_path for later use
+        const docPath = sandboxConfig.doc_path || '/workspace'
+        sandboxDocPathCache.value.set(filename, docPath)
+
         let actualSandboxId = sandboxIdCache.value.get(filename)
         if (!actualSandboxId) {
             const provider = sandboxConfig.provider || 'local_docker'
@@ -99,7 +105,7 @@ async function loadSandboxFiles(filename) {
             sandboxIdCache.value.set(filename, actualSandboxId)
         }
 
-        const sandboxFileList = await listSandboxFiles(actualSandboxId)
+        const sandboxFileList = await listSandboxFiles(actualSandboxId, docPath)
         sandboxFilesCache.value.set(filename, sandboxFileList)
         sandboxStatusCache.value.set(filename, 'ready')
     } catch (err) {
