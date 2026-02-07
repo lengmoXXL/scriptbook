@@ -71,8 +71,7 @@ async function loadConfig() {
         init_commands: sandboxConfig.init_commands,
         env: parsed.env || {},
         expire_time: sandboxConfig.expire_time || null,
-        input_channel: sandboxConfig.input_channel || null,
-        output_format: sandboxConfig.output_format || null
+        type: sandboxConfig.type || null
     }
 
     handler = useSandboxHandler(configData)
@@ -221,11 +220,10 @@ function sendMessageToDialog() {
     loading.value = true
     currentRequestId = Date.now().toString()
 
-    // Wrap command for input_channel if configured
+    // Wrap command for Claude daemon if type is "claude"
     let commandToSend = cmd
-    const inputChannel = configData.value?.input_channel
-    if (inputChannel) {
-        commandToSend = `echo '${cmd}' | nc -U ${inputChannel}`
+    if (configData.value?.type === 'claude') {
+        commandToSend = `echo '${cmd}' | nc -U /tmp/claude.sock`
     }
 
     // Add user message to dialog first

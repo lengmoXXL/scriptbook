@@ -1,11 +1,13 @@
-FROM sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/code-interpreter:v1.0.1
+FROM ac2-registry.cn-hangzhou.cr.aliyuncs.com/ac2/base:alinux3.2104-py310
 
-RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @anthropic-ai/claude-code@latest \
-    && uv pip install --system --break-system-packages claude-agent-sdk -i https://pypi.tuna.tsinghua.edu.cn/simple
+# Install system dependencies
+RUN yum install -y git bash nc && yum clean all
 
-COPY entrypoint.py /app/entrypoint.py
-COPY bash.md /workspace/bash.md
-COPY markdown_syntax.md /workspace/markdown_syntax.md
+# Create workspace directory
+WORKDIR /workspace
 
-ENTRYPOINT ["python3", "/app/entrypoint.py"]
+# Install claude-agent-sdk
+RUN pip install --no-cache-dir claude-agent-sdk
+
+# Set up environment
+ENV PYTHONUNBUFFERED=1

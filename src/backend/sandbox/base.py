@@ -101,7 +101,8 @@ class SandboxProvider(Protocol):
         image: str | None = None,
         init_commands: list[str] | None = None,
         env: dict[str, str] | None = None,
-        expire_time: int | None = None
+        expire_time: int | None = None,
+        type: str | None = None
     ) -> Sandbox: ...
 
     @abstractmethod

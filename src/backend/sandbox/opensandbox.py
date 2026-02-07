@@ -102,7 +102,8 @@ class OpenSandboxProvider(SandboxProvider):
         image: str | None = None,
         init_commands: list[str] | None = None,
         env: dict[str, str] | None = None,
-        expire_time: int | None = None
+        expire_time: int | None = None,
+        type: str | None = None
     ) -> OpenSandboxSandbox:
         # Determine timeout: expire_time=None -> default 10min, 0 -> 24 hours, >0 -> custom seconds
         if expire_time is None:

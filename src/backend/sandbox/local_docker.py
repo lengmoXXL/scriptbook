@@ -209,7 +209,8 @@ class LocalDockerProvider(SandboxProvider):
         image: str | None = None,
         init_commands: list[str] | None = None,
         env: dict[str, str] | None = None,
-        expire_time: int | None = None
+        expire_time: int | None = None,
+        type: str | None = None
     ) -> LocalDockerSandbox:
         # Generate sandbox_id if None or "auto"
         is_auto_id = sandbox_id is None or sandbox_id == "auto"
@@ -271,6 +272,7 @@ class LocalDockerProvider(SandboxProvider):
                     SANDBOX_LABEL_KEY: SANDBOX_LABEL_VALUE,
                     "sandbox_id": sandbox_id,
                     **({"fixed_id": "true"} if timeout_seconds == 0 else {}),
+                    **({"type": type} if type else {}),
                 },
             )
             logger.info(f"Created container: {container.id} (name: {sandbox_id}) (timeout={timeout_seconds}s)")

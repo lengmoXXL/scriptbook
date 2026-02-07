@@ -103,18 +103,18 @@ export function useClaudeStreamHandler() {
 }
 
 /**
- * Handler registry - maps output_format to handler factory
+ * Handler registry - maps type to handler factory
  */
 export const handlers = {
-    'claude_stream_json': useClaudeStreamHandler,
+    'claude': useClaudeStreamHandler,
     'default': useDefaultHandler
 }
 
 /**
- * Create handler based on config output_format
+ * Create handler based on config type
  */
 export function useSandboxHandler(configData) {
-    const outputFormat = configData.value?.output_format || null
-    const handlerFactory = handlers[outputFormat] || handlers['default']
+    const sandboxType = configData.value?.type || null
+    const handlerFactory = handlers[sandboxType] || handlers['default']
     return handlerFactory()
 }
