@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, nextTick, onUnmounted, watch, computed } from 'vue'
-import { createSandbox, getSandboxInfo } from '../api/sandbox.js'
+import { createSandbox, getSandboxInfo, killSandbox } from '../api/sandbox.js'
 import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
 import Dialog from './Dialog.vue'
@@ -164,6 +164,9 @@ function connectWebSocket() {
 }
 
 async function recreateSandbox() {
+    const oldSandboxId = sandboxId.value
+    const isFixedId = configData.value?.sandbox_id && configData.value.sandbox_id !== 'auto'
+
     sandboxId.value = null
     containerId.value = null
     if (dialogRef.value) {
@@ -175,6 +178,16 @@ async function recreateSandbox() {
         ws.close()
         ws = null
     }
+
+    // Delete old container if using fixed sandbox_id
+    if (oldSandboxId && isFixedId) {
+        try {
+            await killSandbox(oldSandboxId)
+        } catch (err) {
+            console.warn('Failed to kill old sandbox:', err)
+        }
+    }
+
     await refreshSandbox()
 }
 
