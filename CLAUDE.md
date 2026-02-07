@@ -19,8 +19,6 @@
 ├── test/              # 测试
 ├── examples/          # 示例文件
 ├── agents/            # AI agents
-├── external/
-│   └── OpenSandbox/   # OpenSandbox 完整代码库（含 server 端）
 ├── .venv/             # Python 虚拟环境
 ├── package.json       # 前端配置
 ├── pyproject.toml     # Python 配置

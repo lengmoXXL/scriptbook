@@ -6,7 +6,6 @@ import logging
 from backend.config import SandboxConfig
 from backend.sandbox.base import CommandResult, SandboxInfo
 from backend.sandbox.local_docker import LocalDockerProvider
-from backend.sandbox.opensandbox import OpenSandboxProvider
 
 
 logger = logging.getLogger(__name__)
@@ -38,11 +37,7 @@ class SandboxManager:
             provider_type = self._config.default_provider
 
         if provider_type not in self._providers:
-            if provider_type == "opensandbox":
-                self._providers[provider_type] = OpenSandboxProvider(
-                    domain=self._config.opensandbox_domain
-                )
-            elif provider_type == "local_docker":
+            if provider_type == "local_docker":
                 self._providers[provider_type] = LocalDockerProvider(self._config)
             else:
                 raise ValueError(f"Unknown provider type: {provider_type}")
@@ -82,7 +77,7 @@ class SandboxManager:
         """List all sandboxes from all providers."""
         all_sandboxes = []
         # List from each provider
-        for provider_type in ["local_docker", "opensandbox"]:
+        for provider_type in ["local_docker"]:
             try:
                 provider = self._get_provider(provider_type)
                 sandboxes = await provider.list_sandboxes()

@@ -56,10 +56,7 @@ class ErrorMessage:
 
 
 class ExecutionHandlers(BaseModel):
-    """Callbacks for streaming command execution.
-
-    Compatible with OpenSandbox SDK's ExecutionHandlers interface.
-    """
+    """Callbacks for streaming command execution."""
     on_stdout: Callable[[Any], Awaitable[None]] | None = Field(default=None)
     on_stderr: Callable[[Any], Awaitable[None]] | None = Field(default=None)
     on_result: Callable[[Any], Awaitable[None]] | None = Field(default=None)

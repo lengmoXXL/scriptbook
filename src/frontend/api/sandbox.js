@@ -24,7 +24,7 @@ export async function listSandboxes() {
 /**
  * Create a new sandbox.
  * @param {Object} [config] - Optional configuration
- * @param {string} [config.provider] - Provider type (local_docker or opensandbox)
+ * @param {string} [config.provider] - Provider type (local_docker)
  * @param {string} [config.sandbox_id] - Sandbox ID ("auto" for random, fixed ID for reuse)
  * @param {string} [config.image] - Docker image to use
  * @param {string[]} [config.init_commands] - Initialization commands

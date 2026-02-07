@@ -1,15 +1,14 @@
 [sandbox]
-# Provider type: local_docker or opensandbox (default: local_docker)
+# Provider type: local_docker (default: local_docker)
 provider = "local_docker"
 
-# Sandbox ID（仅 local_docker 有效）
+# Sandbox ID
 # 设为 "auto" 由后端自动生成（默认）
 # 设为固定 ID（如 "dev-sandbox"）复用该容器，不会过期，适用于开发/测试
 sandbox_id = "auto"
 
 # 过期时间（单位：秒）
-# local_docker: null=默认15分钟, 0=永不过期, >0=指定秒数
-# opensandbox: null=默认10分钟, 0=24小时, >0=指定秒数
+# null=默认15分钟, 0=永不过期, >0=指定秒数
 # expire_time = 0
 
 # Docker 镜像
