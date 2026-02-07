@@ -50,7 +50,6 @@ export function useDefaultHandler() {
         isDone,
         reset,
         setRequestId,
-        showUserMessage: true,
         inputPlaceholder: "Enter command (e.g., ls, pwd, echo hello)..."
     }
 }
@@ -99,7 +98,6 @@ export function useClaudeStreamHandler() {
         isDone,
         reset,
         setRequestId,
-        showUserMessage: false,
         inputPlaceholder: 'Ask Claude something...'
     }
 }

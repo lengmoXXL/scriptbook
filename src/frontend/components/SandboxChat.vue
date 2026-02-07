@@ -135,8 +135,17 @@ function connectWebSocket() {
         case 'done': {
             const msg = handler.handleMessage(data)
             console.log('[SandboxChat] Processed message:', msg)
-            if (msg && dialogRef.value) {
-                dialogRef.value.addMessage({ ...msg, requestId: currentRequestId })
+            if (msg) {
+                if (dialogRef.value) {
+                    dialogRef.value.addMessage({ ...msg, requestId: currentRequestId })
+                } else {
+                    // Dialog not ready yet, wait for next tick
+                    nextTick(() => {
+                        if (dialogRef.value) {
+                            dialogRef.value.addMessage({ ...msg, requestId: currentRequestId })
+                        }
+                    })
+                }
             }
             if (handler.isDone(data)) {
                 loading.value = false
@@ -205,18 +214,50 @@ async function refreshSandbox() {
     }
 }
 
-function sendCommand() {
+function sendMessageToDialog() {
     const cmd = inputCommand.value.trim()
     if (!cmd || loading.value || !sandboxId.value || !wsConnected.value) return
 
-    executeCommand(cmd)
+    loading.value = true
+    currentRequestId = Date.now().toString()
+
+    // Wrap command for input_channel if configured
+    let commandToSend = cmd
+    const inputChannel = configData.value?.input_channel
+    if (inputChannel) {
+        commandToSend = `echo '${cmd}' | nc -U ${inputChannel}`
+    }
+
+    // Add user message to dialog first
+    if (dialogRef.value) {
+        dialogRef.value.addMessage({
+            type: 'user',
+            content: cmd,
+            requestId: currentRequestId
+        })
+    }
+
+    // Then send command to sandbox
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'execute',
+            requestId: currentRequestId,
+            command: commandToSend
+        }))
+        inputCommand.value = ''
+    }
+
+    // Scroll to bottom after adding user message
+    nextTick(() => {
+        scrollToBottom()
+    })
 }
 
-function executeCommand(cmd) {
+function executeCommandInTerminal(cmd) {
     if (!cmd) return
 
-    // Auto-show terminal when executing from markdown
-    if (!terminalVisible.value && props.markdownContent) {
+    // Show terminal if hidden
+    if (!terminalVisible.value) {
         terminalVisible.value = true
     }
 
@@ -235,13 +276,13 @@ function scrollToBottom() {
 }
 
 function handleSendClick() {
-    sendCommand()
+    sendMessageToDialog()
 }
 
 function handleKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        sendCommand()
+        sendMessageToDialog()
     }
 }
 
@@ -353,7 +394,7 @@ watch(() => props.config, async () => {
                     :content="markdownContent"
                     :loading="markdownLoading"
                     :error="markdownError"
-                    :on-execute-command="executeCommand"
+                    :on-execute-command="executeCommandInTerminal"
                 />
             </div>
             <div v-else ref="messagesContainerRef" class="messages-container">

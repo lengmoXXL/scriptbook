@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { listFiles, listSandboxFiles, getFileContent } from '../api/files.js'
+import { createSandbox } from '../api/sandbox.js'
 import { parse } from 'smol-toml'
 
 const files = ref([])
@@ -9,6 +10,12 @@ const error = ref(null)
 const selectedFile = ref(null)
 const expandedSandboxes = ref(new Set())
 const sandboxFilesCache = ref(new Map())
+// Cache actual sandbox IDs for config files
+const sandboxIdCache = ref(new Map())
+// Track sandbox status: 'pending' | 'creating' | 'ready' | 'error'
+const sandboxStatusCache = ref(new Map())
+// Track sandbox errors
+const sandboxErrorCache = ref(new Map())
 
 const emit = defineEmits(['select'])
 
@@ -50,6 +57,9 @@ function isSandboxFile(filename) {
 
 async function toggleSandbox(filename, event) {
     event.stopPropagation()
+    if (isSandboxCreating(filename)) {
+        return
+    }
     if (expandedSandboxes.value.has(filename)) {
         expandedSandboxes.value.delete(filename)
     } else {
@@ -59,16 +69,43 @@ async function toggleSandbox(filename, event) {
 }
 
 async function loadSandboxFiles(filename) {
+    const existingStatus = sandboxStatusCache.value.get(filename)
+    if (existingStatus === 'ready') {
+        return
+    }
+
+    sandboxStatusCache.value.set(filename, 'creating')
+    sandboxErrorCache.value.delete(filename)
+
     try {
         const content = await getFileContent(filename)
         const parsed = parse(content)
         const sandboxConfig = parsed.sandbox || {}
-        const sandboxId = sandboxConfig.sandbox_id || 'auto'
 
-        const sandboxFileList = await listSandboxFiles(sandboxId)
+        let actualSandboxId = sandboxIdCache.value.get(filename)
+        if (!actualSandboxId) {
+            const provider = sandboxConfig.provider || 'local_docker'
+            const sandboxId = sandboxConfig.sandbox_id || 'auto'
+
+            const result = await createSandbox({
+                provider,
+                sandbox_id: sandboxId,
+                image: sandboxConfig.image,
+                init_commands: sandboxConfig.init_commands,
+                env: parsed.env || {},
+                expire_time: sandboxConfig.expire_time
+            })
+            actualSandboxId = result.id
+            sandboxIdCache.value.set(filename, actualSandboxId)
+        }
+
+        const sandboxFileList = await listSandboxFiles(actualSandboxId)
         sandboxFilesCache.value.set(filename, sandboxFileList)
+        sandboxStatusCache.value.set(filename, 'ready')
     } catch (err) {
         console.error('Error loading sandbox files:', err)
+        sandboxStatusCache.value.set(filename, 'error')
+        sandboxErrorCache.value.set(filename, err.message || 'Failed to create sandbox')
         sandboxFilesCache.value.set(filename, [])
     }
 }
@@ -79,6 +116,30 @@ function isExpanded(filename) {
 
 function getSandboxFiles(filename) {
     return sandboxFilesCache.value.get(filename) || []
+}
+
+function getSandboxStatus(filename) {
+    return sandboxStatusCache.value.get(filename) || 'pending'
+}
+
+function getSandboxError(filename) {
+    return sandboxErrorCache.value.get(filename)
+}
+
+function getSandboxId(filename) {
+    return sandboxIdCache.value.get(filename)
+}
+
+function isSandboxReady(filename) {
+    return getSandboxStatus(filename) === 'ready'
+}
+
+function isSandboxCreating(filename) {
+    return getSandboxStatus(filename) === 'creating'
+}
+
+function isSandboxError(filename) {
+    return getSandboxStatus(filename) === 'error'
 }
 
 function selectSandboxFile(sandboxFile, sandboxFilename) {
@@ -118,12 +179,22 @@ function refreshFiles() {
                 :key="file"
                 :class="{ selected: selectedFile === file }">
                 <div class="file-item" @click="selectFile(file)">
-                    <span v-if="isSandboxFile(file)" class="expand-icon" @click="toggleSandbox(file, $event)">
-                        {{ isExpanded(file) ? '▼' : '▶' }}
+                    <span v-if="isSandboxFile(file)"
+                          class="expand-icon"
+                          :class="{ disabled: isSandboxCreating(file) }"
+                          @click="toggleSandbox(file, $event)">
+                        <span v-if="isSandboxCreating(file)" class="spinner">⟳</span>
+                        <span v-else>{{ isExpanded(file) ? '▼' : '▶' }}</span>
                     </span>
                     <span class="filename">{{ file }}</span>
+                    <span v-if="isSandboxFile(file) && isSandboxCreating(file)" class="status-inline status-creating">Creating...</span>
+                    <span v-else-if="isSandboxFile(file) && isSandboxReady(file)" class="status-inline status-ready">
+                        <span class="status-indicator"></span>
+                        {{ getSandboxId(file)?.slice(0, 8) }}
+                    </span>
+                    <span v-else-if="isSandboxFile(file) && isSandboxError(file)" class="status-inline status-error">{{ getSandboxError(file) }}</span>
                 </div>
-                <ul v-if="isSandboxFile(file) && isExpanded(file)" class="subfiles">
+                <ul v-if="isSandboxFile(file) && isExpanded(file) && isSandboxReady(file)" class="subfiles">
                     <li v-for="subfile in getSandboxFiles(file)"
                         :key="subfile"
                         :class="{ selected: selectedFile === `${file}:${subfile}` }"
@@ -264,5 +335,47 @@ function refreshFiles() {
     background-color: #333;
     border-left: 3px solid #00ff00;
     padding-left: 31px;
+}
+
+.status-inline {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-creating {
+    color: #ffa500;
+}
+
+.status-ready {
+    color: #00ff00;
+}
+
+.status-error {
+    color: #ff6b6b;
+}
+
+.status-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #00ff00;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.expand-icon.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

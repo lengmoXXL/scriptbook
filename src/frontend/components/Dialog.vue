@@ -56,13 +56,39 @@ defineExpose({
 // Message Grouping
 // ============================================================================
 
+// Check if messages use claude_stream_json format (no requestId)
+const isClaudeStreamFormat = computed(() => {
+    return messages.value.length > 0 && messages.value[0].type === 'SystemMessage'
+})
+
 const conversationGroups = computed(() => {
     const groups = []
     const groupMap = new Map()
 
     for (const msg of messages.value) {
-        if (!msg.requestId) continue
+        // For claude_stream_json format, create a synthetic group for each message
+        if (!msg.requestId) {
+            if (msg.type === 'ResultMessage') {
+                groups.push({
+                    requestId: `claude-${Date.now()}-${Math.random()}`,
+                    userMessage: null,
+                    progressMessages: [],
+                    resultMessage: msg,
+                    errorMessage: null
+                })
+            } else if (msg.type === 'AssistantMessage') {
+                groups.push({
+                    requestId: `claude-${Date.now()}-${Math.random()}`,
+                    userMessage: null,
+                    progressMessages: [msg],
+                    resultMessage: null,
+                    errorMessage: null
+                })
+            }
+            continue
+        }
 
+        // Standard format with requestId
         if (!groupMap.has(msg.requestId)) {
             const group = {
                 requestId: msg.requestId,
@@ -112,15 +138,23 @@ onMounted(() => {
 // ============================================================================
 
 function getGroupId(group) {
+    if (!group) return undefined
     return group.requestId
 }
 
 function isExpanded(group) {
-    return expandedStates.value[getGroupId(group.userMessage)] ?? false
+    if (!group) return false
+    const userMessage = group.userMessage
+    if (!userMessage) return false
+    const id = getGroupId(group)
+    return expandedStates.value[id] ?? false
 }
 
 function toggleExpanded(group) {
-    const id = getGroupId(group.userMessage)
+    if (!group) return
+    const userMessage = group.userMessage
+    if (!userMessage) return
+    const id = getGroupId(group)
     expandedStates.value[id] = !expandedStates.value[id]
 }
 
@@ -199,7 +233,7 @@ function getLatestProgress(progressMessages) {
     <div class="message-group">
         <div v-for="group in conversationGroups" :key="getGroupId(group)" class="conversation-group">
             <!-- 用户消息 -->
-            <div class="user-message">
+            <div v-if="group.userMessage" class="user-message">
                 <div class="user-message-content">{{ group.userMessage.content }}</div>
             </div>
 
