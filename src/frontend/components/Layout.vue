@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import FileList from './FileList.vue'
-import MarkdownViewer from './MarkdownViewer.vue'
 import SandboxChat from './SandboxChat.vue'
 import { getFileContent, getSandboxFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
@@ -11,7 +10,6 @@ const currentFile = ref(null)
 const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
-const currentView = ref('markdown') // 'markdown', 'sandbox', or 'sandbox-md'
 
 // Resize state
 const sidebarWidth = ref(250) // pixel
@@ -29,29 +27,13 @@ async function onFileSelect(filename) {
     // Check if it's a sandbox internal file (format: sandboxFile.md:internal.md)
     if (filename.includes(':')) {
         await loadSandboxMarkdownFile(filename)
-    } else if (filename.toLowerCase().endsWith('.sandbox')) {
-        currentView.value = 'sandbox'
-        loading.value = false
     } else {
-        currentView.value = 'markdown'
-        await loadLocalFile(filename)
-    }
-}
-
-async function loadLocalFile(filename) {
-    try {
-        const content = await getFileContent(filename)
-        currentContent.value = content
-    } catch (err) {
-        error.value = err.message || 'Failed to load file'
-        console.error('Error loading file:', err)
-    } finally {
+        // All files are sandbox files now
         loading.value = false
     }
 }
 
 async function loadSandboxMarkdownFile(filename) {
-    currentView.value = 'sandbox-md'
     try {
         const [sandboxConfigFile, mdFile] = filename.split(':')
         const configContent = await getFileContent(sandboxConfigFile)
@@ -103,32 +85,15 @@ function startSidebarResize(event) {
         </div>
         <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
-            <div class="header">
-                <div class="header-left">
-                    <div class="file-info" v-if="currentFile">
-                        <span class="filename">{{ currentFile }}</span>
-                        <span v-if="loading" class="loading-indicator">Loading...</span>
-                    </div>
-                </div>
-            </div>
             <div class="content">
                 <div class="split-layout">
-                    <template v-if="currentView === 'markdown'">
-                        <div class="markdown-section">
-                            <MarkdownViewer
-                                :content="currentContent"
-                                :loading="loading"
-                                :error="error"
-                            />
-                        </div>
-                    </template>
-                    <template v-else-if="currentView === 'sandbox' || currentView === 'sandbox-md'">
+                    <template v-if="currentFile">
                         <div class="sandbox-section-full">
                             <SandboxChat
-                                :config="currentView === 'sandbox-md' ? currentFile.split(':')[0] : currentFile"
-                                :markdown-content="currentView === 'sandbox-md' ? currentContent : ''"
-                                :markdown-loading="currentView === 'sandbox-md' ? loading : false"
-                                :markdown-error="currentView === 'sandbox-md' ? error : ''"
+                                :config="currentFile.includes(':') ? currentFile.split(':')[0] : currentFile"
+                                :markdown-content="currentFile.includes(':') ? currentContent : ''"
+                                :markdown-loading="currentFile.includes(':') ? loading : false"
+                                :markdown-error="currentFile.includes(':') ? error : ''"
                             />
                         </div>
                     </template>
@@ -176,36 +141,6 @@ function startSidebarResize(event) {
     overflow: hidden;
 }
 
-.header {
-    padding: 12px 20px;
-    border-bottom: 1px solid #444;
-    background-color: #252525;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-}
-
-
-.file-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    color: #aaa;
-}
-
-.filename {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    background-color: #333;
-    padding: 4px 8px;
-    border-radius: 3px;
-}
-
-.loading-indicator {
-    color: #00ff00;
-    font-style: italic;
-}
-
 .content {
     flex: 1;
     overflow: hidden;
@@ -218,62 +153,10 @@ function startSidebarResize(event) {
     width: 100%;
 }
 
-.markdown-section {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-}
-
 .sandbox-section-full {
     flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-}
-
-/* Header layout */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-left,
-.header-right {
-    display: flex;
-    align-items: center;
-}
-
-.view-toggle {
-    display: flex;
-    gap: 8px;
-}
-
-.toggle-button {
-    background-color: #333;
-    color: #aaa;
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 0.9em;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.toggle-button:hover {
-    background-color: #3a3a3a;
-    color: #fff;
-}
-
-.toggle-button.active {
-    background-color: #00a67d;
-    color: white;
-    border-color: #00a67d;
-}
-
-.toggle-button.active:hover {
-    background-color: #008f6b;
 }
 </style>

@@ -254,6 +254,11 @@ const terminalTermName = computed(() => {
     return containerId.value || ''
 })
 
+const configFileName = computed(() => {
+    if (!props.config) return 'Sandbox'
+    return props.config.split('/').pop()
+})
+
 function toggleTerminal() {
     terminalVisible.value = !terminalVisible.value
 }
@@ -324,19 +329,21 @@ watch(() => props.config, async () => {
 <template>
     <div class="sandbox-chat" :class="{ 'with-terminal': terminalVisible }">
         <div class="chat-header">
-            <h3>Sandbox</h3>
-            <div v-if="sandboxId" class="sandbox-info">
-                <span class="sandbox-id">ID: {{ sandboxId }}</span>
-                <button @click="recreateSandbox" class="recreate-button">Recreate</button>
+            <div class="header-left">
+                <h3>{{ configFileName }}</h3>
+                <span v-if="sandboxId" class="sandbox-id">ID: {{ sandboxId }}</span>
+            </div>
+            <div class="header-right">
                 <button v-if="supportsTerminal" @click="toggleTerminal" class="terminal-button">
                     {{ terminalVisible ? 'Hide Terminal' : 'Terminal' }}
                 </button>
-            </div>
-            <div v-if="loading" class="loading-indicator">Processing...</div>
-            <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
-            <div v-if="error" class="error-message">
-                {{ error }}
-                <button @click="refreshSandbox" class="retry-button">Retry</button>
+                <button @click="recreateSandbox" class="recreate-button">Recreate</button>
+                <div v-if="loading" class="loading-indicator">Processing...</div>
+                <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
+                <div v-if="error" class="error-message">
+                    {{ error }}
+                    <button @click="refreshSandbox" class="retry-button">Retry</button>
+                </div>
             </div>
         </div>
 
@@ -445,20 +452,27 @@ watch(() => props.config, async () => {
     padding: 12px 20px;
     border-bottom: 1px solid #444;
     background-color: #252525;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.chat-header h3 {
-    margin: 0 0 8px 0;
-    font-size: 1.2em;
-    color: #ffffff;
-}
-
-.sandbox-info {
+.header-left {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 0.9em;
-    color: #aaa;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #ffffff;
 }
 
 .sandbox-id {
@@ -543,8 +557,7 @@ watch(() => props.config, async () => {
     cursor: not-allowed;
 }
 
-.retry-button {
-    margin-left: 12px;
+.terminal-button {
     background-color: #2c5282;
     color: white;
     border: none;
@@ -554,12 +567,11 @@ watch(() => props.config, async () => {
     cursor: pointer;
 }
 
-.retry-button:hover {
+.terminal-button:hover {
     background-color: #2a4365;
 }
 
 .recreate-button {
-    margin-left: 12px;
     background-color: #5c3d00;
     color: white;
     border: none;
@@ -573,18 +585,7 @@ watch(() => props.config, async () => {
     background-color: #7a4f00;
 }
 
-.terminal-button {
-    margin-left: 12px;
-    background-color: #2c5282;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 4px 12px;
-    font-size: 0.9em;
-    cursor: pointer;
-}
-
-.terminal-button:hover {
+.retry-button:hover {
     background-color: #2a4365;
 }
 </style>
