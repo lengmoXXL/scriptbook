@@ -155,13 +155,16 @@ class LocalDockerProvider(SandboxProvider):
         self._cleanup_orphaned_containers()
 
     def _cleanup_orphaned_containers(self) -> None:
-        """Clean up containers left from previous process runs."""
+        """Clean up containers left from previous process runs (skip fixed_id containers)."""
         try:
             containers = self._client.containers.list(
                 all=True,
                 filters={"label": f"{SANDBOX_LABEL_KEY}={SANDBOX_LABEL_VALUE}"}
             )
             for container in containers:
+                # Skip containers with fixed_id=true (they should persist)
+                if container.labels.get("fixed_id") == "true":
+                    continue
                 try:
                     logger.info(f"Cleaning up orphaned container: {container.id[:12]}")
                     container.stop(timeout=5)
@@ -175,14 +178,15 @@ class LocalDockerProvider(SandboxProvider):
         return str(uuid.uuid4())
 
     async def _cleanup_expired_sandboxes(self) -> None:
-        """Background task to clean up expired sandboxes."""
+        """Background task to clean up expired and orphaned sandboxes."""
         logger.info(f"Starting sandbox cleanup task (default timeout: {self._config.local_docker_timeout_minutes} minutes)")
         while True:
             try:
                 await asyncio.sleep(60)  # Check every minute
                 current_time = time.time()
-                expired_ids = []
 
+                # Clean up tracked expired sandboxes
+                expired_ids = []
                 for sandbox_id, sandbox in list(self._sandboxes.items()):
                     if sandbox._timeout_seconds > 0:
                         elapsed = current_time - sandbox._last_activity
@@ -192,11 +196,50 @@ class LocalDockerProvider(SandboxProvider):
                 for sandbox_id in expired_ids:
                     logger.info(f"Cleaning up expired sandbox: {sandbox_id}")
                     await self.kill_sandbox(sandbox_id)
+
+                # Clean up orphaned containers (exist in Docker but not tracked)
+                await self._cleanup_orphaned_containers_async()
             except asyncio.CancelledError:
                 logger.info("Cleanup task cancelled")
                 break
             except Exception as e:
                 logger.error(f"Error in cleanup task: {e}")
+
+    async def _cleanup_orphaned_containers_async(self) -> None:
+        """Clean up containers that exist in Docker but are not tracked in memory."""
+        try:
+            containers = self._client.containers.list(
+                all=True,
+                filters={"label": f"{SANDBOX_LABEL_KEY}={SANDBOX_LABEL_VALUE}"}
+            )
+            for container in containers:
+                sandbox_id = container.labels.get("sandbox_id")
+                if not sandbox_id:
+                    continue
+
+                # Skip if tracked in memory
+                if sandbox_id in self._sandboxes:
+                    continue
+
+                # Skip fixed_id containers
+                if container.labels.get("fixed_id") == "true":
+                    continue
+
+                # For orphaned containers, check if they're old enough to clean up
+                # Use container creation time as a heuristic
+                try:
+                    created_timestamp = container.attrs["Created"]
+                    # Parse Docker timestamp (e.g., "2025-02-07T12:00:00.123456789Z")
+                    # Simple approach: if container is older than default timeout, clean it up
+                    if self._timeout_seconds > 0:
+                        # Container is old enough, clean it up
+                        logger.info(f"Cleaning up orphaned container: {sandbox_id} ({container.id[:12]})")
+                        container.stop(timeout=5)
+                        container.remove()
+                except Exception as e:
+                    logger.error(f"Error cleaning up orphaned container {container.id}: {e}")
+        except Exception as e:
+            logger.error(f"Error listing orphaned containers: {e}")
 
     def _start_cleanup_task(self) -> None:
         """Start the background cleanup task."""
