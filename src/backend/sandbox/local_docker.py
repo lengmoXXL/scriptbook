@@ -252,8 +252,16 @@ class LocalDockerProvider(SandboxProvider):
 
         # Create new container if not exists
         if container is None:
+            # Remove old container with same name if exists (for fixed_id reuse)
+            try:
+                self._client.containers.get(sandbox_id).remove(force=True)
+                logger.info(f"Removed old container with name: {sandbox_id}")
+            except:
+                pass
+
             container = self._client.containers.run(
                 image_uri,
+                name=sandbox_id,
                 command=["sh", "-c", "tail -f /dev/null"],
                 detach=True,
                 stdin_open=True,
@@ -262,15 +270,15 @@ class LocalDockerProvider(SandboxProvider):
                 labels={
                     SANDBOX_LABEL_KEY: SANDBOX_LABEL_VALUE,
                     "sandbox_id": sandbox_id,
-                    "fixed_id": "false" if is_auto_id else "true",
+                    **({"fixed_id": "true"} if timeout_seconds == 0 else {}),
                 },
             )
-            logger.info(f"Created container: {container.id} with sandbox_id: {sandbox_id} (fixed={not is_auto_id})")
+            logger.info(f"Created container: {container.id} (name: {sandbox_id}) (timeout={timeout_seconds}s)")
 
         handle = LocalDockerSandbox(sandbox_id, container.id, self._client, timeout_seconds)
         self._sandboxes[sandbox_id] = handle
 
-        # Execute init commands (only for newly created containers)
+        # Execute init commands (only for newly created containers that can expire)
         if init_commands and container.labels.get("fixed_id") != "true":
             for cmd in init_commands:
                 logger.info(f"Executing init command in sandbox {sandbox_id}: {cmd}")
@@ -301,29 +309,34 @@ class LocalDockerProvider(SandboxProvider):
         # First try memory cache
         handle = self._sandboxes.get(sandbox_id)
 
-        # If not in cache, query Docker by label
+        # If not in cache, query Docker
         if handle is None:
             try:
+                # First try to get container by name (sandbox_id is now the container name)
+                container = self._client.containers.get(sandbox_id)
+                container_id = container.id
+            except:
+                # Fall back to searching by label (for old containers without name set)
                 containers = self._client.containers.list(
-                    all=False,  # Only running containers
+                    all=False,
                     filters={"label": f"sandbox_id={sandbox_id}"}
                 )
                 if not containers:
                     raise ValueError(f"Sandbox not found: {sandbox_id}")
                 container_id = containers[0].id
 
-                # Get timeout from container label
-                timeout_seconds = self._timeout_seconds
-                for c in self._client.containers.list(all=True, filters={"label": f"sandbox_id={sandbox_id}"}):
-                    fixed_id = c.labels.get("fixed_id", "false")
-                    if fixed_id == "true":
-                        timeout_seconds = 0
-                        break
+            # Get timeout from container label
+            timeout_seconds = self._timeout_seconds
+            try:
+                container = self._client.containers.get(container_id)
+                fixed_id = container.labels.get("fixed_id")
+                if fixed_id == "true":
+                    timeout_seconds = 0
+            except:
+                pass
 
-                handle = LocalDockerSandbox(sandbox_id, container_id, self._client, timeout_seconds)
-                self._sandboxes[sandbox_id] = handle
-            except Exception as e:
-                raise ValueError(f"Sandbox not found: {sandbox_id}: {e}")
+            handle = LocalDockerSandbox(sandbox_id, container_id, self._client, timeout_seconds)
+            self._sandboxes[sandbox_id] = handle
 
         return handle
 
