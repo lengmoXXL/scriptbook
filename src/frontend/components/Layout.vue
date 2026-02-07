@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import FileList from './FileList.vue'
 import SandboxChat from './SandboxChat.vue'
 import { getFileContent, getSandboxFileContent } from '../api/files.js'
@@ -11,38 +11,60 @@ const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
 
+// Computed: get filename from currentFile (handles both string and object)
+const currentFilename = computed(() => {
+    return typeof currentFile.value === 'string' ? currentFile.value : currentFile.value?.filename || ''
+})
+
 // Resize state
 const sidebarWidth = ref(250) // pixel
 
 // When file is selected from FileList
-async function onFileSelect(filename) {
-    if (currentFile.value === filename) {
+async function onFileSelect(selection) {
+    const filename = typeof selection === 'string' ? selection : selection.filename
+    const currentFilename = typeof currentFile.value === 'string' ? currentFile.value : currentFile.value?.filename
+
+    if (currentFilename === filename) {
         return // Already selected
     }
 
-    currentFile.value = filename
+    currentFile.value = selection
     loading.value = true
     error.value = ''
 
     // Check if it's a sandbox internal file (format: sandboxFile.md:internal.md)
     if (filename.includes(':')) {
-        await loadSandboxMarkdownFile(filename)
+        await loadSandboxMarkdownFile(selection)
     } else {
         // All files are sandbox files now
         loading.value = false
     }
 }
 
-async function loadSandboxMarkdownFile(filename) {
+async function loadSandboxMarkdownFile(selection) {
     try {
+        const filename = typeof selection === 'string' ? selection : selection.filename
         const [sandboxConfigFile, mdFile] = filename.split(':')
-        const configContent = await getFileContent(sandboxConfigFile)
-        const parsed = parse(configContent)
-        const sandboxConfig = parsed.sandbox || {}
-        const sandboxId = sandboxConfig.sandbox_id || 'auto'
-        const docPath = sandboxConfig.doc_path || '/workspace'
 
-        const content = await getSandboxFileContent(sandboxId, mdFile, docPath)
+        // Use actual sandbox ID and docPath from FileList's cache if available
+        let actualSandboxId
+        let docPath = '/workspace'
+
+        if (typeof selection === 'object') {
+            actualSandboxId = selection.sandboxId
+            docPath = selection.docPath || '/workspace'
+        }
+
+        // Fallback: parse config if we don't have the required info
+        if (!actualSandboxId) {
+            const configContent = await getFileContent(sandboxConfigFile)
+            const parsed = parse(configContent)
+            const sandboxConfig = parsed.sandbox || {}
+            actualSandboxId = sandboxConfig.sandbox_id || 'auto'
+            docPath = sandboxConfig.doc_path || '/workspace'
+        }
+
+        const content = await getSandboxFileContent(actualSandboxId, mdFile, docPath)
         currentContent.value = content
     } catch (err) {
         error.value = err.message || 'Failed to load sandbox file'
@@ -91,10 +113,10 @@ function startSidebarResize(event) {
                     <template v-if="currentFile">
                         <div class="sandbox-section-full">
                             <SandboxChat
-                                :config="currentFile.includes(':') ? currentFile.split(':')[0] : currentFile"
-                                :markdown-content="currentFile.includes(':') ? currentContent : ''"
-                                :markdown-loading="currentFile.includes(':') ? loading : false"
-                                :markdown-error="currentFile.includes(':') ? error : ''"
+                                :config="currentFilename.includes(':') ? currentFilename.split(':')[0] : currentFilename"
+                                :markdown-content="currentFilename.includes(':') ? currentContent : ''"
+                                :markdown-loading="currentFilename.includes(':') ? loading : false"
+                                :markdown-error="currentFilename.includes(':') ? error : ''"
                             />
                         </div>
                     </template>

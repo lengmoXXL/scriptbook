@@ -150,7 +150,9 @@ function isSandboxError(filename) {
 
 function selectSandboxFile(sandboxFile, sandboxFilename) {
     selectedFile.value = `${sandboxFilename}:${sandboxFile}`
-    emit('select', `${sandboxFilename}:${sandboxFile}`)
+    const actualSandboxId = sandboxIdCache.value.get(sandboxFilename)
+    const docPath = sandboxDocPathCache.value.get(sandboxFilename) || '/workspace'
+    emit('select', { filename: `${sandboxFilename}:${sandboxFile}`, sandboxId: actualSandboxId, docPath })
 }
 
 function refreshFiles() {
