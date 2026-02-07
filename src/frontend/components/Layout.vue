@@ -113,7 +113,7 @@ function startSidebarResize(event) {
             </div>
             <div class="content">
                 <div class="split-layout">
-                    <template v-if="currentView === 'markdown' || currentView === 'sandbox-md'">
+                    <template v-if="currentView === 'markdown'">
                         <div class="markdown-section">
                             <MarkdownViewer
                                 :content="currentContent"
@@ -122,9 +122,14 @@ function startSidebarResize(event) {
                             />
                         </div>
                     </template>
-                    <template v-else-if="currentView === 'sandbox'">
+                    <template v-else-if="currentView === 'sandbox' || currentView === 'sandbox-md'">
                         <div class="sandbox-section-full">
-                            <SandboxChat :config="currentFile" />
+                            <SandboxChat
+                                :config="currentView === 'sandbox-md' ? currentFile.split(':')[0] : currentFile"
+                                :markdown-content="currentView === 'sandbox-md' ? currentContent : ''"
+                                :markdown-loading="currentView === 'sandbox-md' ? loading : false"
+                                :markdown-error="currentView === 'sandbox-md' ? error : ''"
+                            />
                         </div>
                     </template>
                 </div>

@@ -5,6 +5,7 @@ import { getFileContent } from '../api/files.js'
 import { parse } from 'smol-toml'
 import Dialog from './Dialog.vue'
 import Terminal from './Terminal.vue'
+import MarkdownViewer from './MarkdownViewer.vue'
 import { useSandboxHandler } from '../composables/useSandboxChatHandlers.js'
 
 const WS_BASE = import.meta.env.DEV
@@ -15,6 +16,18 @@ const props = defineProps({
     config: {
         type: String,
         required: true
+    },
+    markdownContent: {
+        type: String,
+        default: ''
+    },
+    markdownLoading: {
+        type: Boolean,
+        default: false
+    },
+    markdownError: {
+        type: String,
+        default: ''
     }
 })
 
@@ -331,7 +344,14 @@ watch(() => props.config, async () => {
         </div>
 
         <div class="content-wrapper">
-            <div ref="messagesContainerRef" class="messages-container">
+            <div v-if="markdownContent" class="markdown-container">
+                <MarkdownViewer
+                    :content="markdownContent"
+                    :loading="markdownLoading"
+                    :error="markdownError"
+                />
+            </div>
+            <div v-else ref="messagesContainerRef" class="messages-container">
                 <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
             </div>
 
@@ -345,7 +365,7 @@ watch(() => props.config, async () => {
             </div>
         </div>
 
-        <div class="input-container">
+        <div v-if="!markdownContent" class="input-container">
             <textarea
                 ref="inputRef"
                 v-model="inputCommand"
@@ -379,6 +399,11 @@ watch(() => props.config, async () => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.markdown-container {
+    flex: 1;
+    overflow-y: auto;
 }
 
 .messages-container {
