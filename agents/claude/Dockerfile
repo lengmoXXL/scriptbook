@@ -9,5 +9,8 @@ WORKDIR /workspace
 # Install claude-agent-sdk
 RUN pip install --no-cache-dir claude-agent-sdk
 
+# Copy markdown files
+COPY bash.md markdown_syntax.md /workspace/
+
 # Set up environment
 ENV PYTHONUNBUFFERED=1
