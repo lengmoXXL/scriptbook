@@ -8,6 +8,59 @@ const API_BASE = import.meta.env.DEV
   : `http://${window.location.host}/api`
 
 /**
+ * Fetch list of markdown files in a sandbox workspace.
+ * @param {string} sandboxId - Sandbox ID
+ * @returns {Promise<string[]>} Array of filenames
+ */
+export async function listSandboxFiles(sandboxId) {
+    try {
+        const response = await fetch(`${API_BASE}/sandbox/${sandboxId}/files`)
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        return await response.json()
+    } catch (error) {
+        console.error(`Failed to fetch sandbox files for ${sandboxId}:`, error)
+
+        if (!(error instanceof Error)) {
+            throw new Error(`Unexpected error: ${String(error)}`)
+        }
+        throw error
+    }
+}
+
+/**
+ * Fetch content of a specific markdown file from a sandbox workspace.
+ * @param {string} sandboxId - Sandbox ID
+ * @param {string} filename - Name of the file to read
+ * @returns {Promise<string>} File content as plain text
+ */
+export async function getSandboxFileContent(sandboxId, filename) {
+    try {
+        const encodedFilename = encodeURIComponent(filename)
+        const response = await fetch(`${API_BASE}/sandbox/${sandboxId}/files/${encodedFilename}`)
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error(`File not found: ${filename}`)
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        return await response.text()
+    } catch (error) {
+        console.error(`Failed to fetch sandbox file content for ${filename}:`, error)
+
+        if (!(error instanceof Error)) {
+            throw new Error(`Unexpected error: ${String(error)}`)
+        }
+        throw error
+    }
+}
+
+/**
  * Fetch list of markdown files in the docs directory.
  * @returns {Promise<string[]>} Array of filenames
  */

@@ -5,5 +5,7 @@ RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/l
     && uv pip install --system --break-system-packages claude-agent-sdk -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 COPY entrypoint.py /app/entrypoint.py
+COPY bash.md /workspace/bash.md
+COPY markdown_syntax.md /workspace/markdown_syntax.md
 
 ENTRYPOINT ["python3", "/app/entrypoint.py"]

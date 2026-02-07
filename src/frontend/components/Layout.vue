@@ -3,14 +3,15 @@ import { ref } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import SandboxChat from './SandboxChat.vue'
-import { getFileContent } from '../api/files.js'
+import { getFileContent, getSandboxFileContent } from '../api/files.js'
+import { parse } from 'smol-toml'
 
 // State
 const currentFile = ref(null)
 const currentContent = ref('')
 const loading = ref(false)
 const error = ref('')
-const currentView = ref('markdown') // 'markdown' or 'sandbox'
+const currentView = ref('markdown') // 'markdown', 'sandbox', or 'sandbox-md'
 
 // Resize state
 const sidebarWidth = ref(250) // pixel
@@ -25,19 +26,44 @@ async function onFileSelect(filename) {
     loading.value = true
     error.value = ''
 
-    // Determine view type based on file extension
-    if (filename.toLowerCase().endsWith('.sandbox')) {
+    // Check if it's a sandbox internal file (format: sandboxFile.md:internal.md)
+    if (filename.includes(':')) {
+        await loadSandboxMarkdownFile(filename)
+    } else if (filename.toLowerCase().endsWith('.sandbox')) {
         currentView.value = 'sandbox'
+        loading.value = false
     } else {
         currentView.value = 'markdown'
+        await loadLocalFile(filename)
     }
+}
 
+async function loadLocalFile(filename) {
     try {
         const content = await getFileContent(filename)
         currentContent.value = content
     } catch (err) {
         error.value = err.message || 'Failed to load file'
         console.error('Error loading file:', err)
+    } finally {
+        loading.value = false
+    }
+}
+
+async function loadSandboxMarkdownFile(filename) {
+    currentView.value = 'sandbox-md'
+    try {
+        const [sandboxConfigFile, mdFile] = filename.split(':')
+        const configContent = await getFileContent(sandboxConfigFile)
+        const parsed = parse(configContent)
+        const sandboxConfig = parsed.sandbox || {}
+        const sandboxId = sandboxConfig.sandbox_id || 'auto'
+
+        const content = await getSandboxFileContent(sandboxId, mdFile)
+        currentContent.value = content
+    } catch (err) {
+        error.value = err.message || 'Failed to load sandbox file'
+        console.error('Error loading sandbox file:', err)
     } finally {
         loading.value = false
     }
@@ -87,7 +113,7 @@ function startSidebarResize(event) {
             </div>
             <div class="content">
                 <div class="split-layout">
-                    <template v-if="currentView === 'markdown'">
+                    <template v-if="currentView === 'markdown' || currentView === 'sandbox-md'">
                         <div class="markdown-section">
                             <MarkdownViewer
                                 :content="currentContent"

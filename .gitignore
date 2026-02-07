@@ -2,6 +2,7 @@
 static
 node_modules
 test-results
+.playwright-mcp
 
 # python
 dist

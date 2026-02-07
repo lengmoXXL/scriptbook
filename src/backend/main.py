@@ -12,7 +12,7 @@ import tornado.ioloop
 import tornado.web
 from terminado.management import NamedTermManager, PtyWithClients, MaxTerminalsReached
 from terminado.websocket import TermSocket
-from backend.handlers.file_handler import FileHandler
+from backend.handlers.file_handler import FileHandler, SandboxFileHandler
 from backend.handlers.sandbox_handler import SandboxHandler
 from backend.handlers.sandbox_ws_handler import SandboxWebSocketHandler
 
@@ -120,6 +120,8 @@ def make_app(docs_dir, static_dir):
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files', SandboxFileHandler),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files/(?P<filename>.*)', SandboxFileHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler),
         (r'/api/sandbox', SandboxHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
