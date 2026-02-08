@@ -21,6 +21,7 @@ class SandboxInfo:
     id: str
     status: str
     container_id: str | None = None
+    type: str | None = None
 
 
 class StdoutMessage:

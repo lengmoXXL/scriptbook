@@ -43,7 +43,7 @@ md.use(bashExecutePlugin)    // Add execute buttons to shell code blocks
 
 export function renderMarkdown(markdown) {
     if (!markdown || markdown.trim() === '') {
-        return '<p>No content</p>'
+        return ''
     }
 
     try {

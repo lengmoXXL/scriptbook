@@ -96,7 +96,12 @@ class SandboxManager:
         provider = self._get_provider_for_sandbox(sandbox_id)
         handle = await provider.get_sandbox(sandbox_id)
         info = await handle.get_info()
-        return {'id': info.id, 'status': info.status, 'container_id': info.container_id}
+        return {
+            'id': info.id,
+            'status': info.status,
+            'container_id': info.container_id,
+            'type': info.type
+        }
 
     async def execute_command(self, sandbox_id: str, command: str) -> CommandResult:
         """Execute command in sandbox."""

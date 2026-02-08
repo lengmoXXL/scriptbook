@@ -79,7 +79,7 @@ export function useClaudeStreamHandler() {
         if (data.type !== 'stdout') return false
         try {
             const msg = JSON.parse(data.content)
-            return msg.type === 'ResultMessage' || msg.type === 'Error'
+            return msg.type === 'finish'
         } catch {
             return false
         }

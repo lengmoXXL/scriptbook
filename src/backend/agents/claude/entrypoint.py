@@ -7,41 +7,27 @@ Claude daemon - 持久会话管理器
 启动：python3 entrypoint.py
 
 ================================================================================
-输出消息 Schema (前端实现参考)
+输出消息 Schema
 ================================================================================
 
-每条消息为一行 JSON，包含 type 字段区分消息类型：
+每条消息为一行 JSON，包含 type 和 content 字段：
 
-1. SystemMessage (忽略，前端不显示)
-   {"type": "SystemMessage", "data": {}}
+1. progress (过程信息)
+   {"type": "progress", "content": "markdown 内容"}
 
-2. AssistantMessage (显示为 thinking 状态)
-   - content 中可能包含: text, thinking, tool_use
-   {"type": "AssistantMessage", "content": [
-       {"type": "tool_use", "id": "...", "name": "Bash", "input": {...}}
-   ], "model": "..."}
+2. finish (结束标识)
+   {"type": "finish", "success": true/false}
 
-3. UserMessage (工具执行结果，显示到对话框)
-   {"type": "UserMessage", "content": [
-       {"type": "tool_result", "tool_use_id": "...", "content": "输出内容", "is_error": false}
-   ]}
-
-4. ResultMessage (最终结果，显示到对话框)
-   {"type": "ResultMessage", "result": "最终文本结果"}
-
-5. Error (错误消息)
-   {"type": "Error", "error": "...", "traceback": "..."}
+   如果 success 为 false，可以包含 content 字段显示错误信息：
+   {"type": "finish", "success": false, "content": "markdown 格式的错误信息"}
 
 Example:
 Input: 计算100个素数
-Oputput:
-{"type": "SystemMessage", "data": {}}
-{"type": "AssistantMessage", "content": [{"type": "thinking", "thinking": "用户要求计算100个素数。这是一个计算任务，我可以使用Python来完成。我需要生成前100个素数。\n\n素数是指大于1的自然数，且只能被1和自身整除的数。\n\n我会写一个Python脚本来计算前100个素数。", "signature": "eacccf437c17dfbbf648f88b0c820ff6b30de1dddd804168a230c0bb514d45f1"}], "model": "MiniMax-M2.1"}
-{"type": "AssistantMessage", "content": [{"type": "tool_use", "id": "call_function_967uthn412zg_1", "name": "Bash", "input": {"command": "python3 << 'EOF'\n# 计算100个素数\n\ndef is_prime(n):\n    \"\"\"判断一个数是否为素数\"\"\"\n    if n < 2:\n        return False\n    if n == 2:\n        return True\n    if n % 2 == 0:\n        return False\n    # 检查到平方根\n    i = 3\n    while i * i <= n:\n        if n % i == 0:\n            return False\n        i += 2\n    return True\n\n# 计算前100个素数\nprimes = []\nnum = 2\nwhile len(primes) < 100:\n    if is_prime(num):\n        primes.append(num)\n    num += 1\n\n# 每10个一行输出\nprint(\"前100个素数：\")\nfor i in range(0, 100, 10):\n    print(primes[i:i+10])\n    \nprint(f\"\\n第100个素数是: {primes[-1]}\")\nEOF", "description": "计算并显示前100个素数"}}], "model": "MiniMax-M2.1"}
-{"type": "UserMessage", "content": [{"type": "tool_result", "tool_use_id": "call_function_967uthn412zg_1", "content": "前100个素数：\n[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]\n[31, 37, 41, 43, 47, 53, 59, 61, 67, 71]\n[73, 79, 83, 89, 97, 101, 103, 107, 109, 113]\n[127, 131, 137, 139, 149, 151, 157, 163, 167, 173]\n[179, 181, 191, 193, 197, 199, 211, 223, 227, 229]\n[233, 239, 241, 251, 257, 263, 269, 271, 277, 281]\n[283, 293, 307, 311, 313, 317, 331, 337, 347, 349]\n[353, 359, 367, 373, 379, 383, 389, 397, 401, 409]\n[419, 421, 431, 433, 439, 443, 449, 457, 461, 463]\n[467, 479, 487, 491, 499, 503, 509, 521, 523, 541]\n\n第100个素数是: 541", "is_error": false}]}
-{"type": "AssistantMessage", "content": [{"type": "thinking", "thinking": "成功计算出了前100个素数，并按每行10个的格式输出。第100个素数是541。", "signature": "02b32e1e82bf3a37810f13191fefc084e6263693946a8f33eaa546fdfa6040c8"}], "model": "MiniMax-M2.1"}
-{"type": "AssistantMessage", "content": [{"type": "text", "text": "已完成！计算出了前100个素数，结果如上所示。**第100个素数是 541**。\n\n素数从2开始（前几个素数：2, 3, 5, 7, 11, 13, 17...），一直到第100个素数541。"}], "model": "MiniMax-M2.1"}
-{"type": "ResultMessage", "result": "已完成！计算出了前100个素数，结果如上所示。**第100个素数是 541**。\n\n素数从2开始（前几个素数：2, 3, 5, 7, 11, 13, 17...），一直到第100个素数541。"}
+Output:
+{"type": "progress", "content": "用户要求计算100个素数。这是一个计算任务，我可以使用Python来完成。"}
+{"type": "progress", "content": "### Bash\n\n```bash\npython3 << 'EOF'\n# 计算100个素数\nprint([2, 3, 5, 7, 11])\nEOF\n```"}
+{"type": "progress", "content": "```\n[2, 3, 5, 7, 11]\n```"}
+{"type": "progress", "content": "已完成！计算出了前100个素数。"}
 
 ================================================================================
 """
@@ -64,42 +50,47 @@ from claude_agent_sdk import (
 )
 
 
-def serialize_block(block):
-    """将内容块序列化为 JSON 兼容的字典"""
+def block_to_markdown(block) -> str:
+    """将内容块转换为 markdown 格式"""
     if isinstance(block, TextBlock):
-        return {"type": "text", "text": block.text}
+        return block.text
     elif isinstance(block, ThinkingBlock):
-        return {
-            "type": "thinking",
-            "thinking": block.thinking,
-            "signature": block.signature
-        }
+        return block.thinking
     elif isinstance(block, ToolUseBlock):
-        return {
-            "type": "tool_use",
-            "id": block.id,
-            "name": block.name,
-            "input": block.input
-        }
+        input_obj = block.input if isinstance(block.input, dict) else {}
+        # Bash 工具
+        if block.name == "Bash":
+            cmd = input_obj.get("command", "")
+            return f"### Bash\n\n```bash\n{cmd}\n```"
+        # Read 工具
+        elif block.name == "Read":
+            path = input_obj.get("file_path", "")
+            return f"### Read\n\n```\n{path}\n```"
+        # Write 工具
+        elif block.name == "Write":
+            path = input_obj.get("file_path", "")
+            content = input_obj.get("content", "")
+            return f"### Write\n\n```\n{path}\n```\n\n```{get_lang(path)}\n{content}\n```"
+        else:
+            return f"### {block.name}\n\n```json\n{json.dumps(input_obj, ensure_ascii=False)}\n```"
     elif isinstance(block, ToolResultBlock):
-        content = ""
-        if isinstance(block.content, str):
-            content = block.content
-        elif isinstance(block.content, dict):
-            content = {}
-            for k, v in block.content.items():
-                content[k] = v
-        return {
-            "type": "tool_result",
-            "tool_use_id": getattr(block, 'tool_use_id', None),
-            "content": content,
-            "is_error": getattr(block, 'is_error', False)
-        }
+        content = block.content if isinstance(block.content, str) else ""
+        is_error = getattr(block, 'is_error', False)
+        prefix = "❌ " if is_error else ""
+        return f"{prefix}```\n{content}\n```"
     else:
-        return {
-            "type": "unknown",
-            "data": str(type(block))
-        }
+        return str(block)
+
+
+def get_lang(path: str) -> str:
+    """根据文件路径获取语言标识"""
+    ext = path.rsplit(".", 1)[-1].lower()
+    lang_map = {
+        "py": "python", "js": "javascript", "ts": "typescript",
+        "vue": "vue", "html": "html", "css": "css", "json": "json",
+        "md": "markdown", "yaml": "yaml", "yml": "yaml", "sh": "bash"
+    }
+    return lang_map.get(ext, "")
 
 
 SOCKET_PATH = "/tmp/claude.sock"
@@ -107,22 +98,37 @@ PID_FILE = "/tmp/claude_daemon.pid"
 
 
 def serialize_message(msg):
-    """将 SDK 消息序列化为 JSON 兼容的字典"""
-    result = {"type": msg.__class__.__name__}
-
-    if isinstance(msg, AssistantMessage):
-        result["content"] = [serialize_block(block) for block in msg.content]
-        result["model"] = msg.model
-    elif isinstance(msg, UserMessage):
-        result["content"] = [serialize_block(block) for block in msg.content]
-    elif isinstance(msg, ResultMessage):
-        result["result"] = getattr(msg, 'result', None)
-    elif isinstance(msg, SystemMessage):
-        result["data"] = {}
-    else:
+    """将 SDK 消息序列化为简化格式"""
+    if isinstance(msg, SystemMessage):
         return None
 
-    return result
+    content_parts = []
+
+    if isinstance(msg, AssistantMessage):
+        for block in msg.content:
+            md = block_to_markdown(block)
+            if md:
+                content_parts.append(md)
+        if content_parts:
+            return {"type": "progress", "content": "\n\n".join(content_parts)}
+        return None
+
+    elif isinstance(msg, UserMessage):
+        for block in msg.content:
+            md = block_to_markdown(block)
+            if md:
+                content_parts.append(md)
+        if content_parts:
+            return {"type": "progress", "content": "\n\n".join(content_parts)}
+        return None
+
+    elif isinstance(msg, ResultMessage):
+        result = getattr(msg, 'result', None)
+        # Check if result contains error indicators
+        is_error = result and ('error' in result.lower() or 'failed' in result.lower() or 'exception' in result.lower())
+        return {"type": "finish", "success": not is_error}
+
+    return None
 
 
 class ClaudeDaemon:
@@ -143,8 +149,8 @@ class ClaudeDaemon:
                 return
 
             if self.client is None:
-                error_msg = json.dumps({"error": "Client not initialized"}, ensure_ascii=False) + "\n"
-                writer.write(error_msg.encode())
+                finish_msg = json.dumps({"type": "finish", "success": False, "content": "Client not initialized"}, ensure_ascii=False) + "\n"
+                writer.write(finish_msg.encode())
                 await writer.drain()
                 return
 
@@ -159,8 +165,9 @@ class ClaudeDaemon:
                 await writer.drain()
 
         except Exception as e:
-            error_msg = json.dumps({"error": str(e), "traceback": traceback.format_exc()}, ensure_ascii=False) + "\n"
-            writer.write(error_msg.encode())
+            error_content = f"### Error\n\n```\n{str(e)}\n```\n\n```\n{traceback.format_exc()}\n```"
+            finish_msg = json.dumps({"type": "finish", "success": False, "content": error_content}, ensure_ascii=False) + "\n"
+            writer.write(finish_msg.encode())
             await writer.drain()
         finally:
             writer.close()

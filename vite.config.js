@@ -8,6 +8,9 @@ export default defineConfig({
   server: {
     port: 7771,
   },
+  optimizeDeps: {
+    include: ['smol-toml'],
+  },
   build: {
     outDir: '../backend/static',
     emptyOutDir: true,

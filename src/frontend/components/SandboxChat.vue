@@ -386,6 +386,10 @@ watch(() => props.config, async () => {
             <div class="header-left">
                 <h3>{{ configFileName }}</h3>
                 <span v-if="sandboxId" class="sandbox-id">ID: {{ sandboxId }}</span>
+                <div v-if="loading && sandboxId" class="processing-indicator">
+                    <span class="processing-text">Processing</span>
+                    <span class="processing-dots"></span>
+                </div>
             </div>
             <div class="header-right">
                 <button v-if="supportsTerminal" @click="toggleTerminal" class="terminal-button">
@@ -411,10 +415,6 @@ watch(() => props.config, async () => {
             </div>
             <div v-else ref="messagesContainerRef" class="messages-container">
                 <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
-                <div v-if="loading" class="processing-indicator">
-                    <span class="processing-text">Processing</span>
-                    <span class="processing-dots"></span>
-                </div>
             </div>
 
             <div v-if="terminalVisible && supportsTerminal && containerId" class="terminal-section">
@@ -518,6 +518,56 @@ watch(() => props.config, async () => {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex: 1;
+}
+
+.header-left .processing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+}
+
+.header-left .processing-text {
+    color: #00ff00;
+    font-style: italic;
+    font-size: 0.85em;
+}
+
+.header-left .processing-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.header-left .processing-dots::before,
+.header-left .processing-dots::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    background-color: #00ff00;
+    border-radius: 50%;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.header-left .processing-dots::before {
+    animation-delay: 0s;
+}
+
+.header-left .processing-dots::after {
+    animation-delay: 0.2s;
+}
+
+@keyframes dot-pulse {
+    0%, 80%, 100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .header-right {
@@ -559,57 +609,6 @@ watch(() => props.config, async () => {
     padding: 20px;
     display: flex;
     flex-direction: column;
-}
-
-.processing-indicator {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 12px 16px;
-    background-color: #2a2a2a;
-    border-radius: 8px;
-    align-self: center;
-    margin-top: 16px;
-}
-
-.processing-text {
-    color: #00ff00;
-    font-style: italic;
-    font-size: 0.9em;
-}
-
-.processing-dots {
-    display: flex;
-    gap: 4px;
-}
-
-.processing-dots::before,
-.processing-dots::after {
-    content: '';
-    width: 4px;
-    height: 4px;
-    background-color: #00ff00;
-    border-radius: 50%;
-    animation: dot-pulse 1.4s ease-in-out infinite;
-}
-
-.processing-dots::before {
-    animation-delay: 0s;
-}
-
-.processing-dots::after {
-    animation-delay: 0.2s;
-}
-
-@keyframes dot-pulse {
-    0%, 80%, 100% {
-        opacity: 0.3;
-        transform: scale(0.8);
-    }
-    40% {
-        opacity: 1;
-        transform: scale(1);
-    }
 }
 
 .input-container {

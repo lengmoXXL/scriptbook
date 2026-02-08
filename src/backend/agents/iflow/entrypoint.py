@@ -7,36 +7,25 @@ iFlow daemon - Agent Communication Protocol (ACP) 客户端
 启动：python3 entrypoint.py
 
 ================================================================================
-输出消息 Schema (前端实现参考)
+输出消息 Schema
 ================================================================================
 
-每条消息为一行 JSON，包含 type 字段区分消息类型：
+每条消息为一行 JSON，包含 type 和 content 字段：
 
-1. SystemMessage (忽略，前端不显示)
-   {"type": "SystemMessage", "data": {}}
+1. progress (过程信息)
+   {"type": "progress", "content": "markdown 内容"}
 
-2. AssistantMessage (显示为 thinking 状态)
-   - content 中可能包含: text, thinking, tool_use
-   {"type": "AssistantMessage", "content": [
-       {"type": "text", "text": "响应内容"}
-   ], "model": "iFlow"}
+2. finish (结束标识)
+   {"type": "finish", "success": true/false}
 
-3. UserMessage (工具执行结果，显示到对话框)
-   {"type": "UserMessage", "content": [
-       {"type": "tool_result", "tool_use_id": "...", "content": "输出内容", "is_error": false}
-   ]}
-
-4. ResultMessage (最终结果，显示到对话框)
-   {"type": "ResultMessage", "result": "最终文本结果"}
-
-5. Error (错误消息)
-   {"type": "Error", "error": "...", "traceback": "..."}
+   如果 success 为 false，可以包含 content 字段显示错误信息：
+   {"type": "finish", "success": false, "content": "markdown 格式的错误信息"}
 
 Example:
 Input: 1+1等于几
 Output:
-{"type": "AssistantMessage", "content": [{"type": "text", "text": "1 + 1 = 2"}], "model": "iFlow"}
-{"type": "ResultMessage", "result": "1 + 1 = 2"}
+{"type": "progress", "content": "正在计算..."}
+{"type": "progress", "content": "1 + 1 = 2"}
 
 ================================================================================
 """
@@ -120,6 +109,11 @@ class IFlowDaemon:
                     if isinstance(iflow_msg, TaskFinishMessage):
                         stop_reason = getattr(iflow_msg, 'stop_reason', None)
                         logger.info(f"Task finished. stop_reason: {stop_reason}")
+                        # Send finish message
+                        is_success = stop_reason is None or stop_reason in ['end_turn', 'stop']
+                        finish_msg = json.dumps({"type": "finish", "success": is_success}, ensure_ascii=False) + "\n"
+                        writer.write(finish_msg.encode())
+                        await writer.drain()
                         break
 
                     msg_dict = self.serialize_iflow_message(iflow_msg)
@@ -137,14 +131,11 @@ class IFlowDaemon:
                     await writer.drain()
 
                 logger.info(f"Finished receiving messages. Total: {msg_count}")
-                # Send final result message with collected text
-                final_result = "".join(result_parts).strip() if result_parts else "Task completed"
-                writer.write(json.dumps({"type": "ResultMessage", "result": final_result}, ensure_ascii=False).encode() + b"\n")
-                await writer.drain()
 
         except Exception as e:
-            error_msg = json.dumps({"type": "Error", "error": str(e), "traceback": traceback.format_exc()}, ensure_ascii=False) + "\n"
-            writer.write(error_msg.encode())
+            error_content = f"### Error\n\n```\n{str(e)}\n```\n\n```\n{traceback.format_exc()}\n```"
+            finish_msg = json.dumps({"type": "finish", "success": False, "content": error_content}, ensure_ascii=False) + "\n"
+            writer.write(finish_msg.encode())
             await writer.drain()
             logger.error(f"Error handling client: {e}", exc_info=True)
         finally:
@@ -152,136 +143,97 @@ class IFlowDaemon:
             await writer.wait_closed()
 
     def serialize_iflow_message(self, msg):
-        """将 iFlow SDK 消息序列化为与 Claude daemon 兼容的 JSON 格式"""
+        """将 iFlow SDK 消息序列化为简化格式"""
         # AssistantMessage - 流式文本响应
         if isinstance(msg, AssistantMessage):
-            return {
-                "type": "AssistantMessage",
-                "content": [{"type": "text", "text": msg.chunk.text}],
-                "model": "iFlow"
-            }
+            return {"type": "progress", "content": msg.chunk.text}
 
         # ToolCallMessage - 工具调用（参数在 ToolResultMessage 中）
         elif isinstance(msg, ToolCallMessage):
-            # ToolCallMessage doesn't have parameters - parameters come in ToolResultMessage
-            # We don't output anything here, waiting for ToolResultMessage with actual params
             return None
 
         # ToolConfirmationRequestMessage - 工具确认请求
         elif isinstance(msg, ToolConfirmationRequestMessage):
-            tool_call_id = str(getattr(msg, 'tool_call_id', ''))
             tool_name = getattr(msg, 'tool_name', 'unknown')
             arguments = getattr(msg, 'arguments', {})
-
-            return {
-                "type": "AssistantMessage",
-                "content": [{
-                    "type": "tool_use",
-                    "id": tool_call_id,
-                    "name": tool_name,
-                    "input": arguments if self._is_json_serializable(arguments) else {}
-                }],
-                "model": "iFlow"
-            }
+            return {"type": "progress", "content": self._tool_use_to_markdown(tool_name, arguments)}
 
         # UserMessage - 用户消息（通常不需要输出到前端）
         elif isinstance(msg, UserMessage):
-            return {
-                "type": "UserMessage",
-                "content": [{"type": "text", "text": getattr(msg, 'text', str(msg))}]
-            }
+            return None
 
-        # ErrorMessage - 错误消息
+        # ErrorMessage - 错误消息（作为进度消息显示）
         elif isinstance(msg, ErrorMessage):
-            return {
-                "type": "Error",
-                "error": getattr(msg, 'message', str(msg))
-            }
+            return {"type": "progress", "content": f"### Error\n\n```\n{getattr(msg, 'message', str(msg))}\n```"}
 
         # PlanMessage - 计划消息
         elif isinstance(msg, PlanMessage):
-            return {
-                "type": "AssistantMessage",
-                "content": [{
-                    "type": "thinking",
-                    "thinking": getattr(msg, 'content', str(msg)),
-                    "signature": ""
-                }],
-                "model": "iFlow"
-            }
+            return {"type": "progress", "content": getattr(msg, 'content', str(msg))}
 
         # TaskFinishMessage - 任务完成（用于退出循环，不输出）
         elif isinstance(msg, TaskFinishMessage):
             return None
 
-        # ToolResultMessage - 工具执行结果（这里包含实际的工具参数！）
+        # ToolResultMessage - 工具执行结果
         elif type(msg).__name__ == 'ToolResultMessage':
-            tool_id = getattr(msg, 'id', '')
             tool_name = getattr(msg, 'tool_name', 'unknown')
             status = getattr(msg, 'status', None)
-
-            # Extract args from ToolResultMessage - this is where the actual parameters are!
             args = getattr(msg, 'args', None)
             content = getattr(msg, 'content', None)
 
-            # Check if status is COMPLETED (use .value to get the string value)
             is_completed = hasattr(status, 'value') and status.value == 'completed'
             is_in_progress = hasattr(status, 'value') and status.value == 'in_progress'
 
-            # For completed tool calls, send tool_use with parameters first
+            # For completed tool calls, send tool_use with parameters
             if is_completed and (args or content):
                 arguments = {}
-
-                # Extract from args dict
                 if args and isinstance(args, dict):
                     arguments = {k: v for k, v in args.items() if self._is_json_serializable(v)}
-
-                # Also extract from content if available
                 elif content is not None:
-                    content_type = getattr(content, 'type', None)
                     path = getattr(content, 'path', None)
                     new_text = getattr(content, 'new_text', None)
-                    markdown = getattr(content, 'markdown', None)
-
                     if path:
                         arguments['path'] = path
                     if new_text:
                         arguments['new_text'] = new_text
-                    if markdown:
-                        arguments['markdown'] = markdown
 
-                # Return tool_use message with actual parameters
-                return {
-                    "type": "AssistantMessage",
-                    "content": [{
-                        "type": "tool_use",
-                        "id": str(tool_id),
-                        "name": tool_name,
-                        "input": arguments
-                    }],
-                    "model": "iFlow"
-                }
+                return {"type": "progress", "content": self._tool_use_to_markdown(tool_name, arguments)}
 
-            # For in_progress tool calls, send a loading indicator
+            # For in_progress tool calls
             elif is_in_progress:
-                return {
-                    "type": "AssistantMessage",
-                    "content": [{
-                        "type": "tool_use",
-                        "id": str(tool_id),
-                        "name": tool_name,
-                        "input": {"status": "running"}
-                    }],
-                    "model": "iFlow"
-                }
+                return {"type": "progress", "content": f"### {tool_name}\n\n执行中..."}
 
-            # Don't output for other statuses
             return None
 
         # 其他消息类型暂时忽略
         else:
             logger.debug(f"Unhandled message type: {type(msg)}")
             return None
+
+    def _tool_use_to_markdown(self, tool_name: str, arguments: dict) -> str:
+        """将工具调用转换为 markdown 格式"""
+        if tool_name == "bash" or tool_name == "Bash":
+            cmd = arguments.get("command", "")
+            return f"### Bash\n\n```bash\n{cmd}\n```"
+        elif tool_name == "read" or tool_name == "Read":
+            path = arguments.get("file_path", arguments.get("path", ""))
+            return f"### Read\n\n```\n{path}\n```"
+        elif tool_name == "write" or tool_name == "Write":
+            path = arguments.get("file_path", arguments.get("path", ""))
+            text = arguments.get("text", arguments.get("new_text", ""))
+            return f"### Write\n\n```\n{path}\n```\n\n```{self._get_lang(path)}\n{text}\n```"
+        else:
+            return f"### {tool_name}\n\n```json\n{json.dumps(arguments, ensure_ascii=False)}\n```"
+
+    def _get_lang(self, path: str) -> str:
+        """根据文件路径获取语言标识"""
+        ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
+        lang_map = {
+            "py": "python", "js": "javascript", "ts": "typescript",
+            "vue": "vue", "html": "html", "css": "css", "json": "json",
+            "md": "markdown", "yaml": "yaml", "yml": "yaml", "sh": "bash"
+        }
+        return lang_map.get(ext, "")
 
     def _is_json_serializable(self, value):
         """Check if a value can be JSON serialized"""

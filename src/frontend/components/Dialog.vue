@@ -56,9 +56,9 @@ defineExpose({
 // Message Grouping
 // ============================================================================
 
-// Check if messages use claude_stream_json format (no requestId)
-const isClaudeStreamFormat = computed(() => {
-    return messages.value.length > 0 && messages.value[0].type === 'SystemMessage'
+// Check if messages use simplified format (no requestId)
+const isSimplifiedFormat = computed(() => {
+    return messages.value.length > 0 && !messages.value[0].requestId
 })
 
 const conversationGroups = computed(() => {
@@ -66,23 +66,21 @@ const conversationGroups = computed(() => {
     const groupMap = new Map()
 
     for (const msg of messages.value) {
-        // For claude_stream_json format, create a synthetic group for each message
+        // For simplified format (no requestId), create a synthetic group
         if (!msg.requestId) {
-            if (msg.type === 'ResultMessage') {
+            if (msg.type === 'progress') {
                 groups.push({
-                    requestId: `claude-${Date.now()}-${Math.random()}`,
-                    userMessage: null,
-                    progressMessages: [],
-                    resultMessage: msg,
-                    errorMessage: null
-                })
-            } else if (msg.type === 'AssistantMessage') {
-                groups.push({
-                    requestId: `claude-${Date.now()}-${Math.random()}`,
+                    requestId: `msg-${Date.now()}-${Math.random()}`,
                     userMessage: null,
                     progressMessages: [msg],
-                    resultMessage: null,
-                    errorMessage: null
+                    finishMessage: null
+                })
+            } else if (msg.type === 'finish') {
+                groups.push({
+                    requestId: `msg-${Date.now()}-${Math.random()}`,
+                    userMessage: null,
+                    progressMessages: [],
+                    finishMessage: msg
                 })
             }
             continue
@@ -94,8 +92,7 @@ const conversationGroups = computed(() => {
                 requestId: msg.requestId,
                 userMessage: null,
                 progressMessages: [],
-                resultMessage: null,
-                errorMessage: null
+                finishMessage: null
             }
             groupMap.set(msg.requestId, group)
             groups.push(group)
@@ -105,12 +102,10 @@ const conversationGroups = computed(() => {
 
         if (msg.type === 'user') {
             group.userMessage = msg
-        } else if (msg.type === 'ResultMessage') {
-            group.resultMessage = msg
-        } else if (msg.type === 'Error') {
-            group.errorMessage = msg
-        } else if (msg.type !== 'SystemMessage') {
+        } else if (msg.type === 'progress') {
             group.progressMessages.push(msg)
+        } else if (msg.type === 'finish') {
+            group.finishMessage = msg
         }
     }
 
@@ -163,69 +158,34 @@ function toggleExpanded(group) {
 // ============================================================================
 
 function messageSummary(msg) {
-    switch (msg.type) {
-    case 'AssistantMessage':
-        return `Assistant (${msg.model})`
-    case 'UserMessage':
-        return 'User (Tool Result)'
-    default:
-        return msg.type
+    if (msg.type === 'progress') {
+        return 'Progress'
     }
+    return msg.type || 'Message'
 }
 
-function renderMessageBlock(block) {
-    switch (block.type) {
-    case 'text':
-        return block.text
-    case 'thinking':
-        return `Thinking: ${block.thinking}`
-    case 'tool_use':
-        return `Running: ${block.name}\n\`\`\`\n${JSON.stringify(block.input, null, 2)}\n\`\`\``
-    case 'tool_result':
-        const content = typeof block.content === 'string'
-            ? block.content
-            : JSON.stringify(block.content, null, 2)
-        return block.is_error
-            ? `Error: ${content}`
-            : `Result: ${content}`
-    default:
-        return JSON.stringify(block)
-    }
+function renderMessageContent(msg) {
+    return msg.content || ''
 }
 
 function getLatestProgress(progressMessages) {
     if (progressMessages.length === 0) return null
     const latest = progressMessages[progressMessages.length - 1]
+    const content = latest.content || ''
 
-    switch (latest.type) {
-    case 'AssistantMessage': {
-        const toolUse = latest.content?.find(b => b.type === 'tool_use')
-        if (toolUse) {
-            return `Running: ${toolUse.name}`
-        }
-        const thinking = latest.content?.find(b => b.type === 'thinking')
-        if (thinking) {
-            return `Thinking...`
-        }
-        const text = latest.content?.find(b => b.type === 'text')
-        if (text) {
-            return text.text.slice(0, 100) + (text.text.length > 100 ? '...' : '')
-        }
-        return 'Processing...'
+    // Extract summary from markdown
+    const toolMatch = content.match(/### (\w+)/)
+    if (toolMatch) {
+        return `Running: ${toolMatch[1]}`
     }
-    case 'UserMessage': {
-        const toolResult = latest.content?.find(b => b.type === 'tool_result')
-        if (toolResult) {
-            const content = typeof toolResult.content === 'string'
-                ? toolResult.content
-                : JSON.stringify(toolResult.content)
-            return `Output: ${content.slice(0, 100)}${content.length > 100 ? '...' : ''}`
-        }
-        return 'Tool result received'
+
+    // Get first line or first 100 chars
+    const firstLine = content.split('\n')[0].trim()
+    if (firstLine) {
+        return firstLine.slice(0, 100) + (firstLine.length > 100 ? '...' : '')
     }
-    default:
-        return 'Processing...'
-    }
+
+    return 'Processing...'
 }
 </script>
 
@@ -239,46 +199,46 @@ function getLatestProgress(progressMessages) {
 
             <!-- 进度消息 -->
             <div v-if="group.progressMessages.length > 0" class="progress-section">
-                <div class="progress-header" @click="toggleExpanded(group)">
-                    <span class="progress-label">
-                        Progress ({{ group.progressMessages.length }} steps)
-                    </span>
-                    <span class="progress-toggle">{{ isExpanded(group) ? '▼' : '▶' }}</span>
-                </div>
+                <!-- 之前的进度消息 (缩略图) -->
+                <template v-if="group.progressMessages.length > 1">
+                    <div class="progress-header" @click="toggleExpanded(group)">
+                        <span class="progress-label">
+                            Previous Steps ({{ group.progressMessages.length - 1 }})
+                        </span>
+                        <span class="progress-toggle">{{ isExpanded(group) ? '▼' : '▶' }}</span>
+                    </div>
 
-                <div v-if="isExpanded(group)" class="progress-details">
-                    <div
-                        v-for="(msg, idx) in group.progressMessages"
-                        :key="idx"
-                        class="progress-item"
-                    >
-                        <div class="progress-item-header">{{ messageSummary(msg) }}</div>
-                        <div class="progress-item-content">
-                            <template v-for="(block, bIdx) in msg.content" :key="bIdx">
-                                <MarkdownViewer :content="renderMessageBlock(block)" />
-                            </template>
+                    <div v-if="isExpanded(group)" class="progress-details">
+                        <div
+                            v-for="(msg, idx) in group.progressMessages.slice(0, -1)"
+                            :key="idx"
+                            class="progress-item"
+                        >
+                            <div class="progress-item-header">{{ messageSummary(msg) }}</div>
+                            <div class="progress-item-content">
+                                <MarkdownViewer :content="renderMessageContent(msg)" />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div v-else class="progress-summary">
-                    <div class="latest-progress">{{ getLatestProgress(group.progressMessages) }}</div>
-                </div>
-            </div>
+                    <div v-else class="progress-summary">
+                        <div class="latest-progress">{{ getLatestProgress(group.progressMessages.slice(0, -1)) }}</div>
+                    </div>
+                </template>
 
-            <!-- 错误消息 -->
-            <div v-if="group.errorMessage" class="error-section">
-                <div class="error-label">Error</div>
-                <div class="error-content">{{ group.errorMessage.error }}</div>
-                <div v-if="group.errorMessage.traceback" class="error-traceback">
-                    <pre>{{ group.errorMessage.traceback }}</pre>
+                <!-- 最后的进度消息 (直接显示，无容器包裹) -->
+                <div class="progress-item latest-item">
+                    <div class="progress-item-content">
+                        <MarkdownViewer :content="renderMessageContent(group.progressMessages[group.progressMessages.length - 1])" />
+                    </div>
                 </div>
             </div>
 
-            <!-- 结果消息 -->
-            <div v-if="group.resultMessage" class="result-section">
-                <div class="result-label">Result</div>
-                <MarkdownViewer :content="group.resultMessage.result" />
+            <!-- 结束消息 -->
+            <div v-if="group.finishMessage" class="finish-section" :class="{ 'finish-error': group.finishMessage.success === false }">
+                <div v-if="group.finishMessage.content" class="finish-content">
+                    <MarkdownViewer :content="group.finishMessage.content" />
+                </div>
             </div>
         </div>
     </div>
@@ -374,52 +334,33 @@ function getLatestProgress(progressMessages) {
     word-break: break-word;
 }
 
-.result-section {
-    background-color: #1a3a2a;
-    border: 1px solid #2a5a4a;
+.latest-item {
+    background-color: transparent;
+    padding: 12px 14px;
+}
+
+.latest-item .progress-item-content {
+    padding: 0;
+}
+
+.finish-section {
     border-radius: 8px;
     padding: 14px 16px;
 }
 
-.result-label {
-    font-size: 0.8em;
-    color: #4a9a8a;
-    font-weight: 600;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-}
-
-.error-section {
+.finish-section.finish-error {
     background-color: #3a1a1a;
     border: 1px solid #5a2a2a;
-    border-radius: 8px;
-    padding: 14px 16px;
 }
 
-.error-label {
-    font-size: 0.8em;
-    color: #9a4a4a;
-    font-weight: 600;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-}
-
-.error-content {
-    color: #ffb4b4;
+.finish-content {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    margin-bottom: 8px;
+    font-size: 0.85em;
+    color: #bbb;
+    word-break: break-word;
 }
 
-.error-traceback {
-    background-color: #2a1010;
-    border-radius: 4px;
-    padding: 10px;
-    overflow-x: auto;
-}
-
-.error-traceback pre {
-    margin: 0;
-    font-size: 0.8em;
-    color: #a88;
+.finish-section.finish-error .finish-content {
+    color: #ffb4b4;
 }
 </style>

@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 DAEMON_CONFIGS = {
     "claude": {
         "name": "Claude",
-        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../agents/claude/entrypoint.py')),
+        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../agents/claude/entrypoint.py')),
         "socket_path": "/tmp/claude.sock",
     },
     "iflow": {
         "name": "iFlow",
-        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../agents/iflow/entrypoint.py')),
+        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../agents/iflow/entrypoint.py')),
         "socket_path": "/tmp/iflow.sock",
     },
 }
@@ -96,6 +96,8 @@ class SandboxWebSocketHandler(tornado.websocket.WebSocketHandler):
         """Get sandbox type from container labels."""
         try:
             if hasattr(self._handle, '_container'):
+                # Reload container to get latest labels
+                self._handle._container.reload()
                 labels = self._handle._container.labels
                 return labels.get('type') if labels else None
         except Exception as e:
