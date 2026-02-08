@@ -31,15 +31,7 @@ async function loadFiles() {
 
     try {
         files.value = await listFiles()
-        if (files.value.length > 0) {
-            const path = window.location.pathname
-            const filename = path.startsWith('/') ? path.slice(1) : path
-            if (filename && files.value.includes(filename)) {
-                selectFile(filename)
-            } else if (!selectedFile.value) {
-                selectFile(files.value[0])
-            }
-        }
+        // Don't auto-select any file - wait for user to click
     } catch (err) {
         error.value = err.message || 'Failed to load files'
         console.error('Error loading files:', err)
@@ -53,21 +45,23 @@ function selectFile(filename) {
     emit('select', filename)
 }
 
-function isSandboxFile(filename) {
-    return filename.toLowerCase().endsWith('.sandbox')
+async function handleFileClick(file) {
+    // Always select the file
+    selectFile(file)
+
+    // If it's a sandbox file, also toggle expansion
+    if (isSandboxFile(file) && !isSandboxCreating(file)) {
+        if (expandedSandboxes.value.has(file)) {
+            expandedSandboxes.value.delete(file)
+        } else {
+            expandedSandboxes.value.add(file)
+            await loadSandboxFiles(file)
+        }
+    }
 }
 
-async function toggleSandbox(filename, event) {
-    event.stopPropagation()
-    if (isSandboxCreating(filename)) {
-        return
-    }
-    if (expandedSandboxes.value.has(filename)) {
-        expandedSandboxes.value.delete(filename)
-    } else {
-        expandedSandboxes.value.add(filename)
-        await loadSandboxFiles(filename)
-    }
+function isSandboxFile(filename) {
+    return filename.toLowerCase().endsWith('.sandbox')
 }
 
 async function loadSandboxFiles(filename) {
@@ -148,6 +142,28 @@ function isSandboxError(filename) {
     return getSandboxStatus(filename) === 'error'
 }
 
+function getStatusClass(filename) {
+    const status = getSandboxStatus(filename)
+    if (status === 'creating') return 'status-creating'
+    if (status === 'ready') return 'status-ready'
+    if (status === 'error') return 'status-error'
+    return ''
+}
+
+function getStatusTitle(filename) {
+    const status = getSandboxStatus(filename)
+    if (status === 'creating') return 'Creating sandbox...'
+    if (status === 'ready') {
+        const sandboxId = getSandboxId(filename)
+        return `Ready: ${sandboxId}`
+    }
+    if (status === 'error') {
+        const error = getSandboxError(filename)
+        return `Error: ${error}`
+    }
+    return 'Not initialized'
+}
+
 function selectSandboxFile(sandboxFile, sandboxFilename) {
     selectedFile.value = `${sandboxFilename}:${sandboxFile}`
     const actualSandboxId = sandboxIdCache.value.get(sandboxFilename)
@@ -186,21 +202,11 @@ function refreshFiles() {
             <li v-for="file in files"
                 :key="file"
                 :class="{ selected: selectedFile === file }">
-                <div class="file-item" @click="selectFile(file)">
-                    <span v-if="isSandboxFile(file)"
-                          class="expand-icon"
-                          :class="{ disabled: isSandboxCreating(file) }"
-                          @click="toggleSandbox(file, $event)">
-                        <span v-if="isSandboxCreating(file)" class="spinner">⟳</span>
-                        <span v-else>{{ isExpanded(file) ? '▼' : '▶' }}</span>
-                    </span>
+                <div class="file-item" @click="handleFileClick(file)">
                     <span class="filename">{{ file }}</span>
-                    <span v-if="isSandboxFile(file) && isSandboxCreating(file)" class="status-inline status-creating">Creating...</span>
-                    <span v-else-if="isSandboxFile(file) && isSandboxReady(file)" class="status-inline status-ready">
-                        <span class="status-indicator"></span>
-                        {{ getSandboxId(file)?.slice(0, 8) }}
+                    <span v-if="isSandboxFile(file)" class="status-dot" :class="getStatusClass(file)" :title="getStatusTitle(file)">
+                        <span class="dot"></span>
                     </span>
-                    <span v-else-if="isSandboxFile(file) && isSandboxError(file)" class="status-inline status-error">{{ getSandboxError(file) }}</span>
                 </div>
                 <ul v-if="isSandboxFile(file) && isExpanded(file) && isSandboxReady(file)" class="subfiles">
                     <li v-for="subfile in getSandboxFiles(file)"
@@ -310,15 +316,6 @@ function refreshFiles() {
     background-color: #333;
 }
 
-.expand-icon {
-    cursor: pointer;
-    user-select: none;
-    font-size: 10px;
-    width: 12px;
-    display: inline-flex;
-    justify-content: center;
-}
-
 .subfiles {
     list-style: none;
     margin: 0;
@@ -327,7 +324,7 @@ function refreshFiles() {
 }
 
 .subfiles li {
-    padding: 8px 16px 8px 34px;
+    padding: 8px 16px 8px 24px;
     cursor: pointer;
     border-bottom: 1px solid #2a2a2a;
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
@@ -342,48 +339,37 @@ function refreshFiles() {
 .subfiles li.selected {
     background-color: #333;
     border-left: 3px solid #00ff00;
-    padding-left: 31px;
+    padding-left: 21px;
 }
 
-.status-inline {
+.status-dot {
     margin-left: auto;
-    font-size: 10px;
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     display: flex;
     align-items: center;
-    gap: 4px;
+    cursor: help;
 }
 
-.status-creating {
-    color: #ffa500;
-}
-
-.status-ready {
-    color: #00ff00;
-}
-
-.status-error {
-    color: #ff6b6b;
-}
-
-.status-indicator {
-    width: 6px;
-    height: 6px;
+.status-dot .dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
+}
+
+.status-creating .dot {
+    background-color: #ffa500;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-ready .dot {
     background-color: #00ff00;
 }
 
-.spinner {
-    animation: spin 1s linear infinite;
+.status-error .dot {
+    background-color: #ff6b6b;
 }
 
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.expand-icon.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 </style>
