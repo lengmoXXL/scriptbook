@@ -392,7 +392,6 @@ watch(() => props.config, async () => {
                     {{ terminalVisible ? 'Hide Terminal' : 'Terminal' }}
                 </button>
                 <button @click="recreateSandbox" class="recreate-button">Recreate</button>
-                <div v-if="loading" class="loading-indicator">Processing...</div>
                 <div v-if="sandboxId && !wsConnected && !loading" class="loading-indicator">Connecting...</div>
                 <div v-if="error" class="error-message">
                     {{ error }}
@@ -412,6 +411,10 @@ watch(() => props.config, async () => {
             </div>
             <div v-else ref="messagesContainerRef" class="messages-container">
                 <Dialog ref="dialogRef" :storage-key="getStorageKey('messages')" />
+                <div v-if="loading" class="processing-indicator">
+                    <span class="processing-text">Processing</span>
+                    <span class="processing-dots"></span>
+                </div>
             </div>
 
             <div v-if="terminalVisible && supportsTerminal && containerId" class="terminal-section">
@@ -554,6 +557,59 @@ watch(() => props.config, async () => {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.processing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 16px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    align-self: center;
+    margin-top: 16px;
+}
+
+.processing-text {
+    color: #00ff00;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.processing-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.processing-dots::before,
+.processing-dots::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    background-color: #00ff00;
+    border-radius: 50%;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.processing-dots::before {
+    animation-delay: 0s;
+}
+
+.processing-dots::after {
+    animation-delay: 0.2s;
+}
+
+@keyframes dot-pulse {
+    0%, 80%, 100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .input-container {
