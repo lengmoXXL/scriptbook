@@ -210,8 +210,8 @@ async function refreshSandbox() {
             throw new Error('Sandbox config not loaded')
         }
 
-        const { provider, sandbox_id, image, init_commands, env, expire_time } = configData.value
-        const response = await createSandbox({ provider, sandbox_id, image, init_commands, env, expire_time })
+        const { provider, sandbox_id, image, init_commands, env, expire_time, type } = configData.value
+        const response = await createSandbox({ provider, sandbox_id, image, init_commands, env, expire_time, type })
         sandboxId.value = response.id
         containerId.value = response.container_id
         localStorage.setItem(getStorageKey('id'), response.id)
@@ -233,10 +233,12 @@ function sendMessageToDialog() {
     loading.value = true
     currentRequestId = Date.now().toString()
 
-    // Wrap command for Claude daemon if type is "claude"
+    // Wrap command for Claude/iFlow daemon if type is "claude" or "iflow"
     let commandToSend = cmd
     if (configData.value?.type === 'claude') {
         commandToSend = `echo '${cmd}' | nc -U /tmp/claude.sock`
+    } else if (configData.value?.type === 'iflow') {
+        commandToSend = `echo '${cmd}' | nc -U /tmp/iflow.sock`
     }
 
     // Add user message to dialog first

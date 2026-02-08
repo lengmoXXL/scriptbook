@@ -107,6 +107,7 @@ export function useClaudeStreamHandler() {
  */
 export const handlers = {
     'claude': useClaudeStreamHandler,
+    'iflow': useClaudeStreamHandler,
     'default': useDefaultHandler
 }
 
