@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 
 # Daemon configuration: add new types here to extend support
 # To add a new daemon type:
-# 1. Create entrypoint.py in agents/<type>/entrypoint.py
+# 1. Create entrypoint.py in src/backend/agents/<type>/entrypoint.py
 # 2. Add entry below with socket_path pattern
 DAEMON_CONFIGS = {
     "claude": {
         "name": "Claude",
-        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../agents/claude/entrypoint.py')),
+        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../agents/claude/entrypoint.py')),
         "socket_path": "/tmp/claude.sock",
     },
     "iflow": {
         "name": "iFlow",
-        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../agents/iflow/entrypoint.py')),
+        "script_path": os.path.abspath(os.path.join(os.path.dirname(__file__), '../../agents/iflow/entrypoint.py')),
         "socket_path": "/tmp/iflow.sock",
     },
 }

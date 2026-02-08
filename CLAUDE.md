@@ -9,6 +9,7 @@
 .
 ├── src/
 │   ├── backend/      # Python 后端
+│   │   └── agents/   # AI agents
 │   └── frontend/     # Vue 前端
 ├── docs/             # 文档
 │   ├── development.md  # 开发环境准备、服务启动、测试运行
@@ -18,7 +19,6 @@
 ├── tools/             # 工具脚本
 ├── test/              # 测试
 ├── examples/          # 示例文件
-├── agents/            # AI agents
 ├── .venv/             # Python 虚拟环境
 ├── package.json       # 前端配置
 ├── pyproject.toml     # Python 配置
