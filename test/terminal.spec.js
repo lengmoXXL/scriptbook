@@ -5,8 +5,8 @@ test.describe('SandboxChat Terminal', () => {
     await page.goto('http://localhost:7771');
     await expect(page.locator('.file-list')).toBeVisible({ timeout: 10000 });
 
-    // 点击 example.sandbox 文件
-    await page.locator('.files li:has-text("example.sandbox")').click();
+    // 点击 example.claude.sandbox 文件
+    await page.locator('.files li:has-text("example.claude.sandbox")').click();
 
     // 等待 SandboxChat 加载
     await expect(page.locator('.sandbox-chat')).toBeVisible({ timeout: 10000 });
@@ -71,7 +71,7 @@ test.describe('SandboxChat Terminal', () => {
     await page.goto('http://localhost:7771');
     await expect(page.locator('.file-list')).toBeVisible({ timeout: 10000 });
 
-    await page.locator('.files li:has-text("example.sandbox")').click();
+    await page.locator('.files li:has-text("example.claude.sandbox")').click();
     await expect(page.locator('.sandbox-chat')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('.terminal-button:has-text("Terminal")')).toBeVisible({ timeout: 30000 });
 
