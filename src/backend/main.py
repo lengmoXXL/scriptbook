@@ -47,7 +47,7 @@ class SandboxTermManager(NamedTermManager):
         # Use term_name as container_id directly
         container_id = term_name
 
-        shell_cmd = ['docker', 'exec', '-it', container_id, 'bash']
+        shell_cmd = ['bash', '-c', f'docker exec -it {container_id} bash']
         logger.info(f"Terminal will connect to container: {container_id}")
 
         # Create terminal

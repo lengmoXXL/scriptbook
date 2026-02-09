@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useTerminal } from '../composables/useTerminal.js'
-import { useTerminalWebSocket } from '../composables/useTerminalWebSocket.js'
+import { ref, onMounted } from 'vue'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
+import '@xterm/xterm/css/xterm.css'
 
 const props = defineProps({
   wsUrl: {
@@ -10,34 +12,138 @@ const props = defineProps({
   }
 })
 
+const DEFAULT_THEME = {
+  background: '#1e1e1e',
+  foreground: '#f0f0f0',
+  cursor: '#00ff00'
+}
+
+const DEFAULT_FONT_SIZE = 14
+const DEFAULT_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace'
+
 const terminalContainer = ref(null)
+const isConnected = ref(false)
 
-const { isConnected, connect: connectWs, send: sendStdin, setSize: setTerminalSize } = useTerminalWebSocket({
-  wsUrl: props.wsUrl,
-  sessionId: '',
-  onData: (content) => terminal.write(content),
-  onSetup: () => console.log('Terminal ready'),
-  onConnected: () => {
-    if (terminal.isReady && terminal.dimensions) {
-      setTerminalSize(terminal.dimensions.rows, terminal.dimensions.cols)
-    }
-  },
-  onDisconnected: () => console.log('WebSocket disconnected'),
-  onError: (error) => console.error('WebSocket error:', error)
+let term = null
+let fitAddon = null
+let resizeObserver = null
+let socket = null
+
+defineExpose({ sendCommand })
+
+onMounted(() => {
+  initTerminal()
+
+  resizeObserver = new ResizeObserver(() => {
+    fitAddon.fit()
+  })
+  resizeObserver.observe(terminalContainer.value)
+
+  setTimeout(() => {
+    fitAddon.fit()
+    connectWebSocket()
+  }, 100)
 })
 
-const terminal = useTerminal({
-  containerRef: terminalContainer,
-  onInput: (data) => sendStdin(data),
-  onResize: (rows, cols) => setTerminalSize(rows, cols)
-})
-
-function sendCommand(command) {
-  if (!sendStdin) {
-    console.warn('Cannot send command: WebSocket not ready')
-    return false
+function initTerminal() {
+  if (!terminalContainer.value) {
+    throw new Error('Terminal container missing: terminalContainer is null')
   }
 
+  term = new Terminal({
+    cursorBlink: true,
+    theme: DEFAULT_THEME,
+    fontSize: DEFAULT_FONT_SIZE,
+    fontFamily: DEFAULT_FONT_FAMILY
+  })
+
+  fitAddon = new FitAddon()
+  term.loadAddon(fitAddon)
+  term.loadAddon(new WebLinksAddon())
+
+  term.open(terminalContainer.value)
+  fitAddon.fit()
+
+  window.terminalInstance = term
+
+  terminalContainer.value.addEventListener('click', () => {
+    term.focus()
+  })
+
+  term.onData((data) => {
+    sendStdin(data)
+  })
+
+  term.onResize((size) => {
+    sendTerminalSize(size.rows, size.cols)
+  })
+}
+
+function connectWebSocket() {
+  socket = new WebSocket(props.wsUrl)
+
+  socket.onopen = () => {
+    isConnected.value = true
+    console.log('WebSocket connected')
+  }
+
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+
+      if (!Array.isArray(data) || data.length === 0) {
+        console.error('Unexpected message format, expected non-empty array:', data)
+        return
+      }
+
+      const messageType = data[0]
+
+      if (messageType === 'setup') {
+        console.log('Terminal ready')
+        fitAddon.fit()
+        console.log('Sending terminal size:', term.rows, 'x', term.cols)
+        sendTerminalSize(term.rows, term.cols)
+        return
+      }
+
+      if (messageType === 'stdout' || messageType === 'stderr') {
+        term.write(data[1])
+      } else {
+        console.warn('Unknown message type:', messageType, data)
+      }
+    } catch (error) {
+      console.warn('Invalid raw data:', event.data.slice(0, 100), error)
+    }
+  }
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error)
+  }
+
+  socket.onclose = (event) => {
+    console.log('WebSocket closed:', event.code, event.reason)
+    isConnected.value = false
+  }
+}
+
+function sendStdin(data) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    console.warn('Cannot send: WebSocket not connected')
+    return false
+  }
+  socket.send(JSON.stringify(['stdin', data]))
+  return true
+}
+
+function sendTerminalSize(rows, cols) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return false
+  }
+  socket.send(JSON.stringify(['set_size', rows, cols]))
+  return true
+}
+
+function sendCommand(command) {
   const lines = command.split('\n')
   lines.forEach((line, index) => {
     if (line.trim()) {
@@ -45,24 +151,13 @@ function sendCommand(command) {
       sendStdin(data)
     }
   })
-
   return true
 }
-
-defineExpose({ sendCommand })
-
-onMounted(() => {
-  connectWs()
-})
-
-onBeforeUnmount(() => {
-  terminal.dispose()
-})
 </script>
 
 <template>
   <div class="terminal">
-    <div v-if="!isConnected" class="reconnect-overlay" @click="connectWs">
+    <div v-if="!isConnected" class="reconnect-overlay" @click="connectWebSocket">
       <div class="reconnect-content">
         <span class="reconnect-icon">↻</span>
         <span class="reconnect-text">Reconnect</span>
@@ -116,4 +211,3 @@ onBeforeUnmount(() => {
   font-size: 16px;
 }
 </style>
-
