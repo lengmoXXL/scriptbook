@@ -30,6 +30,7 @@ export async function listSandboxes() {
  * @param {string[]} [config.init_commands] - Initialization commands
  * @param {Object} [config.env] - Environment variables
  * @param {number} [config.expire_time] - Expire time in seconds (null=default, 0=never, >0=custom)
+ * @param {string[]} [config.volumes] - Volume mounts in Docker Compose format: ["host_path:container_path:mode"]
  * @returns {Promise<{id: string, status: string}>} Newly created sandbox information
  */
 export async function createSandbox(config = null) {

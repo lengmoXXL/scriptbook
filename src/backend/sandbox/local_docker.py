@@ -159,6 +159,33 @@ class LocalDockerProvider(SandboxProvider):
         # Clean up orphaned containers from previous runs
         self._cleanup_orphaned_containers()
 
+    @staticmethod
+    def _parse_volume_spec(volume_str: str) -> dict:
+        """
+        Parse Docker Compose style volume string to Docker SDK format.
+
+        Format: host_path:container_path[:mode]
+        Examples:
+            "/host/path:/container/path:rw" -> {"bind": "/container/path", "mode": "rw"}
+            "/host/path:/container/path" -> {"bind": "/container/path", "mode": "rw"}
+            "./relative:/container/path:ro" -> {"bind": "./relative", "mode": "ro"}
+
+        Returns dict with keys: {"bind": container_path, "mode": "rw" or "ro"}
+        """
+        parts = volume_str.split(":")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid volume spec: {volume_str}. Expected format: host_path:container_path[:mode]")
+
+        if len(parts) == 2:
+            host_path, container_path = parts
+            mode = "rw"
+        else:
+            host_path, container_path, mode = parts
+            if mode not in ("rw", "ro"):
+                raise ValueError(f"Invalid volume mode: {mode}. Must be 'rw' or 'ro'")
+
+        return {"bind": container_path, "mode": mode}
+
     def _cleanup_orphaned_containers(self) -> None:
         """Clean up containers left from previous process runs (skip fixed_id containers)."""
         try:
@@ -258,7 +285,8 @@ class LocalDockerProvider(SandboxProvider):
         init_commands: list[str] | None = None,
         env: dict[str, str] | None = None,
         expire_time: int | None = None,
-        type: str | None = None
+        type: str | None = None,
+        volumes: list[str] | None = None
     ) -> LocalDockerSandbox:
         # Generate sandbox_id if None or "auto"
         is_auto_id = sandbox_id is None or sandbox_id == "auto"
@@ -308,6 +336,13 @@ class LocalDockerProvider(SandboxProvider):
             except:
                 pass
 
+            # Parse volumes from Docker Compose format to Docker SDK format
+            docker_volumes = {}
+            if volumes:
+                for vol_spec in volumes:
+                    parsed = self._parse_volume_spec(vol_spec)
+                    docker_volumes[vol_spec.split(":")[0]] = parsed
+
             container = self._client.containers.run(
                 image_uri,
                 name=sandbox_id,
@@ -316,6 +351,7 @@ class LocalDockerProvider(SandboxProvider):
                 stdin_open=True,
                 tty=True,
                 environment=env or {},
+                volumes=docker_volumes,
                 labels={
                     SANDBOX_LABEL_KEY: SANDBOX_LABEL_VALUE,
                     "sandbox_id": sandbox_id,

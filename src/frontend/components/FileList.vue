@@ -94,7 +94,8 @@ async function loadSandboxFiles(filename) {
                 init_commands: sandboxConfig.init_commands,
                 env: parsed.env || {},
                 expire_time: sandboxConfig.expire_time,
-                type: sandboxConfig.type
+                type: sandboxConfig.type,
+                volumes: sandboxConfig.volumes
             })
             actualSandboxId = result.id
             sandboxIdCache.value.set(filename, actualSandboxId)

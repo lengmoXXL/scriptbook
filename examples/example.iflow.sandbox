@@ -15,10 +15,16 @@ sandbox_id = "iflow-dev"
 image = "scriptbook/iflow:latest"
 
 # 文档路径（容器内读取 .md 文件的路径）
-doc_path = "/workspace"
+doc_path = "/docs"
 
 # 类型：iflow 表示使用 iFlow daemon
 type = "iflow"
+
+# 目录挂载（Docker Compose 格式）
+# 格式：["主机路径:容器路径:模式"]
+# 模式：rw=读写（默认）, ro=只读
+# 示例：
+volumes = ["/home/admin/Desktop/scriptbook/examples/docs:/docs:ro"]
 
 [env]
 # iFlow SDK 环境变量（根据需要配置）
