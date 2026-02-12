@@ -21,7 +21,6 @@ class SandboxInfo:
     id: str
     status: str
     container_id: str | None = None
-    type: str | None = None
 
 
 class StdoutMessage:
@@ -99,8 +98,7 @@ class SandboxProvider(Protocol):
         image: str | None = None,
         init_commands: list[str] | None = None,
         env: dict[str, str] | None = None,
-        expire_time: int | None = None,
-        type: str | None = None
+        expire_time: int | None = None
     ) -> Sandbox: ...
 
     @abstractmethod

@@ -17,8 +17,6 @@ image = "scriptbook/iflow:latest"
 # 文档路径（容器内读取 .md 文件的路径）
 doc_path = "/docs"
 
-# 类型：iflow 表示使用 iFlow daemon
-type = "iflow"
 
 # 目录挂载（Docker Compose 格式）
 # 格式：["主机路径:容器路径:模式"]
