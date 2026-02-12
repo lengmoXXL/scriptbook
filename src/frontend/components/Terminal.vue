@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { ClipboardAddon } from '@xterm/addon-clipboard'
 import '@xterm/xterm/css/xterm.css'
 
 const props = defineProps({
@@ -60,6 +61,7 @@ function initTerminal() {
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
   term.loadAddon(new WebLinksAddon())
+  term.loadAddon(new ClipboardAddon())
 
   term.open(terminalContainer.value)
   fitAddon.fit()
