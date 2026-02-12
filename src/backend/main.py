@@ -14,7 +14,6 @@ from terminado.management import NamedTermManager, PtyWithClients, MaxTerminalsR
 from terminado.websocket import TermSocket
 from backend.handlers.file_handler import FileHandler, SandboxFileHandler
 from backend.handlers.sandbox_handler import SandboxHandler
-from backend.handlers.sandbox_ws_handler import SandboxWebSocketHandler
 
 
 # Configure logging
@@ -115,16 +114,15 @@ def make_app(docs_dir, static_dir):
     term_manager = SandboxTermManager(shell_command=['bash'])
 
     handlers = [
-        (r'/ws/sandbox/(?P<sandbox_id>[^/]+)', SandboxWebSocketHandler),
         (r'/ws/(.*)', TerminalWebSocketHandler, {'term_manager': term_manager}),
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files', SandboxFileHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files/(?P<filename>.*)', SandboxFileHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler),
         (r'/api/sandbox', SandboxHandler),
         (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files', SandboxFileHandler),
+        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files/(?P<filename>.*)', SandboxFileHandler),
     ]
 
     handlers.append((r'/(.*)', SPAStaticFileHandler, {

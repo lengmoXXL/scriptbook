@@ -40,22 +40,30 @@ async function loadFiles() {
     }
 }
 
-function selectFile(filename) {
+function selectFile(filename, sandboxId = null, docPath = null) {
     selectedFile.value = filename
-    emit('select', filename)
+    if (sandboxId && docPath) {
+        emit('select', { filename, sandboxId, docPath })
+    }
 }
 
 async function handleFileClick(file) {
-    // Always select the file
-    selectFile(file)
-
-    // If it's a sandbox file, also toggle expansion
+    // If it's a sandbox file, toggle expansion and emit select
     if (isSandboxFile(file) && !isSandboxCreating(file)) {
+        // First load the sandbox (this will cache sandboxId if needed)
+        await loadSandboxFiles(file)
+
+        // Then toggle expansion
         if (expandedSandboxes.value.has(file)) {
             expandedSandboxes.value.delete(file)
         } else {
             expandedSandboxes.value.add(file)
-            await loadSandboxFiles(file)
+        }
+
+        const actualSandboxId = sandboxIdCache.value.get(file)
+        const docPath = sandboxDocPathCache.value.get(file) || '/workspace'
+        if (actualSandboxId) {
+            selectFile(file, actualSandboxId, docPath)
         }
     }
 }

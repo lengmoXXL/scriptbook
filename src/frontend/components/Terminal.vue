@@ -64,8 +64,6 @@ function initTerminal() {
   term.open(terminalContainer.value)
   fitAddon.fit()
 
-  window.terminalInstance = term
-
   terminalContainer.value.addEventListener('click', () => {
     term.focus()
   })
@@ -178,6 +176,15 @@ function sendCommand(command) {
   width: 100%;
   height: 100%;
   text-align: left;
+}
+
+/* Reset xterm.js default padding to match container width */
+.terminal-container :deep(.xterm-screen) {
+  padding: 0;
+}
+
+.terminal-container :deep(.xterm-rows) {
+  padding: 0;
 }
 
 .reconnect-overlay {

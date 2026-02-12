@@ -1,80 +1,57 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, nextTick } from 'vue'
 import FileList from './FileList.vue'
-import SandboxChat from './SandboxChat.vue'
-import { getFileContent, getSandboxFileContent } from '../api/files.js'
-import { parse } from 'smol-toml'
+import Sandbox from './Sandbox.vue'
 
-// State
-const currentFile = ref(null)
-const currentContent = ref('')
-const loading = ref(false)
-const error = ref('')
+const sidebarWidth = ref(250)
+const activeSandboxKey = ref('')
 
-// Computed: get filename from currentFile (handles both string and object)
-const currentFilename = computed(() => {
-    return typeof currentFile.value === 'string' ? currentFile.value : currentFile.value?.filename || ''
-})
+const sandboxStates = ref(new Map())
 
-// Resize state
-const sidebarWidth = ref(250) // pixel
+const sandboxRefs = {}
 
-// When file is selected from FileList
-async function onFileSelect(selection) {
-    const filename = typeof selection === 'string' ? selection : selection.filename
-    const currentFilename = typeof currentFile.value === 'string' ? currentFile.value : currentFile.value?.filename
+function getSandboxRef(key) {
+    return sandboxRefs[key]
+}
 
-    if (currentFilename === filename) {
-        return // Already selected
+function setSandboxRef(key, el) {
+    sandboxRefs[key] = el
+}
+
+function getSandboxState(key) {
+    if (!sandboxStates.value.has(key)) {
+        sandboxStates.value.set(key, {
+            sandboxId: '',
+            docPath: '/workspace',
+            mdFile: ''
+        })
     }
+    return sandboxStates.value.get(key)
+}
 
-    currentFile.value = selection
-    loading.value = true
-    error.value = ''
+async function onSandboxFileSelect(selection) {
+    const filename = selection.filename
+    const sandboxId = selection.sandboxId
+    const docPath = selection.docPath || '/workspace'
 
-    // Check if it's a sandbox internal file (format: sandboxFile.md:internal.md)
-    if (filename.includes(':')) {
-        await loadSandboxMarkdownFile(selection)
-    } else {
-        // All files are sandbox files now
-        loading.value = false
+    const [sandboxConfigFile, mdFile] = filename.split(':')
+    const key = sandboxConfigFile
+
+    const state = getSandboxState(key)
+    state.sandboxId = sandboxId
+    state.docPath = docPath
+    state.mdFile = mdFile
+
+    activeSandboxKey.value = key
+
+    await nextTick()
+    const sandboxRef = getSandboxRef(key)
+    // Only load markdown file if it's not empty
+    if (sandboxRef && mdFile) {
+        sandboxRef.loadMarkdownFile(mdFile)
     }
 }
 
-async function loadSandboxMarkdownFile(selection) {
-    try {
-        const filename = typeof selection === 'string' ? selection : selection.filename
-        const [sandboxConfigFile, mdFile] = filename.split(':')
-
-        // Use actual sandbox ID and docPath from FileList's cache if available
-        let actualSandboxId
-        let docPath = '/workspace'
-
-        if (typeof selection === 'object') {
-            actualSandboxId = selection.sandboxId
-            docPath = selection.docPath || '/workspace'
-        }
-
-        // Fallback: parse config if we don't have the required info
-        if (!actualSandboxId) {
-            const configContent = await getFileContent(sandboxConfigFile)
-            const parsed = parse(configContent)
-            const sandboxConfig = parsed.sandbox || {}
-            actualSandboxId = sandboxConfig.sandbox_id || 'auto'
-            docPath = sandboxConfig.doc_path || '/workspace'
-        }
-
-        const content = await getSandboxFileContent(actualSandboxId, mdFile, docPath)
-        currentContent.value = content
-    } catch (err) {
-        error.value = err.message || 'Failed to load sandbox file'
-        console.error('Error loading sandbox file:', err)
-    } finally {
-        loading.value = false
-    }
-}
-
-// Sidebar width resize
 function startSidebarResize(event) {
     const startX = event.clientX
     const startWidth = sidebarWidth.value
@@ -98,42 +75,40 @@ function startSidebarResize(event) {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
 }
-
 </script>
 
 <template>
     <div class="layout">
         <div class="sidebar" :style="{ width: sidebarWidth + 'px' }">
-            <FileList @select="onFileSelect" />
+            <FileList @select="onSandboxFileSelect" />
         </div>
         <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
             <div class="content">
-                <div class="split-layout">
-                    <template v-if="currentFile">
-                        <div class="sandbox-section-full">
-                            <SandboxChat
-                                :config="currentFilename.includes(':') ? currentFilename.split(':')[0] : currentFilename"
-                                :markdown-content="currentFilename.includes(':') ? currentContent : ''"
-                                :markdown-loading="currentFilename.includes(':') ? loading : false"
-                                :markdown-error="currentFilename.includes(':') ? error : ''"
-                            />
-                        </div>
-                    </template>
-                    <div v-else class="empty-state">
+                <template v-if="activeSandboxKey">
+                    <Sandbox
+                        :ref="el => setSandboxRef(activeSandboxKey, el)"
+                        :key="activeSandboxKey"
+                        :sandbox-id="getSandboxState(activeSandboxKey).sandboxId"
+                        :doc-path="getSandboxState(activeSandboxKey).docPath"
+                        :initial-md-file="getSandboxState(activeSandboxKey).mdFile"
+                    />
+                </template>
+                <template v-else>
+                    <div class="empty-state">
                         <div class="empty-content">
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <path d="M14 2H6a2 2 0 0 2v16a2 2 0 0 2 6a2 2 0 0 2 6a2 2 0 0 2-2 2h16a2 2 0 0 2 6a2 2 0 0 2-2V8z"></path>
+                                <polyline points="14 2 16 8 20 8"></polyline>
                                 <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="14 2 14 8 20 8"></polyline>
                                 <polyline points="10 9 9 9 8 9"></polyline>
                             </svg>
-                            <h2>Select a file to get started</h2>
+                            <h2>Select a sandbox file to get started</h2>
                             <p>Choose a markdown file from the sidebar to view and interact with its content</p>
                         </div>
                     </div>
-                </div>
+                </template>
             </div>
         </div>
     </div>
@@ -161,7 +136,7 @@ function startSidebarResize(event) {
     width: 4px;
     height: 100%;
     background-color: #2a2a2a;
-    border-left: 1px solid #444;
+    border-left: 1px solid #333;
     cursor: col-resize;
     transition: background-color 0.2s;
 }
@@ -179,21 +154,9 @@ function startSidebarResize(event) {
 
 .content {
     flex: 1;
-    overflow: hidden;
-}
-
-.split-layout {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    width: 100%;
-}
-
-.sandbox-section-full {
-    flex: 1;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 .empty-state {
