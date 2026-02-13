@@ -51,32 +51,37 @@ class SandboxTermManager(NamedTermManager):
 
         # Check if it's a tl config file
         if term_name.endswith('.tl'):
-            # Read config file to get shell_command
-            config_path = os.path.join(self.docs_dir, term_name)
-            try:
-                with open(config_path, 'r') as f:
-                    config_content = f.read()
-                # Parse simple key=value format
-                shell_command = ''
-                for line in config_content.split('\n'):
-                    line = line.strip()
-                    if '=' in line and not line.startswith('#'):
-                        key, value = line.split('=', 1)
-                        if key.strip() == 'shell_command':
-                            shell_command = value.strip().strip('"\'"')
-                            break
-
-                if not shell_command:
-                    shell_command = 'bash'
-
-                shell_cmd = ['bash', '-c', shell_command]
-                logger.info(f"Terminal will execute shell_command from {term_name}: {shell_command}")
-            except FileNotFoundError:
-                logger.error(f"Config file not found: {config_path}")
+            # default.tl is a built-in terminal, always uses bash
+            if term_name == 'default.tl':
                 shell_cmd = ['bash']
-            except Exception as e:
-                logger.error(f"Error reading config {term_name}: {e}")
-                shell_cmd = ['bash']
+                logger.info(f"Terminal will use built-in default shell: bash")
+            else:
+                # Read config file to get shell_command
+                config_path = os.path.join(self.docs_dir, term_name)
+                try:
+                    with open(config_path, 'r') as f:
+                        config_content = f.read()
+                    # Parse simple key=value format
+                    shell_command = ''
+                    for line in config_content.split('\n'):
+                        line = line.strip()
+                        if '=' in line and not line.startswith('#'):
+                            key, value = line.split('=', 1)
+                            if key.strip() == 'shell_command':
+                                shell_command = value.strip().strip('"\'"')
+                                break
+
+                    if not shell_command:
+                        shell_command = 'bash'
+
+                    shell_cmd = ['bash', '-c', shell_command]
+                    logger.info(f"Terminal will execute shell_command from {term_name}: {shell_command}")
+                except FileNotFoundError:
+                    logger.error(f"Config file not found: {config_path}")
+                    shell_cmd = ['bash']
+                except Exception as e:
+                    logger.error(f"Error reading config {term_name}: {e}")
+                    shell_cmd = ['bash']
         else:
             # Direct container connection
             container_id = term_name

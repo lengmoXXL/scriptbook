@@ -16,9 +16,14 @@ const markdownFiles = computed(() => {
 })
 
 const sandboxFiles = computed(() => {
-    return files.value
+    const tlFiles = files.value
         .filter(f => f.toLowerCase().endsWith('.tl'))
         .sort()
+    // Always include default.tl (built-in terminal)
+    if (!tlFiles.includes('default.tl')) {
+        return ['default.tl', ...tlFiles]
+    }
+    return tlFiles
 })
 
 onMounted(async () => {
