@@ -6,6 +6,7 @@ import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
 
 const sidebarWidth = ref(250)
+const topPanelFlex = ref(0.5)  // flex value for top panel (0-1)
 
 // Local markdown state (top panel)
 const localMdFilename = ref('')
@@ -19,6 +20,16 @@ const terminalRefs = {}
 
 const showTopPanel = computed(() => localMdFilename.value !== '')
 const showBottomPanel = computed(() => activeTerminalKey.value !== '')
+
+const topPanelStyle = computed(() => {
+    const flex = showBottomPanel.value ? topPanelFlex.value : 1
+    return { flex }
+})
+
+const bottomPanelStyle = computed(() => {
+    const flex = showTopPanel.value ? (1 - topPanelFlex.value) : 1
+    return { flex }
+})
 
 async function loadLocalMarkdown(filename) {
     localMdFilename.value = filename
@@ -62,6 +73,11 @@ function onExecuteCommand(command) {
 async function onFileSelect(selection) {
     // Handle local markdown files (top panel)
     if (selection.isLocal) {
+        // Toggle: if same file clicked, close it
+        if (localMdFilename.value === selection.filename) {
+            localMdFilename.value = ''
+            return
+        }
         await loadLocalMarkdown(selection.filename)
         return
     }
@@ -70,6 +86,11 @@ async function onFileSelect(selection) {
     const filename = selection.filename
 
     if (filename) {
+        // Toggle: if same file clicked, close it
+        if (activeTerminalKey.value === filename) {
+            activeTerminalKey.value = ''
+            return
+        }
         activeTerminalKey.value = filename
 
         await nextTick()
@@ -103,6 +124,30 @@ function startSidebarResize(event) {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
 }
+
+function startTerminalResize() {
+    const content = document.querySelector('.content')
+    if (!content) return
+    const rect = content.getBoundingClientRect()
+
+    function onMouseMove(e) {
+        const relativeY = e.clientY - rect.top
+        const newFlex = Math.max(0.1, Math.min(0.9, relativeY / rect.height))
+        topPanelFlex.value = newFlex
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', onMouseMove, { passive: false })
+    document.addEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+}
 </script>
 
 <template>
@@ -114,14 +159,17 @@ function startSidebarResize(event) {
         <div class="main">
             <div class="content">
                 <!-- Top panel: Markdown viewer -->
-                <div v-if="showTopPanel" class="top-panel">
+                <div v-if="showTopPanel" class="top-panel" :style="topPanelStyle">
                     <div v-if="localMdLoading" class="loading-state">Loading...</div>
                     <div v-else-if="localMdError" class="error-state">{{ localMdError }}</div>
                     <MarkdownViewer v-else :content="localMdContent" :on-execute-command="onExecuteCommand" />
                 </div>
 
+                <!-- Panel resizer -->
+                <div v-if="showTopPanel && showBottomPanel" class="panel-resizer" @mousedown="startTerminalResize"></div>
+
                 <!-- Bottom panel: Terminal -->
-                <div v-if="showBottomPanel" class="bottom-panel">
+                <div v-if="showBottomPanel" class="bottom-panel" :style="bottomPanelStyle">
                     <div class="terminal-header">
                         <span class="terminal-label">{{ activeTerminalKey }}</span>
                     </div>
@@ -198,7 +246,6 @@ function startSidebarResize(event) {
 }
 
 .top-panel {
-    flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -206,8 +253,22 @@ function startSidebarResize(event) {
     min-height: 0;
 }
 
+.panel-resizer {
+    height: 4px;
+    width: 100%;
+    background-color: #2a2a2a;
+    border-top: 1px solid #333;
+    border-bottom: 1px solid #333;
+    cursor: row-resize;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.panel-resizer:hover {
+    background-color: #555;
+}
+
 .bottom-panel {
-    height: 300px;
     display: flex;
     flex-direction: column;
     min-height: 100px;
