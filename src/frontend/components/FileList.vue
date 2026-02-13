@@ -11,13 +11,13 @@ const emit = defineEmits(['select'])
 
 const markdownFiles = computed(() => {
     return files.value
-        .filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.sandbox'))
+        .filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl'))
         .sort()
 })
 
 const sandboxFiles = computed(() => {
     return files.value
-        .filter(f => f.toLowerCase().endsWith('.sandbox'))
+        .filter(f => f.toLowerCase().endsWith('.tl'))
         .sort()
 })
 
@@ -43,13 +43,13 @@ async function handleFileClick(file) {
     selectedFile.value = file
 
     // Local markdown file
-    if (file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.sandbox')) {
+    if (file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.tl')) {
         emit('select', { filename: file, isLocal: true })
         return
     }
 
     // Sandbox config file - emit filename directly
-    if (file.toLowerCase().endsWith('.sandbox')) {
+    if (file.toLowerCase().endsWith('.tl')) {
         emit('select', { filename: file })
     }
 }

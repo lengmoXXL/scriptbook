@@ -35,7 +35,7 @@ def is_safe_path(base_dir: str, requested_path: str) -> bool:
 
 def list_markdown_files(directory: str) -> List[str]:
     """
-    List all .sandbox and .md files in the given directory (non-recursive).
+    List all .tl and .md files in the given directory (non-recursive).
 
     Args:
         directory: Directory to scan
@@ -57,10 +57,10 @@ def list_markdown_files(directory: str) -> List[str]:
     try:
         for item in os.listdir(directory):
             item_path = os.path.join(directory, item)
-            # Check if it's a file (not a directory) and ends with .sandbox or .md
+            # Check if it's a file (not a directory) and ends with .tl or .md
             if os.path.isfile(item_path):
                 item_lower = item.lower()
-                if item_lower.endswith('.sandbox') or item_lower.endswith('.md'):
+                if item_lower.endswith('.tl') or item_lower.endswith('.md'):
                     files.append(item)
     except PermissionError as e:
         logger.error(f"Permission denied accessing directory {directory}: {e}")

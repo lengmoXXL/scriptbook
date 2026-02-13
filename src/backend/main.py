@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class SandboxTermManager(NamedTermManager):
-    """TermManager that can connect to docker containers or read .sandbox config files.
+    """TermManager that can connect to docker containers or read .tl config files.
 
     URL format:
     - /ws/{container_id} -> connect to docker container directly
-    - /ws/{config_file}.sandbox -> read config file and execute shell_command
+    - /ws/{config_file}.tl -> read config file and execute shell_command
     """
 
     def __init__(self, shell_command=None, docs_dir=None):
@@ -37,7 +37,7 @@ class SandboxTermManager(NamedTermManager):
 
         term_name can be:
         - container_id for direct docker exec connection
-        - {filename}.sandbox to read config and execute shell_command
+        - {filename}.tl to read config and execute shell_command
         """
         assert term_name is not None
 
@@ -49,8 +49,8 @@ class SandboxTermManager(NamedTermManager):
         if self.max_terminals and len(self.terminals) >= self.max_terminals:
             raise MaxTerminalsReached(self.max_terminals)
 
-        # Check if it's a sandbox config file
-        if term_name.endswith('.sandbox'):
+        # Check if it's a tl config file
+        if term_name.endswith('.tl'):
             # Read config file to get shell_command
             config_path = os.path.join(self.docs_dir, term_name)
             try:

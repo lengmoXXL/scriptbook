@@ -21,20 +21,20 @@ def test_is_safe_path():
 
 
 def test_list_markdown_files():
-    """Test listing sandbox files."""
+    """Test listing terminal config files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create test files
-        open(os.path.join(tmpdir, "test1.sandbox"), "w").close()
-        open(os.path.join(tmpdir, "test2.sandbox"), "w").close()
+        open(os.path.join(tmpdir, "test1.tl"), "w").close()
+        open(os.path.join(tmpdir, "test2.tl"), "w").close()
         open(os.path.join(tmpdir, "test3.txt"), "w").close()  # Should be ignored
         os.mkdir(os.path.join(tmpdir, "subdir"))  # Directory should be ignored
 
         files = list_markdown_files(tmpdir)
-        assert set(files) == {"test1.sandbox", "test2.sandbox"}
+        assert set(files) == {"test1.tl", "test2.tl"}
         assert "test3.txt" not in files
 
         # Should be sorted
-        assert files == ["test1.sandbox", "test2.sandbox"]
+        assert files == ["test1.tl", "test2.tl"]
 
         # Test empty directory
         empty_dir = os.path.join(tmpdir, "empty")
@@ -45,39 +45,39 @@ def test_list_markdown_files():
 def test_read_file_content():
     """Test reading file content."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        test_file = os.path.join(tmpdir, "test.sandbox")
+        test_file = os.path.join(tmpdir, "test.tl")
         content = "# Hello World\n\nThis is a test."
 
         with open(test_file, "w", encoding="utf-8") as f:
             f.write(content)
 
         # Read file
-        read_content = read_file_content(tmpdir, "test.sandbox")
+        read_content = read_file_content(tmpdir, "test.tl")
         assert read_content == content
 
         # Test with non-existent file
         with pytest.raises(FileNotFoundError):
-            read_file_content(tmpdir, "nonexistent.sandbox")
+            read_file_content(tmpdir, "nonexistent.tl")
 
 
 def test_read_file_content_encoding():
     """Test reading file with UTF-8 encoding requirement."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        test_file = os.path.join(tmpdir, "test.sandbox")
+        test_file = os.path.join(tmpdir, "test.tl")
 
         # Create a file with UTF-8 encoding (should work)
         content = "# UTF-8 Test\n\n中文测试"
         with open(test_file, "w", encoding="utf-8") as f:
             f.write(content)
 
-        read_content = read_file_content(tmpdir, "test.sandbox")
+        read_content = read_file_content(tmpdir, "test.tl")
         assert read_content == content
 
 
 def test_read_file_content_size_limit():
     """Test file size limit enforcement."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        test_file = os.path.join(tmpdir, "large.sandbox")
+        test_file = os.path.join(tmpdir, "large.tl")
 
         # Create a file larger than default limit (1MB)
         large_content = "x" * 2_000_000  # 2MB
@@ -86,7 +86,7 @@ def test_read_file_content_size_limit():
 
         # Should raise IOError for file too large
         with pytest.raises(IOError, match="File too large"):
-            read_file_content(tmpdir, "large.sandbox")
+            read_file_content(tmpdir, "large.tl")
 
 
 @pytest.mark.slow
@@ -100,7 +100,7 @@ def test_project_files():
     # Just verify the function runs without error
     assert isinstance(files, list)
 
-    # If there are sandbox files, try to read one
+    # If there are tl files, try to read one
     if files:
         first_file = files[0]
         content = read_file_content(project_root, first_file)

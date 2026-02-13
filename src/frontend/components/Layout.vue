@@ -82,7 +82,7 @@ async function onFileSelect(selection) {
         return
     }
 
-    // Handle sandbox config files (bottom panel)
+    // Handle terminal config files (bottom panel)
     const filename = selection.filename
 
     if (filename) {
