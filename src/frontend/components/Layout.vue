@@ -251,6 +251,7 @@ function startTerminalResize() {
     overflow: hidden;
     border-bottom: 1px solid #444;
     min-height: 0;
+    padding: 16px 24px;
 }
 
 .panel-resizer {
