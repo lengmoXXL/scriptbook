@@ -1,54 +1,82 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
 import FileList from './FileList.vue'
-import Sandbox from './Sandbox.vue'
+import MarkdownViewer from './MarkdownViewer.vue'
+import Terminal from './Terminal.vue'
+import { getFileContent } from '../api/files.js'
 
 const sidebarWidth = ref(250)
-const activeSandboxKey = ref('')
 
-const sandboxStates = ref(new Map())
+// Local markdown state (top panel)
+const localMdFilename = ref('')
+const localMdContent = ref('')
+const localMdLoading = ref(false)
+const localMdError = ref('')
 
-const sandboxRefs = {}
+// Terminal state (bottom panel)
+const activeTerminalKey = ref('')
+const terminalRefs = {}
 
-function getSandboxRef(key) {
-    return sandboxRefs[key]
-}
+const showTopPanel = computed(() => localMdFilename.value !== '')
+const showBottomPanel = computed(() => activeTerminalKey.value !== '')
 
-function setSandboxRef(key, el) {
-    sandboxRefs[key] = el
-}
+async function loadLocalMarkdown(filename) {
+    localMdFilename.value = filename
+    localMdLoading.value = true
+    localMdError.value = ''
+    localMdContent.value = ''
 
-function getSandboxState(key) {
-    if (!sandboxStates.value.has(key)) {
-        sandboxStates.value.set(key, {
-            sandboxId: '',
-            docPath: '/workspace',
-            mdFile: ''
-        })
+    try {
+        const content = await getFileContent(filename)
+        localMdContent.value = content
+    } catch (err) {
+        localMdError.value = err.message || 'Failed to load file'
+        console.error('Error loading file:', err)
+    } finally {
+        localMdLoading.value = false
     }
-    return sandboxStates.value.get(key)
 }
 
-async function onSandboxFileSelect(selection) {
+function getTerminalRef(key) {
+    return terminalRefs[key]
+}
+
+function setTerminalRef(key, el) {
+    terminalRefs[key] = el
+}
+
+// Build wsUrl from terminal config filename
+const wsUrl = computed(() => (configFilename) => {
+    const backendHost = import.meta.env.DEV ? 'localhost:8080' : window.location.host
+    return `ws://${backendHost}/ws/${configFilename}`
+})
+
+function onExecuteCommand(command) {
+    const terminalRef = getTerminalRef(activeTerminalKey.value)
+    if (terminalRef) {
+        terminalRef.sendCommand(command)
+        terminalRef.focus()
+    }
+}
+
+async function onFileSelect(selection) {
+    // Handle local markdown files (top panel)
+    if (selection.isLocal) {
+        await loadLocalMarkdown(selection.filename)
+        return
+    }
+
+    // Handle sandbox config files (bottom panel)
     const filename = selection.filename
-    const sandboxId = selection.sandboxId
-    const docPath = selection.docPath || '/workspace'
 
-    const [sandboxConfigFile, mdFile] = filename.split(':')
-    const key = sandboxConfigFile
+    if (filename) {
+        activeTerminalKey.value = filename
 
-    const state = getSandboxState(key)
-    state.sandboxId = sandboxId
-    state.docPath = docPath
-    state.mdFile = mdFile
-
-    activeSandboxKey.value = key
-
-    await nextTick()
-    const sandboxRef = getSandboxRef(key)
-    // Only load markdown file if it's not empty
-    if (sandboxRef && mdFile) {
-        sandboxRef.loadMarkdownFile(mdFile)
+        await nextTick()
+        const terminalRef = getTerminalRef(filename)
+        if (terminalRef) {
+            terminalRef.focus()
+        }
     }
 }
 
@@ -80,35 +108,45 @@ function startSidebarResize(event) {
 <template>
     <div class="layout">
         <div class="sidebar" :style="{ width: sidebarWidth + 'px' }">
-            <FileList @select="onSandboxFileSelect" />
+            <FileList @select="onFileSelect" />
         </div>
         <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
             <div class="content">
-                <template v-if="activeSandboxKey">
-                    <Sandbox
-                        :ref="el => setSandboxRef(activeSandboxKey, el)"
-                        :key="activeSandboxKey"
-                        :sandbox-id="getSandboxState(activeSandboxKey).sandboxId"
-                        :doc-path="getSandboxState(activeSandboxKey).docPath"
-                        :initial-md-file="getSandboxState(activeSandboxKey).mdFile"
-                    />
-                </template>
-                <template v-else>
-                    <div class="empty-state">
-                        <div class="empty-content">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 2v16a2 2 0 0 2 6a2 2 0 0 2 6a2 2 0 0 2-2 2h16a2 2 0 0 2 6a2 2 0 0 2-2V8z"></path>
-                                <polyline points="14 2 16 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
-                            <h2>Select a sandbox file to get started</h2>
-                            <p>Choose a markdown file from the sidebar to view and interact with its content</p>
-                        </div>
+                <!-- Top panel: Markdown viewer -->
+                <div v-if="showTopPanel" class="top-panel">
+                    <div v-if="localMdLoading" class="loading-state">Loading...</div>
+                    <div v-else-if="localMdError" class="error-state">{{ localMdError }}</div>
+                    <MarkdownViewer v-else :content="localMdContent" :on-execute-command="onExecuteCommand" />
+                </div>
+
+                <!-- Bottom panel: Terminal -->
+                <div v-if="showBottomPanel" class="bottom-panel">
+                    <div class="terminal-header">
+                        <span class="terminal-label">{{ activeTerminalKey }}</span>
                     </div>
-                </template>
+                    <div class="terminal-body">
+                        <Terminal
+                            :ref="el => setTerminalRef(activeTerminalKey, el)"
+                            :ws-url="wsUrl(activeTerminalKey)"
+                        />
+                    </div>
+                </div>
+
+                <!-- Empty state -->
+                <div v-if="!showTopPanel && !showBottomPanel" class="empty-state">
+                    <div class="empty-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 2v16a2 2 0 0 2 6a2 2 0 0 2 6a2 2 0 0 2-2 2h16a2 2 0 0 2 6a2 2 0 0 2-2V8z"></path>
+                            <polyline points="14 2 16 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <h2>Select a file to get started</h2>
+                        <p>Click a markdown file or terminal config to begin</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -157,6 +195,56 @@ function startSidebarResize(event) {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.top-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 1px solid #444;
+    min-height: 0;
+}
+
+.bottom-panel {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100px;
+    background-color: #1e1e1e;
+}
+
+.terminal-header {
+    padding: 6px 12px;
+    background-color: #2a2a2a;
+    border-top: 1px solid #444;
+    display: flex;
+    align-items: center;
+}
+
+.terminal-label {
+    font-size: 11px;
+    color: #888;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.terminal-body {
+    flex: 1;
+    overflow: hidden;
+}
+
+.loading-state,
+.error-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #1e1e1e;
+    color: #888;
+}
+
+.error-state {
+    color: #f48771;
 }
 
 .empty-state {

@@ -12,8 +12,7 @@ import tornado.ioloop
 import tornado.web
 from terminado.management import NamedTermManager, PtyWithClients, MaxTerminalsReached
 from terminado.websocket import TermSocket
-from backend.handlers.file_handler import FileHandler, SandboxFileHandler
-from backend.handlers.sandbox_handler import SandboxHandler
+from backend.handlers.file_handler import FileHandler
 
 
 # Configure logging
@@ -22,16 +21,23 @@ logger = logging.getLogger(__name__)
 
 
 class SandboxTermManager(NamedTermManager):
-    """TermManager that can connect to docker containers by container_id.
+    """TermManager that can connect to docker containers or read .sandbox config files.
 
     URL format:
-    - /ws/{container_id} -> connect to docker container
+    - /ws/{container_id} -> connect to docker container directly
+    - /ws/{config_file}.sandbox -> read config file and execute shell_command
     """
+
+    def __init__(self, shell_command=None, docs_dir=None):
+        super().__init__(shell_command=shell_command)
+        self.docs_dir = docs_dir
 
     def get_terminal(self, term_name: str):
         """Get or create a terminal by name.
 
-        term_name is treated as container_id for docker exec connection.
+        term_name can be:
+        - container_id for direct docker exec connection
+        - {filename}.sandbox to read config and execute shell_command
         """
         assert term_name is not None
 
@@ -43,11 +49,39 @@ class SandboxTermManager(NamedTermManager):
         if self.max_terminals and len(self.terminals) >= self.max_terminals:
             raise MaxTerminalsReached(self.max_terminals)
 
-        # Use term_name as container_id directly
-        container_id = term_name
+        # Check if it's a sandbox config file
+        if term_name.endswith('.sandbox'):
+            # Read config file to get shell_command
+            config_path = os.path.join(self.docs_dir, term_name)
+            try:
+                with open(config_path, 'r') as f:
+                    config_content = f.read()
+                # Parse simple key=value format
+                shell_command = ''
+                for line in config_content.split('\n'):
+                    line = line.strip()
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        if key.strip() == 'shell_command':
+                            shell_command = value.strip().strip('"\'"')
+                            break
 
-        shell_cmd = ['bash', '-c', f'docker exec -it {container_id} bash']
-        logger.info(f"Terminal will connect to container: {container_id}")
+                if not shell_command:
+                    shell_command = 'bash'
+
+                shell_cmd = ['bash', '-c', shell_command]
+                logger.info(f"Terminal will execute shell_command from {term_name}: {shell_command}")
+            except FileNotFoundError:
+                logger.error(f"Config file not found: {config_path}")
+                shell_cmd = ['bash']
+            except Exception as e:
+                logger.error(f"Error reading config {term_name}: {e}")
+                shell_cmd = ['bash']
+        else:
+            # Direct container connection
+            container_id = term_name
+            shell_cmd = ['bash', '-c', f'docker exec -it {container_id} bash']
+            logger.info(f"Terminal will connect to container: {container_id}")
 
         # Create terminal
         options = self.term_settings.copy()
@@ -111,18 +145,13 @@ class SPAStaticFileHandler(CORSStaticFileHandler):
 
 def make_app(docs_dir, static_dir):
     """Create Tornado application."""
-    term_manager = SandboxTermManager(shell_command=['bash'])
+    term_manager = SandboxTermManager(shell_command=['bash'], docs_dir=docs_dir)
 
     handlers = [
         (r'/ws/(.*)', TerminalWebSocketHandler, {'term_manager': term_manager}),
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
         (r'/api/files/(.*)', FileHandler, {'docs_dir': docs_dir}),
-        (r'/api/sandbox', SandboxHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)', SandboxHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/command', SandboxHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files', SandboxFileHandler),
-        (r'/api/sandbox/(?P<sandbox_id>[^/]+)/files/(?P<filename>.*)', SandboxFileHandler),
     ]
 
     handlers.append((r'/(.*)', SPAStaticFileHandler, {

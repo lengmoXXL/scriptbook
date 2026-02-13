@@ -1,25 +1,25 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { listFiles, listSandboxFiles, getFileContent } from '../api/files.js'
-import { createSandbox } from '../api/sandbox.js'
-import { parse } from 'smol-toml'
+import { ref, onMounted, computed } from 'vue'
+import { listFiles } from '../api/files.js'
 
 const files = ref([])
 const loading = ref(true)
 const error = ref(null)
 const selectedFile = ref(null)
-const expandedSandboxes = ref(new Set())
-const sandboxFilesCache = ref(new Map())
-// Cache actual sandbox IDs for config files
-const sandboxIdCache = ref(new Map())
-// Cache doc_path for sandbox configs
-const sandboxDocPathCache = ref(new Map())
-// Track sandbox status: 'pending' | 'creating' | 'ready' | 'error'
-const sandboxStatusCache = ref(new Map())
-// Track sandbox errors
-const sandboxErrorCache = ref(new Map())
 
 const emit = defineEmits(['select'])
+
+const markdownFiles = computed(() => {
+    return files.value
+        .filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.sandbox'))
+        .sort()
+})
+
+const sandboxFiles = computed(() => {
+    return files.value
+        .filter(f => f.toLowerCase().endsWith('.sandbox'))
+        .sort()
+})
 
 onMounted(async () => {
     await loadFiles()
@@ -31,7 +31,6 @@ async function loadFiles() {
 
     try {
         files.value = await listFiles()
-        // Don't auto-select any file - wait for user to click
     } catch (err) {
         error.value = err.message || 'Failed to load files'
         console.error('Error loading files:', err)
@@ -40,144 +39,19 @@ async function loadFiles() {
     }
 }
 
-function selectFile(filename, sandboxId = null, docPath = null) {
-    selectedFile.value = filename
-    if (sandboxId && docPath) {
-        emit('select', { filename, sandboxId, docPath })
-    }
-}
-
 async function handleFileClick(file) {
-    // If it's a sandbox file, toggle expansion and emit select
-    if (isSandboxFile(file) && !isSandboxCreating(file)) {
-        // First load the sandbox (this will cache sandboxId if needed)
-        await loadSandboxFiles(file)
+    selectedFile.value = file
 
-        // Then toggle expansion
-        if (expandedSandboxes.value.has(file)) {
-            expandedSandboxes.value.delete(file)
-        } else {
-            expandedSandboxes.value.add(file)
-        }
-
-        const actualSandboxId = sandboxIdCache.value.get(file)
-        const docPath = sandboxDocPathCache.value.get(file) || '/workspace'
-        if (actualSandboxId) {
-            selectFile(file, actualSandboxId, docPath)
-        }
-    }
-}
-
-function isSandboxFile(filename) {
-    return filename.toLowerCase().endsWith('.sandbox')
-}
-
-async function loadSandboxFiles(filename) {
-    const existingStatus = sandboxStatusCache.value.get(filename)
-    if (existingStatus === 'ready') {
+    // Local markdown file
+    if (file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.sandbox')) {
+        emit('select', { filename: file, isLocal: true })
         return
     }
 
-    sandboxStatusCache.value.set(filename, 'creating')
-    sandboxErrorCache.value.delete(filename)
-
-    try {
-        const content = await getFileContent(filename)
-        const parsed = parse(content)
-        const sandboxConfig = parsed.sandbox || {}
-
-        // Cache doc_path for later use
-        const docPath = sandboxConfig.doc_path || '/workspace'
-        sandboxDocPathCache.value.set(filename, docPath)
-
-        let actualSandboxId = sandboxIdCache.value.get(filename)
-        if (!actualSandboxId) {
-            const provider = sandboxConfig.provider || 'local_docker'
-            const sandboxId = sandboxConfig.sandbox_id || 'auto'
-
-            const result = await createSandbox({
-                provider,
-                sandbox_id: sandboxId,
-                image: sandboxConfig.image,
-                init_commands: sandboxConfig.init_commands,
-                env: parsed.env || {},
-                expire_time: sandboxConfig.expire_time,
-                volumes: sandboxConfig.volumes
-            })
-            actualSandboxId = result.id
-            sandboxIdCache.value.set(filename, actualSandboxId)
-        }
-
-        const sandboxFileList = await listSandboxFiles(actualSandboxId, docPath)
-        sandboxFilesCache.value.set(filename, sandboxFileList)
-        sandboxStatusCache.value.set(filename, 'ready')
-    } catch (err) {
-        console.error('Error loading sandbox files:', err)
-        sandboxStatusCache.value.set(filename, 'error')
-        sandboxErrorCache.value.set(filename, err.message || 'Failed to create sandbox')
-        sandboxFilesCache.value.set(filename, [])
+    // Sandbox config file - emit filename directly
+    if (file.toLowerCase().endsWith('.sandbox')) {
+        emit('select', { filename: file })
     }
-}
-
-function isExpanded(filename) {
-    return expandedSandboxes.value.has(filename)
-}
-
-function getSandboxFiles(filename) {
-    return sandboxFilesCache.value.get(filename) || []
-}
-
-function getSandboxStatus(filename) {
-    return sandboxStatusCache.value.get(filename) || 'pending'
-}
-
-function getSandboxError(filename) {
-    return sandboxErrorCache.value.get(filename)
-}
-
-function getSandboxId(filename) {
-    return sandboxIdCache.value.get(filename)
-}
-
-function isSandboxReady(filename) {
-    return getSandboxStatus(filename) === 'ready'
-}
-
-function isSandboxCreating(filename) {
-    return getSandboxStatus(filename) === 'creating'
-}
-
-function isSandboxError(filename) {
-    return getSandboxStatus(filename) === 'error'
-}
-
-function getStatusClass(filename) {
-    const status = getSandboxStatus(filename)
-    if (status === 'creating') return 'status-creating'
-    if (status === 'ready') return 'status-ready'
-    if (status === 'error') return 'status-error'
-    return ''
-}
-
-function getStatusTitle(filename) {
-    const status = getSandboxStatus(filename)
-    if (status === 'creating') return 'Creating sandbox...'
-    if (status === 'ready') {
-        const sandboxId = getSandboxId(filename)
-        return `Ready: ${sandboxId}`
-    }
-    if (status === 'error') {
-        const error = getSandboxError(filename)
-        return `Error: ${error}`
-    }
-    return 'Not initialized'
-}
-
-function selectSandboxFile(sandboxFile, sandboxFilename) {
-    selectedFile.value = `${sandboxFilename}:${sandboxFile}`
-    const actualSandboxId = sandboxIdCache.value.get(sandboxFilename)
-    const docPath = sandboxDocPathCache.value.get(sandboxFilename) || '/workspace'
-    emit('select', { filename: `${sandboxFilename}:${sandboxFile}`, sandboxId: actualSandboxId, docPath })
 }
 
 function refreshFiles() {
@@ -188,7 +62,7 @@ function refreshFiles() {
 <template>
     <div class="file-list">
         <div class="file-list-header">
-            <h3>Markdown Files</h3>
+            <h3>Files</h3>
             <button @click="refreshFiles" :disabled="loading" class="refresh-btn">
                 {{ loading ? 'Loading...' : 'Refresh' }}
             </button>
@@ -204,29 +78,40 @@ function refreshFiles() {
         </div>
 
         <div v-else-if="files.length === 0" class="empty">
-            No markdown files found in directory.
+            No files found in directory.
         </div>
 
-        <ul v-else class="files">
-            <li v-for="file in files"
-                :key="file"
-                :class="{ selected: selectedFile === file }">
-                <div class="file-item" @click="handleFileClick(file)">
-                    <span class="filename">{{ file }}</span>
-                    <span v-if="isSandboxFile(file)" class="status-dot" :class="getStatusClass(file)" :title="getStatusTitle(file)">
-                        <span class="dot"></span>
-                    </span>
-                </div>
-                <ul v-if="isSandboxFile(file) && isExpanded(file) && isSandboxReady(file)" class="subfiles">
-                    <li v-for="subfile in getSandboxFiles(file)"
-                        :key="subfile"
-                        :class="{ selected: selectedFile === `${file}:${subfile}` }"
-                        @click="selectSandboxFile(subfile, file)">
-                        {{ subfile }}
+        <div v-else class="panels">
+            <!-- Markdown files panel -->
+            <div class="panel">
+                <div class="panel-header">Markdown</div>
+                <ul v-if="markdownFiles.length > 0" class="files">
+                    <li v-for="file in markdownFiles"
+                        :key="file"
+                        :class="{ selected: selectedFile === file }">
+                        <div class="file-item" @click="handleFileClick(file)">
+                            <span class="filename">{{ file }}</span>
+                        </div>
                     </li>
                 </ul>
-            </li>
-        </ul>
+                <div v-else class="panel-empty">No markdown files</div>
+            </div>
+
+            <!-- Sandbox files panel -->
+            <div class="panel">
+                <div class="panel-header">Terminal</div>
+                <ul v-if="sandboxFiles.length > 0" class="files">
+                    <li v-for="file in sandboxFiles"
+                        :key="file"
+                        :class="{ selected: selectedFile === file }">
+                        <div class="file-item" @click="handleFileClick(file)">
+                            <span class="filename">{{ file }}</span>
+                        </div>
+                    </li>
+                </ul>
+                <div v-else class="panel-empty">No terminal configs</div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -294,6 +179,41 @@ function refreshFiles() {
     cursor: pointer;
 }
 
+.panels {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #444;
+    min-height: 0;
+}
+
+.panel:last-child {
+    border-bottom: none;
+}
+
+.panel-header {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    background-color: #1a1a1a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.panel-empty {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+}
+
 .files {
     list-style: none;
     margin: 0;
@@ -320,65 +240,7 @@ function refreshFiles() {
     background-color: #2a2a2a;
 }
 
-.files > li:not(:has(.subfiles)) .file-item.selected,
-.files > li:has(.subfiles) .file-item:has(~ .subfiles li.selected) {
+.files > li .file-item.selected {
     background-color: #333;
-}
-
-.subfiles {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    background-color: #181818;
-}
-
-.subfiles li {
-    padding: 8px 16px 8px 24px;
-    cursor: pointer;
-    border-bottom: 1px solid #2a2a2a;
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    font-size: 12px;
-    color: #ccc;
-}
-
-.subfiles li:hover {
-    background-color: #222;
-}
-
-.subfiles li.selected {
-    background-color: #333;
-    border-left: 3px solid #00ff00;
-    padding-left: 21px;
-}
-
-.status-dot {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    cursor: help;
-}
-
-.status-dot .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.status-creating .dot {
-    background-color: #ffa500;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-.status-ready .dot {
-    background-color: #00ff00;
-}
-
-.status-error .dot {
-    background-color: #ff6b6b;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -30,7 +30,25 @@ let fitAddon = null
 let resizeObserver = null
 let socket = null
 
-defineExpose({ sendCommand })
+function focus() {
+  if (term) {
+    term.focus()
+  }
+}
+
+defineExpose({ sendCommand, focus })
+
+function cleanup() {
+  if (socket) {
+    socket.close()
+    socket = null
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  isConnected.value = false
+}
 
 onMounted(() => {
   initTerminal()
@@ -44,6 +62,21 @@ onMounted(() => {
     fitAddon.fit()
     connectWebSocket()
   }, 100)
+})
+
+onUnmounted(() => {
+  cleanup()
+})
+
+watch(() => props.wsUrl, (newUrl, oldUrl) => {
+  if (newUrl && newUrl !== oldUrl) {
+    console.log('wsUrl changed, reconnecting:', oldUrl, '->', newUrl)
+    cleanup()
+    term.reset()
+    setTimeout(() => {
+      connectWebSocket()
+    }, 100)
+  }
 })
 
 function initTerminal() {
