@@ -29,6 +29,7 @@ let term = null
 let fitAddon = null
 let resizeObserver = null
 let socket = null
+let terminalClickHandler = null
 
 function focus() {
   if (term) {
@@ -46,6 +47,10 @@ function cleanup() {
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
+  }
+  if (terminalContainer.value && terminalClickHandler) {
+    terminalContainer.value.removeEventListener('click', terminalClickHandler)
+    terminalClickHandler = null
   }
   isConnected.value = false
 }
@@ -99,9 +104,8 @@ function initTerminal() {
   term.open(terminalContainer.value)
   fitAddon.fit()
 
-  terminalContainer.value.addEventListener('click', () => {
-    term.focus()
-  })
+  terminalClickHandler = () => term.focus()
+  terminalContainer.value.addEventListener('click', terminalClickHandler)
 
   term.onData((data) => {
     sendStdin(data)

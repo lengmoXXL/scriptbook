@@ -8,8 +8,8 @@ import attrs from 'markdown-it-attrs'
 import taskLists from 'markdown-it-task-lists'
 import container from 'markdown-it-container'
 import footnote from 'markdown-it-footnote'
-import hljs from 'highlight.js'
 import bashExecutePlugin from './markdown-plugins/bash-execute.js'
+import DOMPurify from 'dompurify'
 
 import 'highlight.js/styles/github-dark.css'
 
@@ -17,18 +17,7 @@ const md = new MarkdownIt({
     html: true,              // Allow HTML in markdown
     linkify: true,           // Auto convert URL-like text to links
     typographer: true,       // Enable smartquotes and other typographic replacements
-    breaks: false,           // Disable newline to <br>
-    highlight: function(code, lang) {
-        try {
-            const language = lang && hljs.getLanguage(lang) ? lang : undefined
-            const result = language
-                ? hljs.highlight(code, { language })
-                : hljs.highlightAuto(code)
-            return result.value
-        } catch {
-            return code  // Fallback to original code on any error
-        }
-    }
+    breaks: false            // Disable newline to <br>
 })
 
 // Register plugins
@@ -47,7 +36,8 @@ export function renderMarkdown(markdown) {
     }
 
     try {
-        return md.render(markdown)
+        const html = md.render(markdown)
+        return DOMPurify.sanitize(html)
     } catch (error) {
         console.error('Error rendering markdown:', error)
         return `<pre class="error">Error rendering markdown: ${error.message}</pre>`

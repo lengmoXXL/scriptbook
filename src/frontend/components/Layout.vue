@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, onUnmounted } from 'vue'
 import FileList from './FileList.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
@@ -17,6 +17,10 @@ const localMdError = ref('')
 // Terminal state (bottom panel)
 const activeTerminalKey = ref('')
 const terminalRefs = {}
+
+// Resize handler refs for cleanup
+let sidebarResizeHandler = null
+let terminalResizeHandler = null
 
 const showTopPanel = computed(() => localMdFilename.value !== '')
 const showBottomPanel = computed(() => activeTerminalKey.value !== '')
@@ -117,8 +121,10 @@ function startSidebarResize(event) {
         document.removeEventListener('mouseup', onMouseUp)
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
+        sidebarResizeHandler = null
     }
 
+    sidebarResizeHandler = { onMouseMove, onMouseUp }
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
     document.body.style.cursor = 'col-resize'
@@ -141,13 +147,26 @@ function startTerminalResize() {
         document.removeEventListener('mouseup', onMouseUp)
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
+        terminalResizeHandler = null
     }
 
+    terminalResizeHandler = { onMouseMove, onMouseUp }
     document.addEventListener('mousemove', onMouseMove, { passive: false })
     document.addEventListener('mouseup', onMouseUp)
     document.body.style.cursor = 'row-resize'
     document.body.style.userSelect = 'none'
 }
+
+onUnmounted(() => {
+    if (sidebarResizeHandler) {
+        document.removeEventListener('mousemove', sidebarResizeHandler.onMouseMove)
+        document.removeEventListener('mouseup', sidebarResizeHandler.onMouseUp)
+    }
+    if (terminalResizeHandler) {
+        document.removeEventListener('mousemove', terminalResizeHandler.onMouseMove)
+        document.removeEventListener('mouseup', terminalResizeHandler.onMouseUp)
+    }
+})
 </script>
 
 <template>
