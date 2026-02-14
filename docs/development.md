@@ -3,7 +3,6 @@
 - [开发环境准备](#开发环境准备)
 - [服务启动](#服务启动)
 - [测试运行](#测试运行)
-- [常见问题](#常见问题)
 
 ## 开发环境准备
 
@@ -31,17 +30,11 @@ npm install
 npx playwright install
 ```
 
-5. 安装 Docker（用于本地 sandbox）
-```bash
-sudo apt install docker.io
-sudo usermod -aG docker $USER  # 将当前用户加入 docker 组
-```
-
 ## 服务启动
 
-启动后端：
+启动后端（开发模式，支持热加载）：
 ```bash
-python src/backend/main.py examples --port 8080
+DEV_MODE=true python src/backend/main.py examples --port 8080
 ```
 
 启动前端：
@@ -72,13 +65,3 @@ npm test
 npx playwright test test/terminal.spec.js
 npx playwright test test/api.spec.js
 ```
-
-## 常见问题
-
-1. Docker 权限问题：Permission denied
-
-当前用户无法访问 docker，通过变更权限的方式解决：
-```bash
-sudo chown $USER:$USER /var/run/docker.sock
-```
-或者重新登录以使 group 生效。
