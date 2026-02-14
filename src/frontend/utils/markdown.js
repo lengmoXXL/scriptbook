@@ -35,11 +35,6 @@ export function renderMarkdown(markdown) {
         return ''
     }
 
-    try {
-        const html = md.render(markdown)
-        return DOMPurify.sanitize(html)
-    } catch (error) {
-        console.error('Error rendering markdown:', error)
-        return `<pre class="error">Error rendering markdown: ${error.message}</pre>`
-    }
+    const html = md.render(markdown)
+    return DOMPurify.sanitize(html)
 }

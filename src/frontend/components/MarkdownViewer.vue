@@ -30,7 +30,12 @@ const renderedHtml = computed(() => {
     if (props.loading) {
         return '<div class="loading-message">Loading content...</div>'
     }
-    return renderMarkdown(props.content)
+    try {
+        return renderMarkdown(props.content)
+    } catch (error) {
+        console.error('Error rendering markdown:', error)
+        return `<div class="error-message">Error rendering markdown: ${error.message}</div>`
+    }
 })
 
 function handleExecuteButtonClick(e) {

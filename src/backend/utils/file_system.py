@@ -20,17 +20,16 @@ def is_safe_path(base_dir: str, requested_path: str) -> bool:
 
     Returns:
         True if the path is safe, False otherwise
-    """
-    try:
-        # Resolve both paths to absolute paths
-        base_abs = os.path.abspath(base_dir)
-        requested_abs = os.path.abspath(os.path.join(base_dir, requested_path))
 
-        # Check if the resolved path starts with the base directory
-        return requested_abs.startswith(base_abs)
-    except Exception as e:
-        logger.error(f"Error checking path safety: {e}")
-        return False
+    Raises:
+        RuntimeError: If path resolution fails unexpectedly
+    """
+    # Resolve both paths to absolute paths
+    base_abs = os.path.abspath(base_dir)
+    requested_abs = os.path.abspath(os.path.join(base_dir, requested_path))
+
+    # Check if the resolved path starts with the base directory
+    return requested_abs.startswith(base_abs)
 
 
 def list_markdown_files(directory: str) -> List[str]:

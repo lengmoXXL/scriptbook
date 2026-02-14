@@ -13,6 +13,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['error'])
+
 const DEFAULT_THEME = {
   background: '#1e1e1e',
   foreground: '#f0f0f0',
@@ -24,7 +26,6 @@ const DEFAULT_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace'
 
 const terminalContainer = ref(null)
 const isConnected = ref(false)
-const errorMessage = ref('')
 
 let term = null
 let fitAddon = null
@@ -54,7 +55,6 @@ function cleanup() {
     terminalClickHandler = null
   }
   isConnected.value = false
-  errorMessage.value = ''
 }
 
 onMounted(() => {
@@ -131,8 +131,7 @@ function connectWebSocket() {
       const data = JSON.parse(event.data)
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.error('Unexpected message format, expected non-empty array:', data)
-        return
+        throw new Error('Unexpected server message format')
       }
 
       const messageType = data[0]
@@ -148,23 +147,24 @@ function connectWebSocket() {
       if (messageType === 'stdout' || messageType === 'stderr') {
         term.write(data[1])
       } else {
-        console.warn('Unknown message type:', messageType, data)
+        throw new Error(`Unknown message type: ${messageType}`)
       }
     } catch (error) {
-      console.warn('Invalid raw data:', event.data.slice(0, 100), error)
+      console.error('WebSocket message error:', error)
+      emit('error', error.message)
     }
   }
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error)
-    errorMessage.value = 'Connection failed'
+    emit('error', 'Connection failed')
   }
 
   socket.onclose = (event) => {
     console.log('WebSocket closed:', event.code, event.reason)
     isConnected.value = false
     if (event.code !== 1000 && event.code !== 1001) {
-      errorMessage.value = event.reason || `Connection closed (${event.code})`
+      emit('error', event.reason || `Connection closed (${event.code})`)
     }
   }
 }
@@ -204,7 +204,6 @@ function sendCommand(command) {
       <div class="reconnect-content">
         <span class="reconnect-icon">↻</span>
         <span class="reconnect-text">Reconnect</span>
-        <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
       </div>
     </div>
     <div ref="terminalContainer" class="terminal-container"></div>
@@ -262,12 +261,5 @@ function sendCommand(command) {
 
 .reconnect-text {
   font-size: 16px;
-}
-
-.error-text {
-  font-size: 12px;
-  color: #f48771;
-  max-width: 300px;
-  text-align: center;
 }
 </style>

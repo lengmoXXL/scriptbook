@@ -20,6 +20,10 @@ const mdErrors = ref({})
 const terminalTabs = useTabs()
 const terminalRefs = {}
 
+// Error modal
+const showErrorModal = ref(false)
+const errorMessage = ref('')
+
 // Resize handler refs for cleanup
 let sidebarResizeHandler = null
 let terminalResizeHandler = null
@@ -155,6 +159,16 @@ function onTerminalTabClose(id) {
     terminalTabs.closeTab(id)
 }
 
+function onTerminalError(error) {
+    errorMessage.value = error
+    showErrorModal.value = true
+}
+
+function closeErrorModal() {
+    showErrorModal.value = false
+    errorMessage.value = ''
+}
+
 function startSidebarResize(event) {
     const startX = event.clientX
     const startWidth = sidebarWidth.value
@@ -267,6 +281,7 @@ onUnmounted(() => {
                             <Terminal
                                 :ref="el => setTerminalRef(tab.id, el)"
                                 :ws-url="getWsUrl(tab.filename, tab.id)"
+                                @error="onTerminalError"
                             />
                         </div>
                     </div>
@@ -286,6 +301,20 @@ onUnmounted(() => {
                         <p>Click a markdown file or terminal config to begin</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div v-if="showErrorModal" class="error-modal-overlay" @click="closeErrorModal">
+        <div class="error-modal" @click.stop>
+            <div class="error-modal-header">
+                <span class="error-modal-title">Error</span>
+                <button class="error-modal-close" @click="closeErrorModal">×</button>
+            </div>
+            <div class="error-modal-body">{{ errorMessage }}</div>
+            <div class="error-modal-footer">
+                <button class="error-modal-btn" @click="closeErrorModal">OK</button>
             </div>
         </div>
     </div>
@@ -431,5 +460,82 @@ onUnmounted(() => {
     margin: 0;
     font-size: 14px;
     color: #666;
+}
+
+.error-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.error-modal {
+    background-color: #2d2d2d;
+    border-radius: 8px;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.error-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #444;
+}
+
+.error-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f48771;
+}
+
+.error-modal-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.error-modal-close:hover {
+    color: #f0f0f0;
+}
+
+.error-modal-body {
+    padding: 20px 16px;
+    color: #f0f0f0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.error-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #444;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.error-modal-btn {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.error-modal-btn:hover {
+    background-color: #005a9e;
 }
 </style>
