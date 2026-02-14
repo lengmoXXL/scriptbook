@@ -6,6 +6,7 @@ import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
 import { useTabs } from '../composables/useTabs.js'
+import { useError } from '../composables/useError.js'
 
 const sidebarWidth = ref(250)
 const topPanelFlex = ref(0.5)
@@ -20,9 +21,8 @@ const mdErrors = ref({})
 const terminalTabs = useTabs()
 const terminalRefs = {}
 
-// Error modal
-const showErrorModal = ref(false)
-const errorMessage = ref('')
+// Error handling
+const { errorMessage, showError, showErrorModal, hideErrorModal } = useError()
 
 // Resize handler refs for cleanup
 let sidebarResizeHandler = null
@@ -101,12 +101,17 @@ function getWsUrl(filename, tabId) {
 
 function onExecuteCommand(command) {
     const tab = terminalTabs.activeTab.value
-    if (!tab) return
-    const terminalRef = getTerminalRef(tab.id)
-    if (terminalRef) {
-        terminalRef.sendCommand(command)
-        terminalRef.focus()
+    if (!tab) {
+        showErrorModal('No terminal open. Please open a terminal first.')
+        return
     }
+    const terminalRef = getTerminalRef(tab.id)
+    if (!terminalRef) {
+        showErrorModal('Terminal not ready. Please try again.')
+        return
+    }
+    terminalRef.sendCommand(command)
+    terminalRef.focus()
 }
 
 async function onFileSelect(selection) {
@@ -121,13 +126,15 @@ async function onFileSelect(selection) {
 
     // Terminal config file
     const filename = selection.filename
-    if (filename) {
-        const tab = terminalTabs.openTab(filename)
-        await nextTick()
-        const terminalRef = getTerminalRef(tab.id)
-        if (terminalRef) {
-            terminalRef.focus()
-        }
+    if (!filename) {
+        showErrorModal('Invalid terminal selection: no filename provided')
+        return
+    }
+    const tab = terminalTabs.openTab(filename)
+    await nextTick()
+    const terminalRef = getTerminalRef(tab.id)
+    if (terminalRef) {
+        terminalRef.focus()
     }
 }
 
@@ -160,13 +167,11 @@ function onTerminalTabClose(id) {
 }
 
 function onTerminalError(error) {
-    errorMessage.value = error
-    showErrorModal.value = true
+    showErrorModal(error)
 }
 
 function closeErrorModal() {
-    showErrorModal.value = false
-    errorMessage.value = ''
+    hideErrorModal()
 }
 
 function startSidebarResize(event) {
@@ -197,7 +202,9 @@ function startSidebarResize(event) {
 
 function startTerminalResize() {
     const content = document.querySelector('.content')
-    if (!content) return
+    if (!content) {
+        throw new Error('Terminal resize failed: content element not found')
+    }
     const rect = content.getBoundingClientRect()
 
     function onMouseMove(e) {
@@ -306,7 +313,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Error Modal -->
-    <div v-if="showErrorModal" class="error-modal-overlay" @click="closeErrorModal">
+    <div v-if="showError" class="error-modal-overlay" @click="closeErrorModal">
         <div class="error-modal" @click.stop>
             <div class="error-modal-header">
                 <span class="error-modal-title">Error</span>

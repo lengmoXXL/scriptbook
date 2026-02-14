@@ -171,7 +171,7 @@ function connectWebSocket() {
 
 function sendStdin(data) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    console.warn('Cannot send: WebSocket not connected')
+    emit('error', 'Cannot send data: WebSocket not connected')
     return false
   }
   socket.send(JSON.stringify(['stdin', data]))
@@ -180,6 +180,7 @@ function sendStdin(data) {
 
 function sendTerminalSize(rows, cols) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
+    emit('error', 'Cannot send terminal size: WebSocket not connected')
     return false
   }
   socket.send(JSON.stringify(['set_size', rows, cols]))

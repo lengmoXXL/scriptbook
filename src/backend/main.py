@@ -210,12 +210,10 @@ def main():
     content = os.path.abspath(args.content)
 
     if not os.path.exists(content):
-        logger.error(f"Directory does not exist: {content}")
-        return
+        raise FileNotFoundError(f"Directory does not exist: {content}")
 
     if not os.path.isdir(content):
-        logger.error(f"Path is not a directory: {content}")
-        return
+        raise NotADirectoryError(f"Path is not a directory: {content}")
 
     # Determine static directory (default: package internal static directory)
     backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -224,23 +222,18 @@ def main():
 
     # Check static directory
     if not os.path.exists(static_dir):
-        logger.warning(f"Static directory does not exist: {static_dir}")
-        logger.warning("Frontend static files will not be served.")
-        static_dir = None
-    elif not os.path.isdir(static_dir):
-        logger.error(f"Static path is not a directory: {static_dir}")
-        return
+        raise FileNotFoundError(f"Static directory does not exist: {static_dir}")
+
+    if not os.path.isdir(static_dir):
+        raise NotADirectoryError(f"Static path is not a directory: {static_dir}")
 
     app = make_app(content, static_dir)
     app.listen(args.port, args.host)
 
     logger.info(f"ScriptBook server started on {args.host}:{args.port}")
     logger.info(f"Document directory: {content}")
-    if static_dir:
-        logger.info(f"Static file directory: {static_dir}")
-        logger.info(f"Frontend: http://{args.host}:{args.port}/")
-    else:
-        logger.warning("Static file serving disabled")
+    logger.info(f"Static file directory: {static_dir}")
+    logger.info(f"Frontend: http://{args.host}:{args.port}/")
     logger.info(f"WebSocket endpoint: ws://{args.host}:{args.port}/ws or ws://{args.host}:{args.port}/ws/{{term_name}}")
     logger.info(f"Health check: http://{args.host}:{args.port}/health")
     logger.info(f"File API: http://{args.host}:{args.port}/api/files")
