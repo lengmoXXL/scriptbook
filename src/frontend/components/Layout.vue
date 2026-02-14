@@ -1,29 +1,31 @@
 <script setup>
 import { ref, nextTick, computed, onUnmounted } from 'vue'
 import FileList from './FileList.vue'
+import TabBar from './TabBar.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
+import { useTabs } from '../composables/useTabs.js'
 
 const sidebarWidth = ref(250)
-const topPanelFlex = ref(0.5)  // flex value for top panel (0-1)
+const topPanelFlex = ref(0.5)
 
-// Local markdown state (top panel)
-const localMdFilename = ref('')
-const localMdContent = ref('')
-const localMdLoading = ref(false)
-const localMdError = ref('')
+// Markdown tabs
+const mdTabs = useTabs()
+const mdContents = ref({})
+const mdLoading = ref({})
+const mdErrors = ref({})
 
-// Terminal state (bottom panel)
-const activeTerminalKey = ref('')
+// Terminal tabs
+const terminalTabs = useTabs()
 const terminalRefs = {}
 
 // Resize handler refs for cleanup
 let sidebarResizeHandler = null
 let terminalResizeHandler = null
 
-const showTopPanel = computed(() => localMdFilename.value !== '')
-const showBottomPanel = computed(() => activeTerminalKey.value !== '')
+const showTopPanel = computed(() => mdTabs.tabs.value.length > 0)
+const showBottomPanel = computed(() => terminalTabs.tabs.value.length > 0)
 
 const topPanelStyle = computed(() => {
     const flex = showBottomPanel.value ? topPanelFlex.value : 1
@@ -35,20 +37,45 @@ const bottomPanelStyle = computed(() => {
     return { flex }
 })
 
-async function loadLocalMarkdown(filename) {
-    localMdFilename.value = filename
-    localMdLoading.value = true
-    localMdError.value = ''
-    localMdContent.value = ''
+// Active markdown tab data
+const activeMdContent = computed(() => {
+    const tab = mdTabs.activeTab.value
+    return tab ? mdContents.value[tab.id] || '' : ''
+})
+
+const activeMdLoading = computed(() => {
+    const tab = mdTabs.activeTab.value
+    return tab ? mdLoading.value[tab.id] || false : false
+})
+
+const activeMdError = computed(() => {
+    const tab = mdTabs.activeTab.value
+    return tab ? mdErrors.value[tab.id] || '' : ''
+})
+
+// Open markdown files passed to FileList for highlighting
+const openMdFiles = computed(() =>
+    mdTabs.tabs.value.map(t => t.filename)
+)
+
+// Open terminal files passed to FileList for highlighting
+const openTerminalFiles = computed(() =>
+    terminalTabs.tabs.value.map(t => t.filename)
+)
+
+async function loadMarkdownContent(tab) {
+    mdLoading.value[tab.id] = true
+    mdErrors.value[tab.id] = ''
+    mdContents.value[tab.id] = ''
 
     try {
-        const content = await getFileContent(filename)
-        localMdContent.value = content
+        const content = await getFileContent(tab.filename)
+        mdContents.value[tab.id] = content
     } catch (err) {
-        localMdError.value = err.message || 'Failed to load file'
+        mdErrors.value[tab.id] = err.message || 'Failed to load file'
         console.error('Error loading file:', err)
     } finally {
-        localMdLoading.value = false
+        mdLoading.value[tab.id] = false
     }
 }
 
@@ -60,14 +87,18 @@ function setTerminalRef(key, el) {
     terminalRefs[key] = el
 }
 
-// Build wsUrl from terminal config filename
-const wsUrl = computed(() => (configFilename) => {
-    const backendHost = import.meta.env.DEV ? 'localhost:8080' : window.location.host
-    return `ws://${backendHost}/ws/${configFilename}`
-})
+const backendHost = computed(() =>
+    import.meta.env.DEV ? 'localhost:8080' : window.location.host
+)
+
+function getWsUrl(filename, tabId) {
+    return `ws://${backendHost.value}/ws/${filename}/${tabId}`
+}
 
 function onExecuteCommand(command) {
-    const terminalRef = getTerminalRef(activeTerminalKey.value)
+    const tab = terminalTabs.activeTab.value
+    if (!tab) return
+    const terminalRef = getTerminalRef(tab.id)
     if (terminalRef) {
         terminalRef.sendCommand(command)
         terminalRef.focus()
@@ -75,34 +106,53 @@ function onExecuteCommand(command) {
 }
 
 async function onFileSelect(selection) {
-    // Handle local markdown files (top panel)
     if (selection.isLocal) {
-        // Toggle: if same file clicked, close it
-        if (localMdFilename.value === selection.filename) {
-            localMdFilename.value = ''
-            return
+        // Markdown file
+        const tab = mdTabs.openTab(selection.filename)
+        if (!mdContents.value[tab.id]) {
+            await loadMarkdownContent(tab)
         }
-        await loadLocalMarkdown(selection.filename)
         return
     }
 
-    // Handle terminal config files (bottom panel)
+    // Terminal config file
     const filename = selection.filename
-
     if (filename) {
-        // Toggle: if same file clicked, close it
-        if (activeTerminalKey.value === filename) {
-            activeTerminalKey.value = ''
-            return
-        }
-        activeTerminalKey.value = filename
-
+        const tab = terminalTabs.openTab(filename)
         await nextTick()
-        const terminalRef = getTerminalRef(filename)
+        const terminalRef = getTerminalRef(tab.id)
         if (terminalRef) {
             terminalRef.focus()
         }
     }
+}
+
+function onMdTabSelect(id) {
+    mdTabs.selectTab(id)
+}
+
+function onMdTabClose(id) {
+    const tab = mdTabs.tabs.value.find(t => t.id === id)
+    if (tab) {
+        delete mdContents.value[id]
+        delete mdLoading.value[id]
+        delete mdErrors.value[id]
+    }
+    mdTabs.closeTab(id)
+}
+
+function onTerminalTabSelect(id) {
+    terminalTabs.selectTab(id)
+    nextTick(() => {
+        const terminalRef = getTerminalRef(id)
+        if (terminalRef) {
+            terminalRef.focus()
+        }
+    })
+}
+
+function onTerminalTabClose(id) {
+    terminalTabs.closeTab(id)
 }
 
 function startSidebarResize(event) {
@@ -172,31 +222,53 @@ onUnmounted(() => {
 <template>
     <div class="layout">
         <div class="sidebar" :style="{ width: sidebarWidth + 'px' }">
-            <FileList @select="onFileSelect" />
+            <FileList
+                :open-md-files="openMdFiles"
+                :open-terminal-files="openTerminalFiles"
+                @select="onFileSelect"
+            />
         </div>
         <div class="sidebar-resizer" @mousedown="startSidebarResize"></div>
         <div class="main">
             <div class="content">
-                <!-- Top panel: Markdown viewer -->
+                <!-- Top panel: Markdown tabs + viewer -->
                 <div v-if="showTopPanel" class="top-panel" :style="topPanelStyle">
-                    <div v-if="localMdLoading" class="loading-state">Loading...</div>
-                    <div v-else-if="localMdError" class="error-state">{{ localMdError }}</div>
-                    <MarkdownViewer v-else :content="localMdContent" :on-execute-command="onExecuteCommand" />
+                    <TabBar
+                        :tabs="mdTabs.tabs.value"
+                        :active-tab-id="mdTabs.activeTabId.value"
+                        @select="onMdTabSelect"
+                        @close="onMdTabClose"
+                    />
+                    <div class="panel-content">
+                        <div v-if="activeMdLoading" class="loading-state">Loading...</div>
+                        <div v-else-if="activeMdError" class="error-state">{{ activeMdError }}</div>
+                        <MarkdownViewer v-else :content="activeMdContent" :on-execute-command="onExecuteCommand" />
+                    </div>
                 </div>
 
                 <!-- Panel resizer -->
                 <div v-if="showTopPanel && showBottomPanel" class="panel-resizer" @mousedown="startTerminalResize"></div>
 
-                <!-- Bottom panel: Terminal -->
+                <!-- Bottom panel: Terminal tabs + terminal -->
                 <div v-if="showBottomPanel" class="bottom-panel" :style="bottomPanelStyle">
-                    <div class="terminal-header">
-                        <span class="terminal-label">{{ activeTerminalKey }}</span>
-                    </div>
-                    <div class="terminal-body">
-                        <Terminal
-                            :ref="el => setTerminalRef(activeTerminalKey, el)"
-                            :ws-url="wsUrl(activeTerminalKey)"
-                        />
+                    <TabBar
+                        :tabs="terminalTabs.tabs.value"
+                        :active-tab-id="terminalTabs.activeTabId.value"
+                        @select="onTerminalTabSelect"
+                        @close="onTerminalTabClose"
+                    />
+                    <div class="terminal-container">
+                        <div
+                            v-for="tab in terminalTabs.tabs.value"
+                            :key="tab.id"
+                            v-show="tab.id === terminalTabs.activeTabId.value"
+                            class="terminal-instance"
+                        >
+                            <Terminal
+                                :ref="el => setTerminalRef(tab.id, el)"
+                                :ws-url="getWsUrl(tab.filename, tab.id)"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -270,6 +342,13 @@ onUnmounted(() => {
     overflow: hidden;
     border-bottom: 1px solid #444;
     min-height: 0;
+}
+
+.panel-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     padding: 16px 24px;
 }
 
@@ -295,23 +374,18 @@ onUnmounted(() => {
     background-color: #1e1e1e;
 }
 
-.terminal-header {
-    padding: 6px 12px;
-    background-color: #2a2a2a;
-    border-top: 1px solid #444;
-    display: flex;
-    align-items: center;
-}
-
-.terminal-label {
-    font-size: 11px;
-    color: #888;
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-}
-
-.terminal-body {
+.terminal-container {
     flex: 1;
     overflow: hidden;
+    position: relative;
+}
+
+.terminal-instance {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 .loading-state,

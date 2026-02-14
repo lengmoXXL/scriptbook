@@ -2,10 +2,20 @@
 import { ref, onMounted, computed } from 'vue'
 import { listFiles } from '../api/files.js'
 
+const props = defineProps({
+    openMdFiles: {
+        type: Array,
+        default: () => []
+    },
+    openTerminalFiles: {
+        type: Array,
+        default: () => []
+    }
+})
+
 const files = ref([])
 const loading = ref(true)
 const error = ref(null)
-const selectedFile = ref(null)
 
 const emit = defineEmits(['select'])
 
@@ -45,8 +55,6 @@ async function loadFiles() {
 }
 
 async function handleFileClick(file) {
-    selectedFile.value = file
-
     // Local markdown file
     if (file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.tl')) {
         emit('select', { filename: file, isLocal: true })
@@ -61,6 +69,14 @@ async function handleFileClick(file) {
 
 function refreshFiles() {
     loadFiles()
+}
+
+function isMdFileOpen(file) {
+    return props.openMdFiles.includes(file)
+}
+
+function isTerminalFileOpen(file) {
+    return props.openTerminalFiles.includes(file)
 }
 </script>
 
@@ -93,7 +109,7 @@ function refreshFiles() {
                 <ul v-if="markdownFiles.length > 0" class="files">
                     <li v-for="file in markdownFiles"
                         :key="file"
-                        :class="{ selected: selectedFile === file }">
+                        :class="{ open: isMdFileOpen(file) }">
                         <div class="file-item" @click="handleFileClick(file)">
                             <span class="filename">{{ file }}</span>
                         </div>
@@ -108,7 +124,7 @@ function refreshFiles() {
                 <ul v-if="sandboxFiles.length > 0" class="files">
                     <li v-for="file in sandboxFiles"
                         :key="file"
-                        :class="{ selected: selectedFile === file }">
+                        :class="{ open: isTerminalFileOpen(file) }">
                         <div class="file-item" @click="handleFileClick(file)">
                             <span class="filename">{{ file }}</span>
                         </div>
@@ -245,7 +261,9 @@ function refreshFiles() {
     background-color: #2a2a2a;
 }
 
-.files > li .file-item.selected {
-    background-color: #333;
+.files > li .file-item.open {
+    background-color: #37373d;
+    border-left: 2px solid #007acc;
+    margin-left: -2px;
 }
 </style>

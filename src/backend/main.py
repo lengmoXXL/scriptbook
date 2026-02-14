@@ -35,29 +35,34 @@ class SandboxTermManager(NamedTermManager):
     def get_terminal(self, term_name: str):
         """Get or create a terminal by name.
 
-        term_name can be:
-        - container_id for direct docker exec connection
-        - {filename}.tl to read config and execute shell_command
+        term_name format: {config_name}/{tab_id}
+        - config_name: .tl file or container_id
+        - tab_id: unique identifier for each terminal tab
         """
         assert term_name is not None
+        logger.info(f"get_terminal called with term_name: {term_name}")
 
         # Return existing terminal if already created
         if term_name in self.terminals:
+            logger.info(f"Returning existing terminal for: {term_name}")
             return self.terminals[term_name]
 
         # Check max terminals limit
         if self.max_terminals and len(self.terminals) >= self.max_terminals:
             raise MaxTerminalsReached(self.max_terminals)
 
+        # Parse config name from term_name (strip tab_id)
+        config_name = term_name.rsplit('/', 1)[0]
+
         # Check if it's a tl config file
-        if term_name.endswith('.tl'):
+        if config_name.endswith('.tl'):
             # default.tl is a built-in terminal, always uses bash
-            if term_name == 'default.tl':
+            if config_name == 'default.tl':
                 shell_cmd = ['bash']
                 logger.info(f"Terminal will use built-in default shell: bash")
             else:
                 # Read config file to get shell_command
-                config_path = os.path.join(self.docs_dir, term_name)
+                config_path = os.path.join(self.docs_dir, config_name)
                 try:
                     with open(config_path, 'r') as f:
                         config_content = f.read()
@@ -75,16 +80,16 @@ class SandboxTermManager(NamedTermManager):
                         shell_command = 'bash'
 
                     shell_cmd = ['bash', '-c', shell_command]
-                    logger.info(f"Terminal will execute shell_command from {term_name}: {shell_command}")
+                    logger.info(f"Terminal will execute shell_command from {config_name}: {shell_command}")
                 except FileNotFoundError:
                     logger.error(f"Config file not found: {config_path}")
                     shell_cmd = ['bash']
                 except Exception as e:
-                    logger.error(f"Error reading config {term_name}: {e}")
+                    logger.error(f"Error reading config {config_name}: {e}")
                     shell_cmd = ['bash']
         else:
             # Direct container connection
-            container_id = term_name
+            container_id = config_name
             shell_cmd = ['bash', '-c', f'docker exec -it {container_id} bash']
             logger.info(f"Terminal will connect to container: {container_id}")
 
@@ -103,7 +108,7 @@ class SandboxTermManager(NamedTermManager):
 
 
 class TerminalWebSocketHandler(TermSocket):
-    """WebSocket handler with session persistence support."""
+    """WebSocket handler with CORS support."""
 
     def check_origin(self, _origin):
         return True
