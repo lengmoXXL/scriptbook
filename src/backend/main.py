@@ -82,11 +82,9 @@ class SandboxTermManager(NamedTermManager):
                     shell_cmd = ['bash', '-c', shell_command]
                     logger.info(f"Terminal will execute shell_command from {config_name}: {shell_command}")
                 except FileNotFoundError:
-                    logger.error(f"Config file not found: {config_path}")
-                    shell_cmd = ['bash']
+                    raise FileNotFoundError(f"Config file not found: {config_path}")
                 except Exception as e:
-                    logger.error(f"Error reading config {config_name}: {e}")
-                    shell_cmd = ['bash']
+                    raise RuntimeError(f"Error reading config {config_name}: {e}")
         else:
             # Direct container connection
             container_id = config_name
@@ -108,10 +106,19 @@ class SandboxTermManager(NamedTermManager):
 
 
 class TerminalWebSocketHandler(TermSocket):
-    """WebSocket handler with CORS support."""
+    """WebSocket handler with CORS support and error handling."""
 
     def check_origin(self, _origin):
         return True
+
+    def open(self, url_component=None):
+        """Open terminal connection with proper error handling."""
+        try:
+            super().open(url_component)
+        except FileNotFoundError as e:
+            self.close(code=1002, reason=str(e))
+        except Exception as e:
+            self.close(code=1011, reason=str(e))
 
 
 class HealthCheckHandler(tornado.web.RequestHandler):

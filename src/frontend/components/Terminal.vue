@@ -24,6 +24,7 @@ const DEFAULT_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace'
 
 const terminalContainer = ref(null)
 const isConnected = ref(false)
+const errorMessage = ref('')
 
 let term = null
 let fitAddon = null
@@ -53,6 +54,7 @@ function cleanup() {
     terminalClickHandler = null
   }
   isConnected.value = false
+  errorMessage.value = ''
 }
 
 onMounted(() => {
@@ -155,11 +157,15 @@ function connectWebSocket() {
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error)
+    errorMessage.value = 'Connection failed'
   }
 
   socket.onclose = (event) => {
     console.log('WebSocket closed:', event.code, event.reason)
     isConnected.value = false
+    if (event.code !== 1000 && event.code !== 1001) {
+      errorMessage.value = event.reason || `Connection closed (${event.code})`
+    }
   }
 }
 
@@ -198,6 +204,7 @@ function sendCommand(command) {
       <div class="reconnect-content">
         <span class="reconnect-icon">↻</span>
         <span class="reconnect-text">Reconnect</span>
+        <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
       </div>
     </div>
     <div ref="terminalContainer" class="terminal-container"></div>
@@ -255,5 +262,12 @@ function sendCommand(command) {
 
 .reconnect-text {
   font-size: 16px;
+}
+
+.error-text {
+  font-size: 12px;
+  color: #f48771;
+  max-width: 300px;
+  text-align: center;
 }
 </style>
