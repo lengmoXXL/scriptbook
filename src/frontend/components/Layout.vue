@@ -7,9 +7,7 @@ import Terminal from './Terminal.vue'
 import { getFileContent } from '../api/files.js'
 import { useTabs } from '../composables/useTabs.js'
 import { useError } from '../composables/useError.js'
-
-const sidebarWidth = ref(250)
-const topPanelFlex = ref(0.5)
+import { useSidebarResize, usePanelResize } from '../composables/useResizable.js'
 
 // Markdown tabs
 const mdTabs = useTabs()
@@ -24,9 +22,21 @@ const terminalRefs = {}
 // Error handling
 const { errorMessage, showError, showErrorModal, hideErrorModal } = useError()
 
-// Resize handler refs for cleanup
-let sidebarResizeHandler = null
-let terminalResizeHandler = null
+// Sidebar resize
+const { width: sidebarWidth, startResize: startSidebarResize, cleanup: cleanupSidebar } = useSidebarResize({
+    initialWidth: 250,
+    minWidth: 150,
+    maxWidth: 500
+})
+
+// Panel resize
+const getContentElement = () => document.querySelector('.content')
+const { flex: topPanelFlex, startResize: startTerminalResize, cleanup: cleanupPanel } = usePanelResize({
+    getContentElement,
+    initialFlex: 0.5,
+    minFlex: 0.1,
+    maxFlex: 0.9
+})
 
 const showTopPanel = computed(() => mdTabs.tabs.value.length > 0)
 const showBottomPanel = computed(() => terminalTabs.tabs.value.length > 0)
@@ -174,69 +184,9 @@ function closeErrorModal() {
     hideErrorModal()
 }
 
-function startSidebarResize(event) {
-    const startX = event.clientX
-    const startWidth = sidebarWidth.value
-
-    function onMouseMove(e) {
-        const deltaX = e.clientX - startX
-        let newWidth = startWidth + deltaX
-        newWidth = Math.max(150, Math.min(500, newWidth))
-        sidebarWidth.value = newWidth
-    }
-
-    function onMouseUp() {
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-        sidebarResizeHandler = null
-    }
-
-    sidebarResizeHandler = { onMouseMove, onMouseUp }
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-}
-
-function startTerminalResize() {
-    const content = document.querySelector('.content')
-    if (!content) {
-        throw new Error('Terminal resize failed: content element not found')
-    }
-    const rect = content.getBoundingClientRect()
-
-    function onMouseMove(e) {
-        const relativeY = e.clientY - rect.top
-        const newFlex = Math.max(0.1, Math.min(0.9, relativeY / rect.height))
-        topPanelFlex.value = newFlex
-    }
-
-    function onMouseUp() {
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-        terminalResizeHandler = null
-    }
-
-    terminalResizeHandler = { onMouseMove, onMouseUp }
-    document.addEventListener('mousemove', onMouseMove, { passive: false })
-    document.addEventListener('mouseup', onMouseUp)
-    document.body.style.cursor = 'row-resize'
-    document.body.style.userSelect = 'none'
-}
-
 onUnmounted(() => {
-    if (sidebarResizeHandler) {
-        document.removeEventListener('mousemove', sidebarResizeHandler.onMouseMove)
-        document.removeEventListener('mouseup', sidebarResizeHandler.onMouseUp)
-    }
-    if (terminalResizeHandler) {
-        document.removeEventListener('mousemove', terminalResizeHandler.onMouseMove)
-        document.removeEventListener('mouseup', terminalResizeHandler.onMouseUp)
-    }
+    cleanupSidebar()
+    cleanupPanel()
 })
 </script>
 

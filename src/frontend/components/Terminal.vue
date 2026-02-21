@@ -43,6 +43,11 @@ defineExpose({ sendCommand, focus })
 
 function cleanup() {
   if (socket) {
+    // Remove event listeners before closing
+    socket.onopen = null
+    socket.onmessage = null
+    socket.onerror = null
+    socket.onclose = null
     socket.close()
     socket = null
   }

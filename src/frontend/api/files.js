@@ -8,6 +8,18 @@ const API_BASE = import.meta.env.DEV
   : `http://${window.location.host}/api`
 
 /**
+ * Handle API errors and rethrow as standard Error.
+ * @param {unknown} error - The error to handle
+ * @param {string} context - Context message for the error
+ */
+function handleApiError(error, context) {
+    if (!(error instanceof Error)) {
+        throw new Error(`Unexpected error: ${String(error)}`)
+    }
+    throw error
+}
+
+/**
  * Fetch list of markdown files in the docs directory.
  * @returns {Promise<string[]>} Array of filenames
  */
@@ -22,12 +34,7 @@ export async function listFiles() {
         return await response.json()
     } catch (error) {
         console.error('Failed to fetch file list:', error)
-
-        // 确保总是抛出标准 Error 对象
-        if (!(error instanceof Error)) {
-            throw new Error(`Unexpected error: ${String(error)}`)
-        }
-        throw error
+        handleApiError(error, 'fetch file list')
     }
 }
 
@@ -52,11 +59,6 @@ export async function getFileContent(filename) {
         return await response.text()
     } catch (error) {
         console.error(`Failed to fetch file content for ${filename}:`, error)
-
-        // 确保总是抛出标准 Error 对象
-        if (!(error instanceof Error)) {
-            throw new Error(`Unexpected error: ${String(error)}`)
-        }
-        throw error
+        handleApiError(error, `fetch file content for ${filename}`)
     }
 }
