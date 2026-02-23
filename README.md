@@ -1,21 +1,59 @@
-# 项目名称
+# Scriptbook
 
-- [特性](#特性)
-- [快速开始](#快速开始)
-- [文档](#文档)
+交互式终端和文档浏览器，支持在 Web 界面中浏览 Markdown 文档、执行脚本和管理终端会话。
+
+![主界面](./docs/screenshot-main.png)
 
 ## 特性
 
-| 状态 | 功能 | 备注 |
-|------|------|------|
-| release(2.0.1) | 前端 Terminal 组件，支持发送命令给后端执行，支持交互，页面刷新不影响脚本执行，支持现代化的终端体验 | 基于 xterm.js + tornado + terminado 实现 |
-| release(2.0.1) | 后端命令支持传一个目录参数，前端提供组件展示目录下 markdown 文件 |  |
-| release(2.0.1) | 前端特殊处理 markdown 文件里的 bash 代码块，渲染按钮点击可拷贝代码到终端执行 |  |
-| | 后端基于 opensandbox 新增 sandbox 管理 api，前端新增对话框执行 sandbox 命令 | |
+- **Markdown 渲染** - 支持代码块语法高亮和一键执行
+- **交互式终端** - 基于 xterm.js 的现代化终端体验
+- **窗口管理** - 支持分割、拖拽重排、布局保存
+- **多语言支持** - bash、python、shell 等
+
+## 安装
+
+```bash
+pip install scriptbook
+```
 
 ## 快速开始
 
 ```bash
+# 启动服务
+scriptbook server <目录> --port 8080
+
+# 访问 http://localhost:8080
 ```
 
+## 截图
+
+**文件选择器**
+
+![文件选择器](./docs/screenshot-file-picker.png)
+
+## 文件类型
+
+| 扩展名 | 说明 |
+|--------|------|
+| `.md` | Markdown 文档，代码块可执行 |
+| `.tl` | Terminal 配置文件 |
+| `.layout.json` | 窗口布局文件 |
+
+## 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+P` | 打开文件选择器 |
+| `Ctrl+Enter` | 右侧分割打开 |
+| `Alt+Enter` | 下侧分割打开 |
+| `Esc` | 取消焦点 |
+
 ## 文档
+
+- [开发文档](docs/development.md)
+- [发布流程](docs/release.md)
+
+## License
+
+MIT
