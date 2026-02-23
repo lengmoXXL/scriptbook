@@ -66,8 +66,8 @@ class SandboxTermManager(NamedTermManager):
 
         # Check if it's a tl config file
         if config_name.endswith('.tl'):
-            # default.tl is a built-in terminal, always uses bash
-            if config_name == 'default.tl':
+            # builtin.tl is a built-in terminal, always uses bash
+            if config_name == 'builtin.tl':
                 shell_cmd = ['bash']
                 logger.info(f"Terminal will use built-in default shell: bash")
             else:

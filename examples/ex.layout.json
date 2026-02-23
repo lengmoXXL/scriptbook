@@ -19,7 +19,7 @@
         "type": "window",
         "window": {
           "type": "terminal",
-          "filename": "default.tl"
+          "filename": "builtin.tl"
         },
         "flex": 1.4192708333333333
       }

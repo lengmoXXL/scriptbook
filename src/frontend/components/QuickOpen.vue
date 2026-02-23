@@ -21,11 +21,6 @@ const filteredFiles = computed(() => {
     const markdowns = files.value.filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')).sort()
     const terminals = files.value.filter(f => f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')).sort()
 
-    // Always include default.tl
-    if (!terminals.includes('default.tl')) {
-        terminals.unshift('default.tl')
-    }
-
     // 按类型排序：布局 > Markdown > 终端
     const allFiles = [...layouts, ...markdowns, ...terminals]
 

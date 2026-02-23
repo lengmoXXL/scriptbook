@@ -21,8 +21,8 @@ test.describe('Execute Command 功能测试', () => {
   }
 
   test('应该能打开 Terminal 窗口', async ({ page }) => {
-    // 打开 default.tl
-    await openFile(page, 'default.tl');
+    // 打开 builtin.tl
+    await openFile(page, 'builtin.tl');
 
     // 应该显示 terminal
     const terminal = page.locator('.terminal-container').first();
@@ -60,7 +60,7 @@ test.describe('Execute Command 功能测试', () => {
     }
 
     // 先打开 Terminal
-    await openFile(page, 'default.tl');
+    await openFile(page, 'builtin.tl');
     await expect(page.locator('.terminal-container').first()).toBeVisible({ timeout: 5000 });
 
     // 等待一小段时间让 WebSocket 连接
@@ -145,7 +145,7 @@ test.describe('Execute Command 功能测试', () => {
     }
 
     // 先打开 Terminal
-    await openFile(page, 'default.tl');
+    await openFile(page, 'builtin.tl');
     await expect(page.locator('.terminal-container').first()).toBeVisible({ timeout: 5000 });
 
     // 等待 WebSocket 连接

@@ -35,6 +35,7 @@ def is_safe_path(base_dir: str, requested_path: str) -> bool:
 def list_markdown_files(directory: str) -> List[str]:
     """
     List all .tl, .md and .layout.json files in the given directory (non-recursive).
+    Always includes builtin.tl as a virtual file.
 
     Args:
         directory: Directory to scan
@@ -67,6 +68,10 @@ def list_markdown_files(directory: str) -> List[str]:
         logger.error(f"Error listing files in {directory}: {e}")
         raise
 
+    # Always include builtin.tl if not present
+    if 'builtin.tl' not in files:
+        files.append('builtin.tl')
+
     files.sort()
     return files
 
@@ -74,6 +79,7 @@ def list_markdown_files(directory: str) -> List[str]:
 def read_file_content(base_dir: str, filename: str, max_size: int = 1024 * 1024) -> str:
     """
     Read content of a file safely.
+    builtin.tl is a virtual file that returns empty content.
 
     Args:
         base_dir: Base directory for file access
@@ -88,6 +94,10 @@ def read_file_content(base_dir: str, filename: str, max_size: int = 1024 * 1024)
         FileNotFoundError: If file does not exist
         IOError: If file cannot be read
     """
+    # builtin.tl is a virtual file
+    if filename == 'builtin.tl':
+        return '# Built-in terminal (uses bash by default)\n'
+
     # Security check
     if not is_safe_path(base_dir, filename):
         raise ValueError(f"Access denied: {filename} is outside of allowed directory")
