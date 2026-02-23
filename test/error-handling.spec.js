@@ -13,6 +13,10 @@ test.describe('错误处理测试', () => {
 
     await page.goto(FRONTEND_URL);
 
+    // 触发文件列表加载（Ctrl+P 打开快速搜索）
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
+
     const errorBanner = page.locator('.error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
     await expect(errorBanner).toContainText('获取文件列表失败');
@@ -27,6 +31,10 @@ test.describe('错误处理测试', () => {
     });
 
     await page.goto(FRONTEND_URL);
+
+    // 触发文件列表加载
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
 
     const errorBanner = page.locator('.error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
@@ -47,6 +55,10 @@ test.describe('错误处理测试', () => {
 
     await page.goto(FRONTEND_URL);
 
+    // 触发文件列表加载
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
+
     const errorBanner = page.locator('.error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
 
@@ -65,6 +77,10 @@ test.describe('错误处理测试', () => {
     });
 
     await page.goto(FRONTEND_URL);
+
+    // 触发文件列表加载
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
 
     const errorBanner = page.locator('.error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
@@ -85,6 +101,10 @@ test.describe('错误处理测试', () => {
     });
 
     await page.goto(FRONTEND_URL);
+
+    // 触发文件列表加载
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
 
     const errorBanner = page.locator('.error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });

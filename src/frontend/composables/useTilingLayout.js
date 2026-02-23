@@ -465,6 +465,92 @@ export function useTilingLayout() {
         }
     }
 
+    /**
+     * 移动窗口到新位置
+     * @param {string} sourceId - 要移动的窗口 ID
+     * @param {string} targetId - 目标窗口 ID
+     * @param {string} position - 'left' | 'right' | 'top' | 'bottom'
+     */
+    function moveWindowToPosition(sourceId, targetId, position) {
+        if (sourceId === targetId) return
+
+        // 找到源窗口节点
+        const sourceResult = findNodeAndParent(rootContainer.value, sourceId)
+        if (!sourceResult) return
+
+        const sourceNode = sourceResult.node
+        const sourceParent = sourceResult.parent
+
+        // 找到目标窗口节点
+        const targetResult = findNodeAndParent(rootContainer.value, targetId)
+        if (!targetResult) return
+
+        const targetNode = targetResult.node
+        const targetParent = targetResult.parent
+
+        // 确定分割方向
+        const splitDirection = (position === 'left' || position === 'right') ? 'horizontal' : 'vertical'
+        const insertBefore = (position === 'left' || position === 'top')
+
+        // 从原位置移除源窗口
+        if (!sourceParent) return
+
+        const sourceIndex = sourceParent.children.findIndex(c => c.id === sourceId)
+        sourceParent.children.splice(sourceIndex, 1)
+
+        // 插入到新位置（先插入再清理，避免 targetParent 引用失效）
+        if (!targetParent) {
+            // 目标是根节点
+            const newSplit = createSplitNode(splitDirection,
+                insertBefore ? [sourceNode, targetNode] : [targetNode, sourceNode])
+            rootContainer.value = newSplit
+        } else if (targetParent.type === 'split' && targetParent.layout === splitDirection) {
+            // 目标的父节点是同方向的 split，直接插入
+            const targetIndex = targetParent.children.findIndex(c => c.id === targetId)
+            const insertIndex = insertBefore ? targetIndex : targetIndex + 1
+            targetParent.children.splice(insertIndex, 0, sourceNode)
+        } else {
+            // 需要创建新的 split 节点
+            const newSplit = createSplitNode(splitDirection,
+                insertBefore ? [sourceNode, targetNode] : [targetNode, sourceNode])
+            const targetIndex = targetParent.children.findIndex(c => c.id === targetId)
+            targetParent.children[targetIndex] = newSplit
+        }
+
+        // 插入完成后再清理空的 split 节点
+        cleanupEmptySplits()
+        focusedWindowId.value = sourceId
+    }
+
+    /**
+     * 清理空的 split 节点
+     */
+    function cleanupEmptySplits() {
+        function cleanup(container, parent = null) {
+            if (!container || container.type === 'window') return
+
+            if (container.type === 'split') {
+                // 递归清理子节点
+                for (let i = container.children.length - 1; i >= 0; i--) {
+                    cleanup(container.children[i], container)
+                }
+
+                // 如果只剩一个子节点，提升它
+                if (container.children.length === 1) {
+                    const remaining = container.children[0]
+                    if (!parent) {
+                        rootContainer.value = remaining
+                    } else {
+                        const idx = parent.children.findIndex(c => c.id === container.id)
+                        parent.children[idx] = remaining
+                    }
+                }
+            }
+        }
+
+        cleanup(rootContainer.value)
+    }
+
     return {
         // State
         rootContainer,
@@ -484,6 +570,7 @@ export function useTilingLayout() {
         resizeWindowByDrag,
         getSplitContainerForWindow,
         focusWindowById,
+        moveWindowToPosition,
         getLayout,
         calculateLayout
     }

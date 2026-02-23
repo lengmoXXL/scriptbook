@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { listFiles } from '../api/files.js'
 
 const props = defineProps({
@@ -7,6 +7,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['select', 'close'])
+
+const errorHandler = inject('errorHandler')
 
 const searchQuery = ref('')
 const files = ref([])
@@ -48,11 +50,11 @@ watch(searchQuery, () => {
 })
 
 async function loadFiles() {
-    if (files.value.length > 0) return // Already loaded
+    if (files.value.length > 0) return
     try {
         files.value = await listFiles()
     } catch (err) {
-        console.error('Error loading files:', err)
+        errorHandler.showError(`获取文件列表失败: ${err.message}`)
     }
 }
 

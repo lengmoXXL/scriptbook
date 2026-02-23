@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useTilingLayout } from '../composables/useTilingLayout.js'
 import { useMarkdownContent } from '../composables/useMarkdownContent.js'
 import { useControlSocket } from '../composables/useControlSocket.js'
@@ -341,10 +341,68 @@ function handleDividerMouseUp() {
     document.removeEventListener('mouseup', handleDividerMouseUp)
 }
 
+// 右键菜单状态
+const contextMenu = ref({
+    visible: false,
+    x: 0,
+    y: 0,
+    windowId: null
+})
+
+// 显示右键菜单
+function onContextMenu(windowId, e) {
+    e.preventDefault()
+    contextMenu.value = {
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        windowId
+    }
+}
+
+// 隐藏右键菜单
+function hideContextMenu() {
+    contextMenu.value.visible = false
+}
+
+// 右键菜单操作
+function contextMenuSplit(direction) {
+    if (contextMenu.value.windowId) {
+        splitWindow(direction, contextMenu.value.windowId)
+    }
+    hideContextMenu()
+}
+
+function contextMenuClose() {
+    if (contextMenu.value.windowId) {
+        closeWindow(contextMenu.value.windowId)
+    }
+    hideContextMenu()
+}
+
+// 点击其他地方关闭菜单
+function handleGlobalClick() {
+    if (contextMenu.value.visible) {
+        hideContextMenu()
+    }
+}
+
+// ESC 键关闭菜单
+function handleKeydown(e) {
+    if (e.key === 'Escape' && contextMenu.value.visible) {
+        hideContextMenu()
+    }
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown)
+})
+
 // 组件卸载时清理
 onUnmounted(() => {
     document.removeEventListener('mousemove', handleDividerMouseMove)
     document.removeEventListener('mouseup', handleDividerMouseUp)
+    window.removeEventListener('keydown', handleKeydown)
 })
 
 // 获取已打开的 Markdown 文件列表
@@ -370,40 +428,19 @@ defineExpose({
 </script>
 
 <template>
-    <div class="tiling-layout-container" ref="containerRef">
+    <div class="tiling-layout-container" ref="containerRef" @click="handleGlobalClick">
         <!-- Windows -->
         <div
             v-for="layout in windowLayouts"
             :key="layout.id"
             class="window"
-            :class="{ focused: layout.id === tilingLayout.focusedWindowId.value }"
+            :class="{
+                focused: layout.id === tilingLayout.focusedWindowId.value
+            }"
             :style="getWindowStyle(layout)"
             @click="onWindowFocus(layout.id)"
+            @contextmenu="onContextMenu(layout.id, $event)"
         >
-            <!-- Window header -->
-            <div class="window-header">
-                <span class="window-title">
-                    {{ layout.window.filename }}
-                </span>
-                <div class="window-actions">
-                    <button class="window-action-btn" @click.stop="splitWindow('horizontal', layout.id)" title="Split horizontally">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="12" y1="3" x2="12" y2="21"/>
-                        </svg>
-                    </button>
-                    <button class="window-action-btn" @click.stop="splitWindow('vertical', layout.id)" title="Split vertically">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="3" y1="12" x2="21" y2="12"/>
-                        </svg>
-                    </button>
-                    <button class="window-close" @click.stop="closeWindow(layout.id)">
-                        ×
-                    </button>
-                </div>
-            </div>
-
             <!-- Window content -->
             <div class="window-content">
                 <MarkdownViewer
@@ -436,6 +473,39 @@ defineExpose({
             @mousedown="handleDividerMouseDown($event, divider)"
         ></div>
 
+        <!-- Context Menu -->
+        <Teleport to="body">
+            <div
+                v-if="contextMenu.visible"
+                class="context-menu"
+                :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+                @click.stop
+            >
+                <div class="context-menu-item" @click="contextMenuSplit('horizontal')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="12" y1="3" x2="12" y2="21"/>
+                    </svg>
+                    <span>Split Right</span>
+                </div>
+                <div class="context-menu-item" @click="contextMenuSplit('vertical')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                    </svg>
+                    <span>Split Down</span>
+                </div>
+                <div class="context-menu-divider"></div>
+                <div class="context-menu-item danger" @click="contextMenuClose">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    <span>Close</span>
+                </div>
+            </div>
+        </Teleport>
+
         <!-- Empty state -->
         <div v-if="windowLayouts.length === 0" class="empty-state">
             <div class="empty-content">
@@ -446,7 +516,7 @@ defineExpose({
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
                 <h2>Press Ctrl+P to open a file</h2>
-                <p class="hint">Use the buttons in the window header to split or close windows</p>
+                <p class="hint">Right-click on a window to split or close</p>
             </div>
         </div>
     </div>
@@ -472,63 +542,6 @@ defineExpose({
 
 .window.focused {
     border-color: rgba(0, 122, 204, 0.3);
-}
-
-.window-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 28px;
-    padding: 0 8px;
-    background-color: #2d2d2d;
-    border-bottom: 1px solid #333;
-    flex-shrink: 0;
-}
-
-.window-title {
-    font-size: 12px;
-    color: #888;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.window-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.window-action-btn {
-    background: none;
-    border: none;
-    color: #888;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 3px;
-    transition: all 0.2s;
-}
-
-.window-action-btn:hover {
-    background-color: #444;
-    color: #f0f0f0;
-}
-
-.window-close {
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
-}
-
-.window-close:hover {
-    color: #f0f0f0;
 }
 
 .window-content {
@@ -562,6 +575,49 @@ defineExpose({
 .resize-divider.vertical:hover,
 .resize-divider.vertical:active {
     background-color: #007acc;
+}
+
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    background-color: #2d2d2d;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 140px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 13px;
+    transition: background-color 0.15s;
+}
+
+.context-menu-item:hover {
+    background-color: #094771;
+    color: #fff;
+}
+
+.context-menu-item.danger {
+    color: #f48771;
+}
+
+.context-menu-item.danger:hover {
+    background-color: #5a1d1d;
+    color: #f48771;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background-color: #454545;
+    margin: 4px 0;
 }
 
 .empty-state {

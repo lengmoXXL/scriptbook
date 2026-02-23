@@ -6,23 +6,32 @@ const FRONTEND_URL = 'http://localhost:7771';
 test.describe('Execute Command 功能测试', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(FRONTEND_URL);
-    await expect(page.locator('.file-list')).toBeVisible({ timeout: 10000 });
+    // 等待页面加载完成（显示空状态提示）
+    await expect(page.locator('.empty-state')).toBeVisible({ timeout: 10000 });
   });
 
-  test('应该能打开 Terminal 窗口', async ({ page }) => {
-    // 点击 default.tl 打开 Terminal
-    const terminalFile = page.locator('.files li').filter({ hasText: 'default.tl' }).first();
-    await terminalFile.click();
+  async function openFile(page, filename) {
+    // 使用 Ctrl+P 打开快速搜索
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
 
-    // 应该显示 terminal (使用更具体的 selector)
+    // 选择指定文件
+    const file = page.locator('.quick-open-item').filter({ hasText: filename }).first();
+    await file.click();
+  }
+
+  test('应该能打开 Terminal 窗口', async ({ page }) => {
+    // 打开 default.tl
+    await openFile(page, 'default.tl');
+
+    // 应该显示 terminal
     const terminal = page.locator('.terminal-container').first();
     await expect(terminal).toBeVisible({ timeout: 5000 });
   });
 
   test('应该能打开 Markdown 文件并看到 execute 按钮', async ({ page }) => {
-    // 点击第一个 .md 文件
-    const mdFile = page.locator('.files li').filter({ hasText: '.md' }).first();
-    await mdFile.click();
+    // 打开第一个 .md 文件
+    await openFile(page, '.md');
 
     // 应该显示 markdown 内容
     await expect(page.locator('.markdown-viewer')).toBeVisible({ timeout: 10000 });
@@ -43,10 +52,15 @@ test.describe('Execute Command 功能测试', () => {
     }
   });
 
-  test('点击 execute 按钮应该发送命令到 Terminal', async ({ page }) => {
+  test('点击 execute 按钮应该发送命令到 Terminal', async ({ page, request }) => {
+    // 检查 bash.md 是否存在
+    const response = await request.get(`${BACKEND_URL}/api/files/bash.md`);
+    if (!response.ok()) {
+      test.skip('bash.md 文件不存在');
+    }
+
     // 先打开 Terminal
-    const terminalFile = page.locator('.files li').filter({ hasText: 'default.tl' }).first();
-    await terminalFile.click();
+    await openFile(page, 'default.tl');
     await expect(page.locator('.terminal-container').first()).toBeVisible({ timeout: 5000 });
 
     // 等待一小段时间让 WebSocket 连接
@@ -60,8 +74,7 @@ test.describe('Execute Command 功能测试', () => {
     }
 
     // 再打开一个有 bash 代码块的 Markdown 文件
-    const mdFile = page.locator('.files li').filter({ hasText: 'bash.md' }).first();
-    await mdFile.click();
+    await openFile(page, 'bash.md');
     await expect(page.locator('.markdown-viewer')).toBeVisible({ timeout: 10000 });
 
     // 查找 execute 按钮
@@ -86,15 +99,18 @@ test.describe('Execute Command 功能测试', () => {
   });
 
   test('data-command 属性应该正确转义双引号', async ({ page, request }) => {
-    // 通过 API 获取 bash.md 内容
+    // 检查 bash.md 是否存在
     const response = await request.get(`${BACKEND_URL}/api/files/bash.md`);
+    if (!response.ok()) {
+      test.skip('bash.md 文件不存在');
+    }
+
+    // 通过 API 获取 bash.md 内容
     const content = await response.text();
 
     // 如果文件包含双引号，验证 HTML 转义
     if (content.includes('"')) {
-      await page.goto(FRONTEND_URL);
-      const mdFile = page.locator('.files li').filter({ hasText: 'bash.md' }).first();
-      await mdFile.click();
+      await openFile(page, 'bash.md');
 
       // 等待 markdown 渲染
       await expect(page.locator('.markdown-viewer')).toBeVisible({ timeout: 10000 });
@@ -111,31 +127,32 @@ test.describe('Execute Command 功能测试', () => {
         const command = await btn.getAttribute('data-command');
         expect(command).toBeTruthy();
 
-        // 验证 HTML 属性没有被破坏（如果包含引号，应该是转义后的）
+        // 验证 HTML 属性没有被破坏
         const outerHTML = await btn.evaluate(el => el.outerHTML);
-        // 不应该有未转义的双引号在 data-command 属性值中
-        // 即 data-command="..." 内部不应该有裸的双引号
         const dataCommandMatch = outerHTML.match(/data-command="([^"]*)"/);
         if (dataCommandMatch) {
-          // 如果匹配成功，说明 HTML 结构正确
           expect(dataCommandMatch[1]).toBeTruthy();
         }
       }
     }
   });
 
-  test('点击 execute 按钮应该发送带换行的命令', async ({ page }) => {
+  test('点击 execute 按钮应该发送带换行的命令', async ({ page, request }) => {
+    // 检查 bash.md 是否存在
+    const response = await request.get(`${BACKEND_URL}/api/files/bash.md`);
+    if (!response.ok()) {
+      test.skip('bash.md 文件不存在');
+    }
+
     // 先打开 Terminal
-    const terminalFile = page.locator('.files li').filter({ hasText: 'default.tl' }).first();
-    await terminalFile.click();
+    await openFile(page, 'default.tl');
     await expect(page.locator('.terminal-container').first()).toBeVisible({ timeout: 5000 });
 
     // 等待 WebSocket 连接
     await page.waitForTimeout(500);
 
     // 打开 bash.md
-    const mdFile = page.locator('.files li').filter({ hasText: 'bash.md' }).first();
-    await mdFile.click();
+    await openFile(page, 'bash.md');
     await expect(page.locator('.markdown-viewer')).toBeVisible({ timeout: 10000 });
 
     // 监听发送的命令
