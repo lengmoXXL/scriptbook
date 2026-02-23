@@ -131,13 +131,24 @@ export function useTilingLayout() {
             focusedWindowId.value = node.id
         } else {
             // 找到当前聚焦的窗口，在其旁边打开新窗口
-            const result = findNodeAndParent(rootContainer.value, focusedWindowId.value)
+            let targetId = focusedWindowId.value
+            if (!targetId) {
+                // 如果没有聚焦窗口，找到第一个可用窗口
+                const firstWindow = windows.value.find(w => w.type === 'window')
+                targetId = firstWindow?.id
+            }
+
+            const result = findNodeAndParent(rootContainer.value, targetId)
             if (result && result.parent) {
                 // 如果聚焦窗口在某个 split 中，添加到该 split
-                const index = result.parent.children.findIndex(c => c.id === focusedWindowId.value)
+                const index = result.parent.children.findIndex(c => c.id === targetId)
                 result.parent.children.splice(index + 1, 0, node)
             } else if (result && result.node) {
                 // 如果聚焦窗口就是根（单个窗口），创建新的 split
+                const oldRoot = rootContainer.value
+                rootContainer.value = createSplitNode('horizontal', [oldRoot, node])
+            } else {
+                // 仍然找不到，直接在根节点旁边创建 split
                 const oldRoot = rootContainer.value
                 rootContainer.value = createSplitNode('horizontal', [oldRoot, node])
             }
