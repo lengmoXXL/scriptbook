@@ -1,6 +1,9 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { listFiles } from '../api/files.js'
+
+// 注入全局错误处理器
+const errorHandler = inject('errorHandler')
 
 const props = defineProps({
     openMdFiles: {
@@ -15,7 +18,6 @@ const props = defineProps({
 
 const files = ref([])
 const loading = ref(true)
-const error = ref(null)
 
 const emit = defineEmits(['select'])
 
@@ -42,13 +44,12 @@ onMounted(async () => {
 
 async function loadFiles() {
     loading.value = true
-    error.value = null
 
     try {
         files.value = await listFiles()
     } catch (err) {
-        error.value = err.message || 'Failed to load files'
         console.error('Error loading files:', err)
+        errorHandler.showError('获取文件列表失败')
     } finally {
         loading.value = false
     }
@@ -91,11 +92,6 @@ function isTerminalFileOpen(file) {
 
         <div v-if="loading" class="loading">
             Loading files...
-        </div>
-
-        <div v-else-if="error" class="error">
-            <p>{{ error }}</p>
-            <button @click="refreshFiles">Retry</button>
         </div>
 
         <div v-else-if="files.length === 0" class="empty">
@@ -180,24 +176,10 @@ function isTerminalFileOpen(file) {
     background-color: #444;
 }
 
-.loading, .error, .empty {
+.loading, .empty {
     padding: 20px;
     text-align: center;
     color: #999;
-}
-
-.error {
-    color: #ff6b6b;
-}
-
-.error button {
-    margin-top: 10px;
-    padding: 6px 12px;
-    background-color: #444;
-    color: #f0f0f0;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
 }
 
 .panels {

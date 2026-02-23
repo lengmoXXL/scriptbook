@@ -2,10 +2,9 @@
  * File API client for interacting with backend file service.
  */
 
-// Use localhost:8080 in dev mode, or current host in production
-const API_BASE = import.meta.env.DEV
-  ? 'http://localhost:8080/api'
-  : `http://${window.location.host}/api`
+import { getApiBaseUrl } from '../config.js'
+
+const API_BASE = getApiBaseUrl()
 
 /**
  * Handle API errors and rethrow as standard Error.

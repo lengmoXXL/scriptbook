@@ -32,8 +32,11 @@ export default function bashExecutePlugin(md, options = {}) {
       return defaultRender(tokens, idx, options, env, self)
     }
 
+    // Ensure the command ends with a newline so the last line gets executed
+    const command = code.endsWith('\n') ? code : code + '\n'
+
     // Escape HTML in the command to prevent XSS
-    const escapedCode = md.utils.escapeHtml(code)
+    const escapedCode = md.utils.escapeHtml(command)
 
     // Generate HTML structure with button
     return `

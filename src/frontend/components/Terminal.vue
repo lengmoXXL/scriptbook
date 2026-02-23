@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, inject, onMounted, watch, onUnmounted } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
 import '@xterm/xterm/css/xterm.css'
+import { CONFIG } from '../config.js'
 
 const props = defineProps({
   wsUrl: {
@@ -13,16 +14,8 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['error'])
-
-const DEFAULT_THEME = {
-  background: '#1e1e1e',
-  foreground: '#f0f0f0',
-  cursor: '#00ff00'
-}
-
-const DEFAULT_FONT_SIZE = 14
-const DEFAULT_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace'
+// 注入全局错误处理器
+const errorHandler = inject('errorHandler')
 
 const terminalContainer = ref(null)
 const isConnected = ref(false)
@@ -98,9 +91,9 @@ function initTerminal() {
 
   term = new Terminal({
     cursorBlink: true,
-    theme: DEFAULT_THEME,
-    fontSize: DEFAULT_FONT_SIZE,
-    fontFamily: DEFAULT_FONT_FAMILY
+    theme: CONFIG.terminal.theme,
+    fontSize: CONFIG.terminal.fontSize,
+    fontFamily: CONFIG.terminal.fontFamily
   })
 
   fitAddon = new FitAddon()
@@ -119,7 +112,9 @@ function initTerminal() {
   })
 
   term.onResize((size) => {
-    sendTerminalSize(size.rows, size.cols)
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(['set_size', size.rows, size.cols]))
+    }
   })
 }
 
@@ -141,7 +136,7 @@ function connectWebSocket() {
 
       const messageType = data[0]
 
-      if (messageType === 'setup') {
+      if (messageType === CONFIG.wsMessageTypes.SETUP) {
         console.log('Terminal ready')
         fitAddon.fit()
         console.log('Sending terminal size:', term.rows, 'x', term.cols)
@@ -149,34 +144,33 @@ function connectWebSocket() {
         return
       }
 
-      if (messageType === 'stdout' || messageType === 'stderr') {
+      if (messageType === CONFIG.wsMessageTypes.STDOUT || messageType === CONFIG.wsMessageTypes.STDERR) {
         term.write(data[1])
       } else {
         throw new Error(`Unknown message type: ${messageType}`)
       }
     } catch (error) {
       console.error('WebSocket message error:', error)
-      emit('error', error.message)
+      errorHandler.showError('终端消息解析失败')
     }
   }
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error)
-    emit('error', 'Connection failed')
+    errorHandler.showError('终端连接失败，请检查网络')
   }
 
   socket.onclose = (event) => {
     console.log('WebSocket closed:', event.code, event.reason)
     isConnected.value = false
     if (event.code !== 1000 && event.code !== 1001) {
-      emit('error', event.reason || `Connection closed (${event.code})`)
+      errorHandler.showError(event.reason || `连接已关闭 (${event.code})`)
     }
   }
 }
 
 function sendStdin(data) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    emit('error', 'Cannot send data: WebSocket not connected')
     return false
   }
   socket.send(JSON.stringify(['stdin', data]))
@@ -185,7 +179,6 @@ function sendStdin(data) {
 
 function sendTerminalSize(rows, cols) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    emit('error', 'Cannot send terminal size: WebSocket not connected')
     return false
   }
   socket.send(JSON.stringify(['set_size', rows, cols]))
@@ -193,13 +186,8 @@ function sendTerminalSize(rows, cols) {
 }
 
 function sendCommand(command) {
-  const lines = command.split('\n')
-  lines.forEach((line, index) => {
-    if (line.trim()) {
-      const data = index < lines.length - 1 || command.endsWith('\n') ? line + '\n' : line
-      sendStdin(data)
-    }
-  })
+  // 直接发送整个命令，保留所有换行
+  sendStdin(command)
   return true
 }
 </script>

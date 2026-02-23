@@ -11,10 +11,6 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
-    error: {
-        type: String,
-        default: ''
-    },
     onExecuteCommand: {
         type: Function,
         default: null
@@ -24,9 +20,6 @@ const props = defineProps({
 const markdownContentRef = ref(null)
 
 const renderedHtml = computed(() => {
-    if (props.error) {
-        return `<div class="error-message">${props.error}</div>`
-    }
     if (props.loading) {
         return '<div class="loading-message">Loading content...</div>'
     }
@@ -41,7 +34,11 @@ const renderedHtml = computed(() => {
 function handleExecuteButtonClick(e) {
     if (e.target.classList.contains('execute-bash-btn')) {
         e.preventDefault()
-        const command = e.target.dataset.command
+        let command = e.target.dataset.command
+        // HTML 属性会去掉末尾换行，需要补上
+        if (command && !command.endsWith('\n')) {
+            command += '\n'
+        }
         if (command && props.onExecuteCommand) {
             props.onExecuteCommand(command)
         }
