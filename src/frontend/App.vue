@@ -60,6 +60,27 @@ onUnmounted(() => {
     </div>
 </template>
 
+<style>
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+</style>
+
 <style scoped>
 .app {
     display: flex;
