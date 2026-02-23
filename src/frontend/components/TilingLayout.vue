@@ -202,12 +202,53 @@ function handleControlCommand(action, payload) {
 
 // 文件选择处理（供 App 组件调用）
 function handleFileSelect(selection) {
-    if (selection.isLocal) {
-        openMarkdownWindow(selection.filename)
+    const { filename, isLocal, splitDirection } = selection
+    const windowType = isLocal ? 'markdown' : 'terminal'
+
+    if (splitDirection && tilingLayout.focusedWindowId.value) {
+        // 分割后打开文件
+        openFileWithSplit(filename, windowType, splitDirection)
     } else {
-        const windowId = openTerminalWindow(selection.filename)
+        // 正常打开
+        if (isLocal) {
+            openMarkdownWindow(filename)
+        } else {
+            const windowId = openTerminalWindow(filename)
+            setTimeout(() => {
+                const terminalRef = getTerminalRef(windowId)
+                if (terminalRef) {
+                    terminalRef.focus()
+                }
+            }, 50)
+        }
+    }
+}
+
+// 分割窗口并打开指定文件
+function openFileWithSplit(filename, windowType, direction) {
+    const splitInfo = tilingLayout.splitWindow(direction)
+    if (!splitInfo) {
+        // 如果没有窗口，直接打开
+        if (windowType === 'markdown') {
+            openMarkdownWindow(filename)
+        } else {
+            openTerminalWindow(filename)
+        }
+        return
+    }
+
+    const newWindowId = tilingLayout.createWindowInSplit(splitInfo, {
+        type: windowType,
+        filename
+    })
+
+    if (newWindowId && windowType === 'markdown') {
+        mdContent.loadContent(newWindowId, filename)
+    }
+
+    if (windowType === 'terminal') {
         setTimeout(() => {
-            const terminalRef = getTerminalRef(windowId)
+            const terminalRef = getTerminalRef(newWindowId)
             if (terminalRef) {
                 terminalRef.focus()
             }
@@ -404,8 +445,7 @@ defineExpose({
                     <line x1="16" y1="13" x2="8" y2="13"></line>
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                <h2>Select a file to get started</h2>
-                <p>Click a file in the sidebar to open it</p>
+                <h2>Press Ctrl+P to open a file</h2>
                 <p class="hint">Use the buttons in the window header to split or close windows</p>
             </div>
         </div>
