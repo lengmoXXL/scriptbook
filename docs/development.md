@@ -34,7 +34,7 @@ npx playwright install
 
 启动后端（开发模式，支持热加载）：
 ```bash
-DEV_MODE=true python src/backend/main.py examples --port 8080
+DEV_MODE=true python src/backend/main.py server examples --port 8080
 ```
 
 启动前端：
