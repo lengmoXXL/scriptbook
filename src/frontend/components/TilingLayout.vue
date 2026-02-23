@@ -356,6 +356,80 @@ const saveLayoutDialog = ref({
     name: ''
 })
 
+// 拖拽状态
+const dragState = ref({
+    sourceId: null,
+    targetId: null,
+    position: null  // 'left' | 'right' | 'top' | 'bottom'
+})
+
+// 拖拽开始
+function onDragStart(e, windowId) {
+    dragState.value.sourceId = windowId
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', windowId)
+}
+
+// 拖拽结束
+function onDragEnd() {
+    dragState.value = { sourceId: null, targetId: null, position: null }
+}
+
+// 拖拽经过窗口
+function onDragOver(e, targetId) {
+    if (dragState.value.sourceId === targetId) return
+
+    dragState.value.targetId = targetId
+
+    // 根据鼠标位置确定放置位置
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const width = rect.width
+    const height = rect.height
+
+    const relX = x / width
+    const relY = y / height
+
+    // 判断位置：左右优先还是上下优先，根据窗口宽高比
+    if (width > height * 1.5) {
+        // 宽窗口：左右分割
+        dragState.value.position = relX < 0.5 ? 'left' : 'right'
+    } else if (height > width * 1.5) {
+        // 高窗口：上下分割
+        dragState.value.position = relY < 0.5 ? 'top' : 'bottom'
+    } else {
+        // 正方形：根据象限判断
+        if (relX < 0.33) {
+            dragState.value.position = 'left'
+        } else if (relX > 0.67) {
+            dragState.value.position = 'right'
+        } else if (relY < 0.5) {
+            dragState.value.position = 'top'
+        } else {
+            dragState.value.position = 'bottom'
+        }
+    }
+}
+
+// 拖拽离开窗口
+function onDragLeave() {
+    dragState.value.targetId = null
+    dragState.value.position = null
+}
+
+// 放置
+function onDrop(e, targetId) {
+    const sourceId = dragState.value.sourceId
+    const position = dragState.value.position
+
+    if (sourceId && sourceId !== targetId && position) {
+        tilingLayout.moveWindowToPosition(sourceId, targetId, position)
+    }
+
+    onDragEnd()
+}
+
 // 显示右键菜单
 function onContextMenu(windowId, e) {
     e.preventDefault()
@@ -496,12 +570,30 @@ defineExpose({
             :key="layout.id"
             class="window"
             :class="{
-                focused: layout.id === tilingLayout.focusedWindowId.value
+                focused: layout.id === tilingLayout.focusedWindowId.value,
+                'drag-over': dragState.targetId === layout.id,
+                'drag-over-left': dragState.targetId === layout.id && dragState.position === 'left',
+                'drag-over-right': dragState.targetId === layout.id && dragState.position === 'right',
+                'drag-over-top': dragState.targetId === layout.id && dragState.position === 'top',
+                'drag-over-bottom': dragState.targetId === layout.id && dragState.position === 'bottom'
             }"
             :style="getWindowStyle(layout)"
             @click="onWindowFocus(layout.id)"
             @contextmenu="onContextMenu(layout.id, $event)"
+            @dragover.prevent="onDragOver($event, layout.id)"
+            @dragleave="onDragLeave"
+            @drop.prevent="onDrop($event, layout.id)"
         >
+            <!-- Drag handle -->
+            <div
+                class="window-drag-handle"
+                :draggable="windowLayouts.length > 1"
+                @dragstart="onDragStart($event, layout.id)"
+                @dragend="onDragEnd"
+            >
+                <span class="window-title">{{ layout.window.filename }}</span>
+            </div>
+
             <!-- Window content -->
             <div class="window-content">
                 <MarkdownViewer
@@ -631,6 +723,66 @@ defineExpose({
 
 .window.focused {
     border-color: rgba(0, 122, 204, 0.3);
+}
+
+.window-drag-handle {
+    height: 8px;
+    background-color: transparent;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    cursor: grab;
+}
+
+.window-drag-handle:active {
+    cursor: grabbing;
+}
+
+.window-title {
+    display: none;
+}
+
+/* Drop indicators */
+.window.drag-over {
+    position: relative;
+}
+
+.window.drag-over::before {
+    content: '';
+    position: absolute;
+    background-color: rgba(0, 122, 204, 0.5);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.window.drag-over-left::before {
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+}
+
+.window.drag-over-right::before {
+    right: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+}
+
+.window.drag-over-top::before {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 4px;
+}
+
+.window.drag-over-bottom::before {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 4px;
 }
 
 .window-content {
