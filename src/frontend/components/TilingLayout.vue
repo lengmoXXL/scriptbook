@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted, inject } from 'vue'
 import { useTilingLayout } from '../composables/useTilingLayout.js'
 import { useMarkdownContent } from '../composables/useMarkdownContent.js'
+import { useControlSocket } from '../composables/useControlSocket.js'
 import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
 import { CONFIG } from '../config.js'
@@ -14,6 +15,9 @@ const terminalRefs = {}
 
 // 平铺布局管理
 const tilingLayout = useTilingLayout()
+
+// 控制通道
+const { connectionId } = useControlSocket(handleControlCommand)
 
 // Markdown 内容管理
 const mdContent = useMarkdownContent(errorHandler)
@@ -161,7 +165,39 @@ function getWsUrl(filename, windowId) {
     const host = import.meta.env.DEV
         ? CONFIG.api.devBase.replace('http://', '').replace('/api', '')
         : window.location.host
-    return `ws://${host}/ws/${filename}/${windowId}`
+    return `ws://${host}/ws/${filename}/${windowId}?cid=${connectionId}`
+}
+
+// 处理控制命令
+function handleControlCommand(action, payload) {
+    switch (action) {
+        case 'open_window':
+            if (payload.type === 'markdown') {
+                openMarkdownWindow(payload.filename)
+            } else {
+                openTerminalWindow(payload.filename)
+            }
+            break
+        case 'split_window': {
+            const windowId = payload.windowId || tilingLayout.focusedWindowId.value
+            if (windowId) {
+                splitWindow(payload.direction, windowId)
+            }
+            break
+        }
+        case 'close_window': {
+            const closeWindowId = payload.windowId || tilingLayout.focusedWindowId.value
+            if (closeWindowId) {
+                closeWindow(closeWindowId)
+            }
+            break
+        }
+        case 'focus_window':
+            if (payload.windowId) {
+                tilingLayout.focusWindowById(payload.windowId)
+            }
+            break
+    }
 }
 
 // 文件选择处理（供 App 组件调用）

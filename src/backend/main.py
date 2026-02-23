@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 """
-Terminal WebSocket server using Tornado and Terminado.
-Provides PTY terminals to web clients with session persistence.
+ScriptBook - Terminal WebSocket server with document browsing.
+
+Commands:
+    server   - Start the ScriptBook server
+    control  - Send control commands to frontend
 """
 
 import argparse
+import functools
+import json
 import logging
 import os
+import sys
+import urllib.request
+import urllib.error
 
 import tornado.ioloop
 import tornado.web
 from terminado.management import NamedTermManager, PtyWithClients, MaxTerminalsReached
 from terminado.websocket import TermSocket
 from backend.handlers.file_handler import FileHandler
+from backend.handlers.control_handler import ControlWebSocketHandler, ControlApiHandler
 
 
 # Configure logging
@@ -28,11 +37,12 @@ class SandboxTermManager(NamedTermManager):
     - /ws/{config_file}.tl -> read config file and execute shell_command
     """
 
-    def __init__(self, shell_command=None, docs_dir=None):
+    def __init__(self, shell_command=None, docs_dir=None, connection_id=None):
         super().__init__(shell_command=shell_command)
         self.docs_dir = docs_dir
+        self.connection_id = connection_id
 
-    def get_terminal(self, term_name: str):
+    def get_terminal(self, term_name: str, connection_id: str = None):
         """Get or create a terminal by name.
 
         term_name format: {config_name}/{tab_id}
@@ -95,6 +105,9 @@ class SandboxTermManager(NamedTermManager):
         options = self.term_settings.copy()
         options["shell_command"] = shell_cmd
         env = self.make_term_env(**options)
+        # Add connection ID to environment if provided
+        if connection_id:
+            env['SCRIPTBOOK_CONNECTION_ID'] = connection_id
         cwd = options.get("cwd", None)
 
         self.log.info("New terminal with specified name: %s", term_name)
@@ -114,6 +127,19 @@ class TerminalWebSocketHandler(TermSocket):
     def open(self, url_component=None):
         """Open terminal connection with proper error handling."""
         try:
+            # Get connection_id from query parameter
+            connection_id = self.get_argument('cid', None)
+            self.connection_id = connection_id
+
+            # Use partial to bind connection_id to get_terminal
+            if connection_id:
+                # Save reference to the bound method
+                original_method = self.term_manager.__class__.get_terminal.__get__(self.term_manager)
+                self.term_manager.get_terminal = functools.partial(
+                    original_method,
+                    connection_id=connection_id
+                )
+
             super().open(url_component)
         except FileNotFoundError as e:
             self.close(code=1002, reason=str(e))
@@ -165,6 +191,8 @@ def make_app(docs_dir, static_dir):
     term_manager = SandboxTermManager(shell_command=['bash'], docs_dir=docs_dir)
 
     handlers = [
+        (r'/ws/control', ControlWebSocketHandler),
+        (r'/api/control', ControlApiHandler),
         (r'/ws/(.*)', TerminalWebSocketHandler, {'term_manager': term_manager}),
         (r'/health', HealthCheckHandler),
         (r'/api/files', FileHandler, {'docs_dir': docs_dir}),
@@ -181,25 +209,78 @@ def make_app(docs_dir, static_dir):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='ScriptBook server with terminal and document browsing')
-    parser.add_argument('content',
-                       type=str,
-                       default=os.getcwd(),
-                       help='Directory containing markdown documents (default: current working directory)')
-    parser.add_argument('--host',
-                       default='localhost',
-                       help='Host to bind to (default: localhost)')
-    parser.add_argument('--port', '-p',
-                       type=int,
-                       default=8080,
-                       help='Server port (default: 8080)')
+    parser = argparse.ArgumentParser(description='ScriptBook - Terminal WebSocket server')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # server command
+    server_parser = subparsers.add_parser('server', help='Start the ScriptBook server')
+    server_parser.add_argument('content', nargs='?', default='.', help='Content directory (default: current directory)')
+    server_parser.add_argument('--host', default='localhost', help='Host to bind to')
+    server_parser.add_argument('--port', '-p', type=int, default=8080, help='Server port')
+
+    # control command
+    control_parser = subparsers.add_parser('control', help='Send control commands to frontend')
+    control_parser.add_argument('action', choices=['open_window', 'split_window', 'close_window', 'focus_window'],
+                                help='Control action')
+    control_parser.add_argument('-c', '--connection-id', help='Connection ID (default: SCRIPTBOOK_CONNECTION_ID env)')
+    control_parser.add_argument('--host', default='localhost', help='Server host')
+    control_parser.add_argument('--port', '-p', type=int, default=8080, help='Server port')
+    control_parser.add_argument('-f', '--filename', help='Filename for open_window')
+    control_parser.add_argument('-t', '--type', choices=['markdown', 'terminal'], help='Window type')
+    control_parser.add_argument('-d', '--direction', choices=['horizontal', 'vertical'], help='Split direction')
+    control_parser.add_argument('-w', '--window-id', help='Window ID')
+
     return parser.parse_args()
 
 
-def main():
-    """Start the server."""
-    args = parse_args()
+def cmd_control(args):
+    """Send control command to frontend."""
+    connection_id = args.connection_id or os.environ.get('SCRIPTBOOK_CONNECTION_ID')
+    if not connection_id:
+        print("Error: connection_id required. Set SCRIPTBOOK_CONNECTION_ID or use -c", file=sys.stderr)
+        sys.exit(1)
 
+    payload = {}
+    if args.filename:
+        payload['filename'] = args.filename
+    if args.type:
+        payload['type'] = args.type
+    if args.direction:
+        payload['direction'] = args.direction
+    if args.window_id:
+        payload['windowId'] = args.window_id
+
+    data = {
+        'connection_id': connection_id,
+        'action': args.action,
+        'payload': payload
+    }
+
+    url = f"http://{args.host}:{args.port}/api/control"
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(data).encode('utf-8'),
+            headers={'Content-Type': 'application/json'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            if result.get('status') == 'ok':
+                print(f"Command '{args.action}' sent")
+            else:
+                print(f"Error: {result.get('error', 'Unknown')}", file=sys.stderr)
+                sys.exit(1)
+    except urllib.error.HTTPError as e:
+        error = json.loads(e.read().decode('utf-8'))
+        print(f"Error: {error.get('error', e)}", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"Error: Cannot connect to {url}: {e.reason}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_server(args):
+    """Start the ScriptBook server."""
     # Enable autoreload in development mode
     if os.environ.get('DEV_MODE', 'false').lower() == 'true':
         import tornado.autoreload as tornado_autoreload
@@ -215,12 +296,11 @@ def main():
     if not os.path.isdir(content):
         raise NotADirectoryError(f"Path is not a directory: {content}")
 
-    # Determine static directory (default: package internal static directory)
+    # Determine static directory
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     static_dir = os.path.join(backend_dir, 'static')
     static_dir = os.path.normpath(static_dir)
 
-    # Check static directory
     if not os.path.exists(static_dir):
         raise FileNotFoundError(f"Static directory does not exist: {static_dir}")
 
@@ -232,13 +312,23 @@ def main():
 
     logger.info(f"ScriptBook server started on {args.host}:{args.port}")
     logger.info(f"Document directory: {content}")
-    logger.info(f"Static file directory: {static_dir}")
     logger.info(f"Frontend: http://{args.host}:{args.port}/")
-    logger.info(f"WebSocket endpoint: ws://{args.host}:{args.port}/ws or ws://{args.host}:{args.port}/ws/{{term_name}}")
-    logger.info(f"Health check: http://{args.host}:{args.port}/health")
-    logger.info(f"File API: http://{args.host}:{args.port}/api/files")
 
     tornado.ioloop.IOLoop.current().start()
+
+
+def main():
+    """Entry point."""
+    args = parse_args()
+
+    if args.command == 'server':
+        cmd_server(args)
+    elif args.command == 'control':
+        cmd_control(args)
+    else:
+        # Default: show help
+        print("Usage: python -m src.backend.main <server|control> [options]")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
