@@ -441,22 +441,28 @@ function handleGlobalClick() {
     }
 }
 
-// ESC 键关闭菜单
+// ESC 键关闭菜单或取消焦点
 function handleKeydown(e) {
-    if (e.key === 'Escape' && contextMenu.value.visible) {
-        hideContextMenu()
+    if (e.key === 'Escape') {
+        if (contextMenu.value.visible) {
+            hideContextMenu()
+        } else {
+            tilingLayout.focusedWindowId.value = null
+            // 移除 DOM 焦点，避免 terminal 继续捕获键盘事件
+            document.activeElement?.blur()
+        }
     }
 }
 
 onMounted(() => {
-    window.addEventListener('keydown', handleKeydown)
+    document.addEventListener('keydown', handleKeydown, true)  // capture phase
 })
 
 // 组件卸载时清理
 onUnmounted(() => {
     document.removeEventListener('mousemove', handleDividerMouseMove)
     document.removeEventListener('mouseup', handleDividerMouseUp)
-    window.removeEventListener('keydown', handleKeydown)
+    document.removeEventListener('keydown', handleKeydown, true)
 })
 
 // 获取已打开的 Markdown 文件列表
