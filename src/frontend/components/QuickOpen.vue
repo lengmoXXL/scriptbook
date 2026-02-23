@@ -232,6 +232,9 @@ onUnmounted(() => {
 .file-icon {
     font-size: 14px;
     opacity: 0.8;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .file-icon.terminal {
