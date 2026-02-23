@@ -489,6 +489,20 @@ async function restoreLayout(filename) {
         tilingLayout.rootContainer.value = layoutData.rootContainer
         tilingLayout.focusedWindowId.value = layoutData.focusedWindowId
 
+        // 重建 windows 数组，确保 focusWindowById 能正常工作
+        function collectWindows(container) {
+            if (!container) return
+            if (container.type === 'window') {
+                tilingLayout.windows.value.push(container)
+            } else if (container.type === 'split' && container.children) {
+                for (const child of container.children) {
+                    collectWindows(child)
+                }
+            }
+        }
+        tilingLayout.windows.value = []
+        collectWindows(layoutData.rootContainer)
+
         // 重新加载所有 markdown 内容
         function loadMarkdownContent(container) {
             if (!container) return
