@@ -173,29 +173,30 @@ onUnmounted(() => {
 }
 
 .quick-open-dialog {
-    width: 500px;
-    max-height: 400px;
+    width: 520px;
+    max-height: 420px;
     background-color: #252526;
     border: 1px solid #454545;
-    border-radius: 6px;
+    border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     overflow: hidden;
 }
 
 .quick-open-input-wrapper {
-    padding: 8px;
+    padding: 12px;
     border-bottom: 1px solid #454545;
 }
 
 .quick-open-input {
     width: 100%;
-    padding: 10px 12px;
+    padding: 10px 14px;
     font-size: 14px;
     background-color: #3c3c3c;
     border: 1px solid #454545;
-    border-radius: 4px;
+    border-radius: 6px;
     color: #f0f0f0;
     outline: none;
+    box-sizing: border-box;
 }
 
 .quick-open-input:focus {
@@ -209,13 +210,14 @@ onUnmounted(() => {
 .quick-open-list {
     max-height: 320px;
     overflow-y: auto;
+    padding: 4px 0;
 }
 
 .quick-open-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
+    padding: 8px 16px;
     cursor: pointer;
     font-size: 13px;
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
@@ -249,7 +251,7 @@ onUnmounted(() => {
 .split-actions {
     display: none;
     position: absolute;
-    right: 8px;
+    right: 12px;
     gap: 4px;
 }
 
@@ -279,7 +281,7 @@ onUnmounted(() => {
 }
 
 .quick-open-footer {
-    padding: 8px 12px;
+    padding: 10px 16px;
     border-top: 1px solid #454545;
     font-size: 11px;
     color: #888;
