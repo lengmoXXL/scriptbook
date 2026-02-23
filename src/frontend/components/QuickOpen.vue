@@ -16,22 +16,22 @@ const selectedIndex = ref(0)
 
 const filteredFiles = computed(() => {
     const query = searchQuery.value.toLowerCase()
-    const allFiles = [
-        ...files.value.filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')),
-        ...files.value.filter(f => f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')),
-        ...files.value.filter(f => f.toLowerCase().endsWith('.layout.json'))
-    ]
+
+    const layouts = files.value.filter(f => f.toLowerCase().endsWith('.layout.json')).sort()
+    const markdowns = files.value.filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')).sort()
+    const terminals = files.value.filter(f => f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')).sort()
 
     // Always include default.tl
-    if (!allFiles.includes('default.tl')) {
-        allFiles.unshift('default.tl')
+    if (!terminals.includes('default.tl')) {
+        terminals.unshift('default.tl')
     }
 
-    if (!query) return allFiles.sort()
+    // 按类型排序：布局 > Markdown > 终端
+    const allFiles = [...layouts, ...markdowns, ...terminals]
 
-    return allFiles
-        .filter(f => f.toLowerCase().includes(query))
-        .sort()
+    if (!query) return allFiles
+
+    return allFiles.filter(f => f.toLowerCase().includes(query))
 })
 
 watch(() => props.visible, (visible) => {
