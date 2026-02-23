@@ -61,3 +61,29 @@ export async function getFileContent(filename) {
         handleApiError(error, `fetch file content for ${filename}`)
     }
 }
+
+/**
+ * Save content to a file.
+ * @param {string} filename - Name of the file to save
+ * @param {string} content - Content to write
+ * @returns {Promise<void>}
+ */
+export async function saveFileContent(filename, content) {
+    try {
+        const encodedFilename = encodeURIComponent(filename)
+        const response = await fetch(`${API_BASE}/files/${encodedFilename}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8'
+            },
+            body: content
+        })
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+    } catch (error) {
+        console.error(`Failed to save file ${filename}:`, error)
+        handleApiError(error, `save file ${filename}`)
+    }
+}

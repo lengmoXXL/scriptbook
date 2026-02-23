@@ -17,8 +17,9 @@ const selectedIndex = ref(0)
 const filteredFiles = computed(() => {
     const query = searchQuery.value.toLowerCase()
     const allFiles = [
-        ...files.value.filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl')),
-        ...files.value.filter(f => f.toLowerCase().endsWith('.tl'))
+        ...files.value.filter(f => f.toLowerCase().endsWith('.md') && !f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')),
+        ...files.value.filter(f => f.toLowerCase().endsWith('.tl') && !f.toLowerCase().endsWith('.layout.json')),
+        ...files.value.filter(f => f.toLowerCase().endsWith('.layout.json'))
     ]
 
     // Always include default.tl
@@ -50,7 +51,6 @@ watch(searchQuery, () => {
 })
 
 async function loadFiles() {
-    if (files.value.length > 0) return
     try {
         files.value = await listFiles()
     } catch (err) {
@@ -88,7 +88,8 @@ function handleKeydown(e) {
 
 function selectFile(file, splitDirection = null) {
     if (!file) return
-    const isLocal = file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.tl')
+    const isLayout = file.toLowerCase().endsWith('.layout.json')
+    const isLocal = isLayout || (file.toLowerCase().endsWith('.md') && !file.toLowerCase().endsWith('.tl'))
     emit('select', { filename: file, isLocal, splitDirection })
     emit('close')
 }
@@ -124,8 +125,10 @@ onUnmounted(() => {
                         @click="selectFile(file)"
                         @mouseenter="selectedIndex = index"
                     >
-                        <span class="file-icon" :class="{ terminal: file.endsWith('.tl') }">
-                            {{ file.endsWith('.tl') ? '⌘' : '📄' }}
+                        <span class="file-icon" :class="{ terminal: file.endsWith('.tl'), layout: file.endsWith('.layout.json') }">
+                            <template v-if="file.endsWith('.layout.json')">📁</template>
+                            <template v-else-if="file.endsWith('.tl')">⌘</template>
+                            <template v-else>📄</template>
                         </span>
                         <span class="file-name">{{ file }}</span>
                         <div class="split-actions">

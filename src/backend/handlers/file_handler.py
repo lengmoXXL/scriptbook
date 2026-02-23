@@ -7,7 +7,7 @@ import json
 import logging
 import tornado.web
 
-from backend.utils.file_system import list_markdown_files, read_file_content
+from backend.utils.file_system import list_markdown_files, read_file_content, write_file_content
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ class FileHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
         """Set CORS headers to allow frontend development server access."""
         self.set_header("Access-Control-Allow-Origin", "*")
-        self.set_header("Access-Control-Allow-Headers", "x-requested-with")
-        self.set_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.set_header("Access-Control-Allow-Headers", "x-requested-with, Content-Type")
+        self.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
 
     def options(self, *args):
         """Handle OPTIONS request for CORS preflight."""
@@ -57,6 +57,27 @@ class FileHandler(tornado.web.RequestHandler):
                 content = read_file_content(self.docs_dir, filename)
                 self.write(content)
                 self.set_header("Content-Type", "text/plain; charset=utf-8")
+        except Exception as e:
+            self._handle_error(e)
+
+    def post(self, filename: str = None):
+        """
+        Handle POST requests - save a file.
+
+        Args:
+            filename: Filename to save (required)
+        """
+        if filename is None:
+            self.set_status(400)
+            self.write({"error": "Filename required"})
+            self.set_header("Content-Type", "application/json")
+            return
+
+        try:
+            content = self.request.body.decode('utf-8')
+            write_file_content(self.docs_dir, filename, content)
+            self.write({"status": "ok"})
+            self.set_header("Content-Type", "application/json")
         except Exception as e:
             self._handle_error(e)
 

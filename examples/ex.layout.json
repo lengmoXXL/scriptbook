@@ -1,0 +1,30 @@
+{
+  "name": "ex",
+  "rootContainer": {
+    "id": "_gfl0s7v",
+    "type": "split",
+    "layout": "horizontal",
+    "children": [
+      {
+        "id": "_ahmy221",
+        "type": "window",
+        "window": {
+          "type": "markdown",
+          "filename": "bash.md"
+        },
+        "flex": 0.5807291666666667
+      },
+      {
+        "id": "_5wad54z",
+        "type": "window",
+        "window": {
+          "type": "terminal",
+          "filename": "default.tl"
+        },
+        "flex": 1.4192708333333333
+      }
+    ],
+    "flex": 1
+  },
+  "focusedWindowId": "_ahmy221"
+}

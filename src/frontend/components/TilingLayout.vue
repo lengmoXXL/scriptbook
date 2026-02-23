@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useTilingLayout } from '../composables/useTilingLayout.js'
 import { useMarkdownContent } from '../composables/useMarkdownContent.js'
 import { useControlSocket } from '../composables/useControlSocket.js'
+import { saveLayout, loadLayout } from '../composables/useLayoutPersistence.js'
 import MarkdownViewer from './MarkdownViewer.vue'
 import Terminal from './Terminal.vue'
 import { CONFIG } from '../config.js'
@@ -349,6 +350,12 @@ const contextMenu = ref({
     windowId: null
 })
 
+// 保存布局对话框状态
+const saveLayoutDialog = ref({
+    visible: false,
+    name: ''
+})
+
 // 显示右键菜单
 function onContextMenu(windowId, e) {
     e.preventDefault()
@@ -378,6 +385,53 @@ function contextMenuClose() {
         closeWindow(contextMenu.value.windowId)
     }
     hideContextMenu()
+}
+
+// 保存布局
+function contextMenuSaveLayout() {
+    hideContextMenu()
+    saveLayoutDialog.value = { visible: true, name: '' }
+}
+
+async function doSaveLayout() {
+    if (!saveLayoutDialog.value.name.trim()) return
+
+    try {
+        await saveLayout(
+            saveLayoutDialog.value.name.trim(),
+            tilingLayout.rootContainer.value,
+            tilingLayout.focusedWindowId.value
+        )
+        saveLayoutDialog.value.visible = false
+    } catch (error) {
+        errorHandler.handleError(error, 'save layout')
+    }
+}
+
+// 恢复布局（供父组件调用）
+async function restoreLayout(filename) {
+    try {
+        const layoutData = await loadLayout(filename)
+        tilingLayout.rootContainer.value = layoutData.rootContainer
+        tilingLayout.focusedWindowId.value = layoutData.focusedWindowId
+
+        // 重新加载所有 markdown 内容
+        function loadMarkdownContent(container) {
+            if (!container) return
+            if (container.type === 'window') {
+                if (container.window?.type === 'markdown' && container.window?.filename) {
+                    mdContent.loadContent(container.id, container.window.filename)
+                }
+            } else if (container.type === 'split' && container.children) {
+                for (const child of container.children) {
+                    loadMarkdownContent(child)
+                }
+            }
+        }
+        loadMarkdownContent(layoutData.rootContainer)
+    } catch (error) {
+        errorHandler.handleError(error, 'restore layout')
+    }
 }
 
 // 点击其他地方关闭菜单
@@ -422,6 +476,7 @@ const openTerminalFiles = computed(() => {
 // 暴露给父组件的方法和属性
 defineExpose({
     handleFileSelect,
+    restoreLayout,
     openMdFiles,
     openTerminalFiles
 })
@@ -496,12 +551,40 @@ defineExpose({
                     <span>Split Down</span>
                 </div>
                 <div class="context-menu-divider"></div>
+                <div class="context-menu-item" @click="contextMenuSaveLayout">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    <span>Save Layout</span>
+                </div>
                 <div class="context-menu-item danger" @click="contextMenuClose">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
                     <span>Close</span>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- Save Layout Dialog -->
+        <Teleport to="body">
+            <div v-if="saveLayoutDialog.visible" class="dialog-overlay" @click.self="saveLayoutDialog.visible = false">
+                <div class="dialog">
+                    <h3>Save Layout</h3>
+                    <input
+                        v-model="saveLayoutDialog.name"
+                        type="text"
+                        placeholder="Layout name"
+                        @keyup.enter="doSaveLayout"
+                        autofocus
+                    />
+                    <div class="dialog-buttons">
+                        <button class="btn-cancel" @click="saveLayoutDialog.visible = false">Cancel</button>
+                        <button class="btn-save" @click="doSaveLayout">Save</button>
+                    </div>
                 </div>
             </div>
         </Teleport>
@@ -636,6 +719,86 @@ defineExpose({
     height: 1px;
     background-color: #454545;
     margin: 4px 0;
+}
+
+/* Dialog */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+}
+
+.dialog {
+    background-color: #2d2d2d;
+    border: 1px solid #454545;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 300px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.dialog h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.dialog input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #454545;
+    border-radius: 4px;
+    background-color: #1e1e1e;
+    color: #fff;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.dialog input:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.dialog-buttons button {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.btn-cancel {
+    background-color: #454545;
+    color: #ccc;
+}
+
+.btn-cancel:hover {
+    background-color: #555;
+}
+
+.btn-save {
+    background-color: #007acc;
+    color: #fff;
+}
+
+.btn-save:hover {
+    background-color: #0098ff;
 }
 
 .empty-state {

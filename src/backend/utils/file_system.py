@@ -34,13 +34,13 @@ def is_safe_path(base_dir: str, requested_path: str) -> bool:
 
 def list_markdown_files(directory: str) -> List[str]:
     """
-    List all .tl and .md files in the given directory (non-recursive).
+    List all .tl, .md and .layout.json files in the given directory (non-recursive).
 
     Args:
         directory: Directory to scan
 
     Returns:
-        List of markdown filenames (just names, not full paths)
+        List of filenames (just names, not full paths)
 
     Raises:
         FileNotFoundError: If directory does not exist
@@ -56,10 +56,9 @@ def list_markdown_files(directory: str) -> List[str]:
     try:
         for item in os.listdir(directory):
             item_path = os.path.join(directory, item)
-            # Check if it's a file (not a directory) and ends with .tl or .md
             if os.path.isfile(item_path):
                 item_lower = item.lower()
-                if item_lower.endswith('.tl') or item_lower.endswith('.md'):
+                if item_lower.endswith('.tl') or item_lower.endswith('.md') or item_lower.endswith('.layout.json'):
                     files.append(item)
     except PermissionError as e:
         logger.error(f"Permission denied accessing directory {directory}: {e}")
@@ -68,7 +67,6 @@ def list_markdown_files(directory: str) -> List[str]:
         logger.error(f"Error listing files in {directory}: {e}")
         raise
 
-    # Sort alphabetically for consistent ordering
     files.sort()
     return files
 
@@ -116,3 +114,29 @@ def read_file_content(base_dir: str, filename: str, max_size: int = 1024 * 1024)
     except Exception as e:
         logger.error(f"Error reading file {filename}: {e}")
         raise IOError(f"Cannot read file {filename}: {e}")
+
+
+def write_file_content(base_dir: str, filename: str, content: str) -> None:
+    """
+    Write content to a file safely.
+
+    Args:
+        base_dir: Base directory for file access
+        filename: Name of the file to write (must be within base_dir)
+        content: Content to write
+
+    Raises:
+        ValueError: If path is not safe
+        IOError: If file cannot be written
+    """
+    if not is_safe_path(base_dir, filename):
+        raise ValueError(f"Access denied: {filename} is outside of allowed directory")
+
+    file_path = os.path.join(base_dir, filename)
+
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except Exception as e:
+        logger.error(f"Error writing file {filename}: {e}")
+        raise IOError(f"Cannot write file {filename}: {e}")

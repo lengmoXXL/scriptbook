@@ -16,6 +16,11 @@ const tilingLayoutRef = ref(null)
 const showQuickOpen = ref(false)
 
 function onFileSelect(selection) {
+    // 布局文件特殊处理
+    if (selection.filename.endsWith('.layout.json')) {
+        tilingLayoutRef.value?.restoreLayout(selection.filename)
+        return
+    }
     tilingLayoutRef.value?.handleFileSelect(selection)
 }
 
