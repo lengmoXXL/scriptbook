@@ -11,6 +11,8 @@ test.describe('Execute Command 功能测试', () => {
   });
 
   async function openFile(page, filename) {
+    // 先按 Escape 解除 terminal 焦点
+    await page.keyboard.press('Escape');
     // 使用 Ctrl+P 打开快速搜索
     await page.keyboard.press('Control+p');
     await expect(page.locator('.quick-open-dialog')).toBeVisible({ timeout: 5000 });
