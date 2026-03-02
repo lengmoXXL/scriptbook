@@ -8,7 +8,7 @@ const CONNECTION_ID_KEY = 'scriptbook_connection_id'
 export function getConnectionId() {
     let id = localStorage.getItem(CONNECTION_ID_KEY)
     if (!id) {
-        id = crypto.randomUUID().slice(0, 8)
+        id = Math.random().toString(36).slice(2, 10)
         localStorage.setItem(CONNECTION_ID_KEY, id)
     }
     return id
